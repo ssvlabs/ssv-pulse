@@ -25,10 +25,8 @@ import (
 	"github.com/aquasecurity/table"
 )
 
-type AddressInfo struct {
-	URL  string
-	Name string
-}
+type Address string
+type Name string
 
 func main() {
 	ctx := context.Background()
@@ -43,18 +41,20 @@ func main() {
 	}
 	addresses := parseAddresses(*addressesFlag)
 
-	receivals := map[phase0.Slot]map[string]time.Time{}
+	receivals := map[phase0.Slot]map[Name]time.Time{}
 	knownSlotRoots := map[phase0.Slot]phase0.Root{}
-	receivedBlockRoots := map[phase0.Slot]map[string]phase0.Root{}
-	peers := map[string]int{}
+	receivedBlockRoots := map[phase0.Slot]map[Name]phase0.Root{}
+	unreadyBlocks200 := map[Name]int{}
+	unreadyBlocks400 := map[Name]int{}
+	peers := map[Name]int{}
 	mu := sync.Mutex{}
 
-	for _, addressInfo := range addresses {
-		go func(addressInfo AddressInfo) {
+	for address, name := range addresses {
+		go func(address Address, name Name) {
 			client, err := auto.New(
 				ctx,
 				auto.WithLogLevel(zerolog.DebugLevel),
-				auto.WithAddress(addressInfo.URL),
+				auto.WithAddress(string(address)),
 			)
 			if err != nil {
 				panic(err)
@@ -68,10 +68,48 @@ func main() {
 
 					data := event.Data.(*v1.HeadEvent)
 					if receivals[data.Slot] == nil {
-						receivals[data.Slot] = map[string]time.Time{}
+						receivals[data.Slot] = map[Name]time.Time{}
 					}
-					receivals[data.Slot][addressInfo.URL] = time.Now()
+					receivals[data.Slot][name] = time.Now()
 					knownSlotRoots[data.Slot] = data.Block
+
+					go func() {
+						time.Sleep(200 * time.Millisecond)
+						resp, err := client.(eth2client.AttestationDataProvider).AttestationData(
+							ctx,
+							&api.AttestationDataOpts{
+								Slot:           data.Slot,
+								CommitteeIndex: 0,
+							},
+						)
+						if err != nil {
+							log.Printf("failed to fetch attestation data after head event: %v", err)
+						} else if resp.Data.BeaconBlockRoot != data.Block {
+							mu.Lock()
+							unreadyBlocks200[name]++
+							mu.Unlock()
+							log.Printf("unready block (200ms) at slot %d from %v", data.Slot, name)
+						}
+					}()
+
+					go func() {
+						time.Sleep(400 * time.Millisecond)
+						resp, err := client.(eth2client.AttestationDataProvider).AttestationData(
+							ctx,
+							&api.AttestationDataOpts{
+								Slot:           data.Slot,
+								CommitteeIndex: 0,
+							},
+						)
+						if err != nil {
+							log.Printf("failed to fetch attestation data after head event: %v", err)
+						} else if resp.Data.BeaconBlockRoot != data.Block {
+							mu.Lock()
+							unreadyBlocks400[name]++
+							mu.Unlock()
+							log.Printf("unready block (400ms) at slot %d from %v", data.Slot, name)
+						}
+					}()
 				},
 			)
 			if err != nil {
@@ -99,9 +137,9 @@ func main() {
 					}
 					mu.Lock()
 					if receivedBlockRoots[slot] == nil {
-						receivedBlockRoots[slot] = map[string]phase0.Root{}
+						receivedBlockRoots[slot] = map[Name]phase0.Root{}
 					}
-					receivedBlockRoots[slot][addressInfo.Name] = attestationData.Data.BeaconBlockRoot
+					receivedBlockRoots[slot][name] = attestationData.Data.BeaconBlockRoot
 					mu.Unlock()
 					return nil
 				})
@@ -111,7 +149,7 @@ func main() {
 							Connected string `json:"connected"`
 						}
 					}
-					err := requests.URL(fmt.Sprintf("%s/eth/v1/node/peer_count", addressInfo.URL)).
+					err := requests.URL(fmt.Sprintf("%s/eth/v1/node/peer_count", address)).
 						ToJSON(&resp).
 						Fetch(ctx)
 					if err != nil {
@@ -122,7 +160,7 @@ func main() {
 					if err != nil {
 						return err
 					}
-					peers[addressInfo.Name] = n
+					peers[name] = n
 					mu.Unlock()
 					return nil
 				})
@@ -130,7 +168,7 @@ func main() {
 					log.Printf("error: %v", err)
 				}
 			}
-		}(addressInfo)
+		}(address, name)
 	}
 
 	// Sleep until next slot, and then print the performance
@@ -143,7 +181,7 @@ func main() {
 
 		// Compute performances.
 		type performance struct {
-			name                string
+			name                Name
 			missing             int
 			received            int
 			peers               int
@@ -152,17 +190,17 @@ func main() {
 			missingAttestations int
 			correctness         float64
 		}
-		performances := map[string]*performance{}
-		for _, addressInfo := range addresses {
-			p := &performance{name: addressInfo.Name, peers: peers[addressInfo.Name]}
-			performances[addressInfo.Name] = p
+		performances := map[Name]*performance{}
+		for _, name := range addresses {
+			p := &performance{name: name, peers: peers[name]}
+			performances[name] = p
 			for s := startSlot; s < slot; s++ {
 				receivals := receivals[s]
 				if receivals == nil {
 					p.missing++
 					continue
 				}
-				receival, ok := receivals[addressInfo.URL]
+				receival, ok := receivals[name]
 				if !ok {
 					p.missing++
 					continue
@@ -180,7 +218,7 @@ func main() {
 					p.missingAttestations++
 					continue
 				}
-				if blockRoots[addressInfo.Name] == slotRoot {
+				if blockRoots[name] == slotRoot {
 					p.freshAttestations++
 				}
 			}
@@ -197,18 +235,19 @@ func main() {
 
 		// Print.
 		tbl := table.New(os.Stdout)
-		tbl.SetHeaders("Address", "Peers", "Blocks (Missing)", "Delay", "Correctness (Missing)")
+		tbl.SetHeaders("Address", "Peers", "Blocks (Missing)", "Delay", "Correctness (Missing)", "Unready (200ms/400ms)")
 		for _, performance := range performanceList {
 			delay := time.Duration(0)
 			if performance.received > 0 {
 				delay = performance.delay / time.Duration(performance.received)
 			}
 			tbl.AddRow(
-				performance.name,
+				string(performance.name),
 				fmt.Sprintf("%d", performance.peers),
 				fmt.Sprintf("%d (%d)", performance.received, performance.missing),
 				delay.String(),
 				fmt.Sprintf("%.2f%% (%d)", performance.correctness*100, performance.missingAttestations),
+				fmt.Sprintf("%d/%d", unreadyBlocks200[performance.name], unreadyBlocks400[performance.name]),
 			)
 		}
 		tbl.Render()
@@ -219,18 +258,15 @@ func main() {
 	}
 }
 
-func parseAddresses(addressesFlag string) []AddressInfo {
-	var addresses []AddressInfo
+func parseAddresses(addressesFlag string) map[Address]Name {
+	addresses := map[Address]Name{}
 	pairs := strings.Split(addressesFlag, ",")
 	for _, pair := range pairs {
 		parts := strings.Split(pair, "=")
 		if len(parts) != 2 {
 			log.Fatalf("Invalid address format: %s", pair)
 		}
-		addresses = append(addresses, AddressInfo{
-			Name: parts[0],
-			URL:  parts[1],
-		})
+		addresses[Address(parts[1])] = Name(parts[0])
 	}
 	return addresses
 }

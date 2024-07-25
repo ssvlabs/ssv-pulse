@@ -1,6 +1,6 @@
 module bn-race
 
-go 1.22.5
+go 1.22
 
 require (
 	github.com/aquasecurity/table v1.8.0
