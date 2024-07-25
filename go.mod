@@ -1,4 +1,4 @@
-module bn-race
+module ssv-benchmark
 
 go 1.22.5
 
