@@ -49,8 +49,8 @@ func main() {
 	peers := map[Name]int{}
 	mu := sync.Mutex{}
 
-	for address, name := range addresses {
-		go func(address Address, name Name) {
+	for name, address := range addresses {
+		go func(name Name, address Address) {
 			client, err := auto.New(
 				ctx,
 				auto.WithLogLevel(zerolog.DebugLevel),
@@ -168,7 +168,7 @@ func main() {
 					log.Printf("error: %v", err)
 				}
 			}
-		}(address, name)
+		}(name, address)
 	}
 
 	// Sleep until next slot, and then print the performance
@@ -191,7 +191,7 @@ func main() {
 			correctness         float64
 		}
 		performances := map[Name]*performance{}
-		for _, name := range addresses {
+		for name := range addresses {
 			p := &performance{name: name, peers: peers[name]}
 			performances[name] = p
 			for s := startSlot; s < slot; s++ {
@@ -258,15 +258,20 @@ func main() {
 	}
 }
 
-func parseAddresses(addressesFlag string) map[Address]Name {
-	addresses := map[Address]Name{}
+func parseAddresses(addressesFlag string) map[Name]Address {
+	seenAddresses := map[Address]bool{}
+	addresses := map[Name]Address{}
 	pairs := strings.Split(addressesFlag, ",")
 	for _, pair := range pairs {
+		if _, ok := seenAddresses[Address(pair)]; ok {
+			log.Fatalf("duplicate address: %s", pair)
+		}
 		parts := strings.Split(pair, "=")
 		if len(parts) != 2 {
 			log.Fatalf("Invalid address format: %s", pair)
 		}
-		addresses[Address(parts[1])] = Name(parts[0])
+		addresses[Name(parts[0])] = Address(parts[1])
+		seenAddresses[Address(parts[1])] = true
 	}
 	return addresses
 }
