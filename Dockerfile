@@ -25,5 +25,8 @@ WORKDIR /app
 # Copy the binary from the builder stage to the final image
 COPY --from=builder /app/main .
 
-# Set the command to run the binary
-CMD ["/app/main"]
+# Set the entrypoint to run the binary
+ENTRYPOINT ["/app/main"]
+
+# Set the default command to be empty, allowing arguments to be passed
+CMD []
