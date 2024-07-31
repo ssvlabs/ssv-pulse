@@ -25,8 +25,10 @@ import (
 	"github.com/aquasecurity/table"
 )
 
-type Address string
-type Name string
+type (
+	Address string
+	Name    string
+)
 
 func main() {
 	ctx := context.Background()
