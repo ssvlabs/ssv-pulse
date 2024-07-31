@@ -14,10 +14,10 @@ RUN go mod download
 COPY . .
 
 # Build the Go application
-RUN go build -o /app/main .
+RUN CGO_ENABLED=0 go build  -o /app/main .
 
 # Use a minimal base image for the final container
-FROM debian:stable-slim
+FROM scratch
 
 # Set the working directory inside the container
 WORKDIR /app
