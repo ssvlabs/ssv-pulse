@@ -49,7 +49,7 @@ func main() {
 	unreadyBlocks200 := map[Name]int{}
 	unreadyBlocks400 := map[Name]int{}
 	peers := map[Name]int{}
-	mu := sync.Mutex{}
+	var mu sync.Mutex
 
 	for name, address := range addresses {
 		go func(name Name, address Address) {
