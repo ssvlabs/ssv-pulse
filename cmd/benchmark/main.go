@@ -266,15 +266,15 @@ func main() {
 		tbl := table.New(os.Stdout)
 		tbl.SetHeaders("Address", "Peers", "Blocks (Missing)", "Latency (Min/Avg/Max)", "Correctness (Missing)", "Unready (200ms/400ms)")
 		for _, performance := range performanceList {
-			latency := time.Duration(0)
+			var avgLatency time.Duration
 			if performance.received > 0 {
-				latency = performance.totalLatency / time.Duration(performance.received)
+				avgLatency = performance.totalLatency / time.Duration(performance.received)
 			}
 			tbl.AddRow(
 				string(performance.name),
 				fmt.Sprintf("%d", performance.peers),
 				fmt.Sprintf("%d (%d)", performance.received, performance.missing),
-				fmt.Sprintf("%s/%s/%s", performance.minLatency, latency, performance.maxLatency),
+				fmt.Sprintf("%s/%s/%s", performance.minLatency, avgLatency, performance.maxLatency),
 				fmt.Sprintf("%.2f%% (%d)", performance.correctness*100, performance.missingAttestations),
 				fmt.Sprintf("%d/%d", unreadyBlocks200[performance.name], unreadyBlocks400[performance.name]),
 			)
