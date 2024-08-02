@@ -1,15 +1,17 @@
-BINARY_PATH=bin/benchmark
+BINARY_DIR=${EXEC_DIR}/bin/benchmark
+EXEC_DIR=cmd/benchmark
+NODE_ADDR=beacon1=REPLACE_WITH_ADDR
 
 .PHONY: default
 default: build run
 
 .PHONY: build
 build:
-	go build -o ${BINARY_PATH} main.go
+	go build -o ${BINARY_DIR} ${EXEC_DIR}/main.go
 
 .PHONY: run
 run:
-	./${BINARY_PATH}
+	./${BINARY_DIR} -addresses=${NODE_ADDR}
 
 .PHONY: clean
 clean:
