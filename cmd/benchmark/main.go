@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -200,14 +201,16 @@ func main() {
 			missing             int
 			received            int
 			peers               int
-			delay               time.Duration
+			totalLatency        time.Duration
+			minLatency          time.Duration
+			maxLatency          time.Duration
 			freshAttestations   int
 			missingAttestations int
 			correctness         float64
 		}
 		performances := map[Name]*performance{}
 		for name := range addresses {
-			p := &performance{name: name, peers: peers[name]}
+			p := &performance{name: name, peers: peers[name], minLatency: time.Duration(math.MaxInt64)}
 			performances[name] = p
 			for s := startSlot; s < slot; s++ {
 				receivals := receivals[s]
@@ -221,7 +224,14 @@ func main() {
 					continue
 				}
 				p.received++
-				p.delay += receival.Sub(slotTime(genesisTime, s))
+				latency := receival.Sub(slotTime(genesisTime, s))
+				p.totalLatency += latency
+				if latency < p.minLatency {
+					p.minLatency = latency
+				}
+				if latency > p.maxLatency {
+					p.maxLatency = latency
+				}
 
 				slotRoot, ok := knownSlotRoots[s]
 				if !ok {
@@ -237,6 +247,10 @@ func main() {
 					p.freshAttestations++
 				}
 			}
+			// Handle case where no latency was recorded
+			if p.minLatency == time.Duration(math.MaxInt64) {
+				p.minLatency = 0
+			}
 		}
 
 		// Sort by correctness.
@@ -250,17 +264,17 @@ func main() {
 
 		// Print.
 		tbl := table.New(os.Stdout)
-		tbl.SetHeaders("Address", "Peers", "Blocks (Missing)", "Delay", "Correctness (Missing)", "Unready (200ms/400ms)")
+		tbl.SetHeaders("Address", "Peers", "Blocks (Missing)", "Latency (Min/Avg/Max)", "Correctness (Missing)", "Unready (200ms/400ms)")
 		for _, performance := range performanceList {
-			delay := time.Duration(0)
+			latency := time.Duration(0)
 			if performance.received > 0 {
-				delay = performance.delay / time.Duration(performance.received)
+				latency = performance.totalLatency / time.Duration(performance.received)
 			}
 			tbl.AddRow(
 				string(performance.name),
 				fmt.Sprintf("%d", performance.peers),
 				fmt.Sprintf("%d (%d)", performance.received, performance.missing),
-				delay.String(),
+				fmt.Sprintf("%s/%s/%s", performance.minLatency, latency, performance.maxLatency),
 				fmt.Sprintf("%.2f%% (%d)", performance.correctness*100, performance.missingAttestations),
 				fmt.Sprintf("%d/%d", unreadyBlocks200[performance.name], unreadyBlocks400[performance.name]),
 			)
