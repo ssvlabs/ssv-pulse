@@ -35,7 +35,19 @@ func main() {
 
 	// Define and parse command-line flags
 	addressesFlag := flag.String("addresses", "", "Comma-separated list of name=url pairs, e.g. 'Beacon1=http://eth2-lh-mainnet-5052.bloxinfra.com,Beacon 2=http://mainnet-standalone-v3.bloxinfra.com:5052'")
+	networkFlag := flag.String("network", "mainnet", "Network to use, either 'mainnet' or 'holesky'")
 	flag.Parse()
+
+	// Set genesis time based on network
+	var genesisTime time.Time
+	switch *networkFlag {
+	case "holesky":
+		genesisTime = time.Unix(1695902400, 0)
+	case "mainnet":
+		genesisTime = time.Unix(1606824023, 0)
+	default:
+		log.Fatalf("Invalid network: %s", *networkFlag)
+	}
 
 	// Parse addresses
 	if *addressesFlag == "" {
@@ -120,8 +132,8 @@ func main() {
 
 			// Request attestation data and fill in block roots at the 4th second of every slot.
 			for {
-				slot := currentSlot() + 1
-				time.Sleep(time.Until(slotTime(slot).Add(4 * time.Second)))
+				slot := currentSlot(genesisTime) + 1
+				time.Sleep(time.Until(slotTime(genesisTime, slot).Add(4 * time.Second)))
 
 				ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 				p := pool.New().WithContext(ctx)
@@ -175,10 +187,10 @@ func main() {
 	}
 
 	// Sleep until next slot, and then print the performance
-	startSlot := currentSlot() + 1
+	startSlot := currentSlot(genesisTime) + 1
 	slot := startSlot
 	for {
-		time.Sleep(time.Until(slotTime(slot)))
+		time.Sleep(time.Until(slotTime(genesisTime, slot)))
 
 		mu.Lock()
 
@@ -209,7 +221,7 @@ func main() {
 					continue
 				}
 				p.received++
-				p.delay += receival.Sub(slotTime(s))
+				p.delay += receival.Sub(slotTime(genesisTime, s))
 
 				slotRoot, ok := knownSlotRoots[s]
 				if !ok {
@@ -279,12 +291,10 @@ func parseAddresses(addressesFlag string) map[Name]Address {
 	return addresses
 }
 
-var genesisTime = time.Unix(1606824023, 0)
-
-func slotTime(slot phase0.Slot) time.Time {
+func slotTime(genesisTime time.Time, slot phase0.Slot) time.Time {
 	return genesisTime.Add(time.Duration(slot) * 12 * time.Second)
 }
 
-func currentSlot() phase0.Slot {
+func currentSlot(genesisTime time.Time) phase0.Slot {
 	return phase0.Slot(time.Since(genesisTime) / (12 * time.Second))
 }
