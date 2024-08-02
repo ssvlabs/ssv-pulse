@@ -123,7 +123,7 @@ func main() {
 				slot := currentSlot() + 1
 				time.Sleep(time.Until(slotTime(slot).Add(4 * time.Second)))
 
-				ctx, _ := context.WithTimeout(ctx, 6*time.Second)
+				ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 				p := pool.New().WithContext(ctx)
 				p.Go(func(ctx context.Context) error {
 					attestationData, err := client.(eth2client.AttestationDataProvider).AttestationData(
@@ -169,6 +169,7 @@ func main() {
 				if err := p.Wait(); err != nil {
 					log.Printf("error: %v", err)
 				}
+				cancel()
 			}
 		}(name, address)
 	}
