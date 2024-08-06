@@ -1,6 +1,8 @@
 BINARY_DIR=${EXEC_DIR}/bin/benchmark
 EXEC_DIR=cmd/benchmark
-NODE_ADDR=beacon1=REPLACE_WITH_ADDR
+DOCKER_IMAGE_NANE=benchmark
+NODE_ADDR=REPLACE_WITH_ADDR
+NETWORK=REPLACE_WITH_NETWORK_NAME
 
 .PHONY: default
 default: build run
@@ -11,7 +13,17 @@ build:
 
 .PHONY: run
 run:
-	./${BINARY_DIR} -addresses=${NODE_ADDR}
+	./${BINARY_DIR} -addresses=${NODE_ADDR} -network=${NETWORK}
+
+########## DOCKER
+.PHONY: docker-build
+docker-build:
+	docker build -t ${DOCKER_IMAGE_NANE} -f build/Dockerfile .
+
+.PHONY: docker-run
+docker-run:
+	docker run ${DOCKER_IMAGE_NANE} -addresses=${NODE_ADDR} -network=${NETWORK}
+##########
 
 .PHONY: clean
 clean:
