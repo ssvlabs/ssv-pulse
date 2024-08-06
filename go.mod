@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/aquasecurity/table v1.8.0
-	github.com/attestantio/go-eth2-client v0.21.7
+	github.com/attestantio/go-eth2-client v0.21.10
 	github.com/carlmjohnson/requests v0.24.1
 	github.com/rs/zerolog v1.33.0
 	github.com/sourcegraph/conc v0.3.0
