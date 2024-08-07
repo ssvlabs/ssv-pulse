@@ -10,16 +10,20 @@ import (
 const (
 	addrFlagName    = "addresses"
 	networkFlagName = "network"
+	logFilePath     = "logFilePath"
 )
 
 type Config struct {
 	Network         NetworkName
 	BeaconNodeAddrs []Address
+	logFilePath     string
 }
 
 func Init() (Config, error) {
 	addrFlag := flag.String(addrFlagName, "", "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'")
 	networkFlag := flag.String(networkFlagName, "", "Network to use, either 'mainnet' or 'holesky'")
+	logFileFlag := flag.String(logFilePath, "", "Path to ssv node log file to analyze")
+
 	flag.Parse()
 
 	var cfg Config
@@ -41,6 +45,7 @@ func Init() (Config, error) {
 	return Config{
 		BeaconNodeAddrs: addresses,
 		Network:         network,
+		logFilePath:     *logFileFlag,
 	}, nil
 }
 
