@@ -7,27 +7,18 @@ import (
 	"strings"
 )
 
-const (
-	addrFlagName    = "addresses"
-	networkFlagName = "network"
-	logFilePath     = "logFilePath"
-)
 
 type Config struct {
 	Network         NetworkName
 	BeaconNodeAddrs []Address
-	logFilePath     string
 }
 
-func Init() (Config, error) {
-	addrFlag := flag.String(addrFlagName, "", "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'")
-	networkFlag := flag.String(networkFlagName, "", "Network to use, either 'mainnet' or 'holesky'")
-	logFileFlag := flag.String(logFilePath, "", "Path to ssv node log file to analyze")
+func Init(addrFlag,networkFlag string ) (Config, error) {
 
 	flag.Parse()
 
 	var cfg Config
-	addresses, err := parseAddresses(*addrFlag)
+	addresses, err := parseAddresses(addrFlag)
 	if err != nil {
 		return cfg, err
 	}
@@ -37,7 +28,7 @@ func Init() (Config, error) {
 		}
 	}
 
-	network := NetworkName(*networkFlag)
+	network := NetworkName(networkFlag)
 	if err := network.Validate(); err != nil {
 		return cfg, errors.Join(err, errors.New("network name was not valid"))
 	}
@@ -45,7 +36,6 @@ func Init() (Config, error) {
 	return Config{
 		BeaconNodeAddrs: addresses,
 		Network:         network,
-		logFilePath:     *logFileFlag,
 	}, nil
 }
 
@@ -57,7 +47,7 @@ func parseAddresses(addrFlag string) ([]Address, error) {
 
 	for _, addr := range pairs {
 		if _, ok := seen[addr]; ok {
-			return addresses, fmt.Errorf("'%s' flag contains duplicates", addrFlagName)
+			return addresses, fmt.Errorf("'%s' flag contains duplicates", "address")
 		}
 		addresses = append(addresses, Address(addr))
 		seen[addr] = struct{}{}

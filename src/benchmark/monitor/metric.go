@@ -2,7 +2,8 @@ package monitor
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/monitor/listener"
+
+	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/monitor/listener"
 )
 
 type (

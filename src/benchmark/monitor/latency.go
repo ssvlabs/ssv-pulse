@@ -4,7 +4,8 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ssvlabsinfra/ssv-benchmark/configs"
+
+	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/configs"
 )
 
 type (

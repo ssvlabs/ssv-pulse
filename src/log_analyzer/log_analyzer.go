@@ -45,7 +45,7 @@ type SignerPerformance struct {
 // Scores for ranks
 var rankScores = []int{5, 4, 3, 2, 1, 0}
 
-func (r *LogAnalyzer) New(logFilePath string) (*LogAnalyzer, error) {
+func New(logFilePath string) (*LogAnalyzer, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %v", err)
@@ -55,7 +55,7 @@ func (r *LogAnalyzer) New(logFilePath string) (*LogAnalyzer, error) {
 	}, nil
 }
 
-func (r *LogAnalyzer) Analize() error {
+func (r *LogAnalyzer) AnalyzeConsensus() error {
 
 	defer r.logFile.Close()
 
