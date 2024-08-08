@@ -12,7 +12,6 @@ type Config struct {
 }
 
 func Init(addrFlag []string, networkFlag string) (Config, error) {
-
 	flag.Parse()
 
 	var cfg Config

@@ -1,19 +1,21 @@
 BINARY_DIR=${EXEC_DIR}/bin/benchmark
-EXEC_DIR=cmd
+EXEC_DIR=cmd/benchmark
 DOCKER_IMAGE_NANE=benchmark
 NODE_ADDR=REPLACE_WITH_ADDR
 NETWORK=REPLACE_WITH_NETWORK_NAME
-
-.PHONY: default
-default: build run
+LOG_FILE_PATH=REPLACE_WITH_PATH
 
 .PHONY: build
 build:
 	go build -o ${BINARY_DIR} ${EXEC_DIR}/main.go
 
-.PHONY: run
-run:
-	./${BINARY_DIR} -addresses=${NODE_ADDR} -network=${NETWORK}
+.PHONY: run-benchmark
+run-benchmark: build
+	./${BINARY_DIR} benchmark --address=${NODE_ADDR} --network=${NETWORK}
+
+.PHONY: run-analyzer
+run-analyzer: build
+	./${BINARY_DIR} log-analyzer --logFilePath=${LOG_FILE_PATH}
 
 ########## DOCKER
 .PHONY: docker-build
@@ -22,7 +24,7 @@ docker-build:
 
 .PHONY: docker-run
 docker-run:
-	docker run ${DOCKER_IMAGE_NANE} -addresses=${NODE_ADDR} -network=${NETWORK}
+	docker run ${DOCKER_IMAGE_NANE} -address=${NODE_ADDR} -network=${NETWORK}
 ##########
 
 .PHONY: clean

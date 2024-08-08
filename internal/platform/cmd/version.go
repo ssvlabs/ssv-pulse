@@ -1,4 +1,4 @@
-package cli
+package cmd
 
 import (
 	"fmt"
@@ -6,15 +6,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// versionCmd
-var versionCmd = &cobra.Command{
+var Version = &cobra.Command{
 	Use:   "version",
 	Short: "specifies the build version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(cmd.Parent().Version)
 	},
-}
-
-func init() {
-	RootCmd.AddCommand(versionCmd)
 }

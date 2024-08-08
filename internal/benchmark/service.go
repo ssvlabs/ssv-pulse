@@ -10,7 +10,7 @@ import (
 	"github.com/aquasecurity/table"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/configs"
+	"github.com/ssvlabsinfra/ssv-benchmark/configs"
 )
 
 type (
@@ -33,7 +33,7 @@ type (
 	}
 )
 
-func NewService(
+func New(
 	addr string,
 	network configs.NetworkName,
 	peersMonitor peersMonitor,

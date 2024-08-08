@@ -1,4 +1,4 @@
-package benchmark_cli
+package benchmark
 
 import (
 	"context"
@@ -8,20 +8,19 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/cli/flags"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/client"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/configs"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/monitor"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/benchmark/monitor/listener"
+	"github.com/ssvlabsinfra/ssv-benchmark/configs"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor/listener"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
 )
 
 func init() {
-	flags.AddPersistentStringSliceFlag(Run, "address", []string{}, "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'", true)
-	flags.AddPersistentStringFlag(Run, "network", "", "Network to use, either 'mainnet' or 'holesky'", true)
+	cmd.AddPersistentStringSliceFlag(CMD, "address", []string{}, "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'", true)
+	cmd.AddPersistentStringFlag(CMD, "network", "", "Network to use, either 'mainnet' or 'holesky'", true)
 }
 
-var Run = &cobra.Command{
+var CMD = &cobra.Command{
 	Use:   "benchmark",
 	Short: "Run benchmarks of ssv node",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -33,6 +32,7 @@ var Run = &cobra.Command{
 		}
 		addresses := viper.GetStringSlice("address")
 		network := viper.GetString("network")
+
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -57,7 +57,7 @@ var Run = &cobra.Command{
 				}
 			}()
 
-			metricSvc := benchmark.NewService(
+			metricSvc := New(
 				string(addr),
 				cfg.Network,
 				monitor.NewPeers(string(addr)),

@@ -1,4 +1,4 @@
-package log_analyzer
+package analyzer
 
 import (
 	"bufio"
@@ -56,7 +56,6 @@ func New(logFilePath string) (*LogAnalyzer, error) {
 }
 
 func (r *LogAnalyzer) AnalyzeConsensus() error {
-
 	defer r.logFile.Close()
 
 	scanner := bufio.NewScanner(r.logFile)

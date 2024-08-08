@@ -1,18 +1,17 @@
-package log_analyzer_cli
+package analyzer
 
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/cli/flags"
-	"github.com/ssvlabsinfra/ssv-benchmark/src/log_analyzer"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
 )
 
 func init() {
-	flags.AddPersistentStringFlag(Run, "logFilePath", "", "Path to ssv node log file to analyze", true)
+	cmd.AddPersistentStringFlag(CMD, "logFilePath", "", "Path to ssv node log file to analyze", true)
 }
 
-var Run = &cobra.Command{
+var CMD = &cobra.Command{
 	Use:   "log-analyzer",
 	Short: "Read and analyze ssv node logs",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -20,7 +19,7 @@ var Run = &cobra.Command{
 			return err
 		}
 		logFilePath := viper.GetString("logFilePath")
-		analyzer, err := log_analyzer.New(logFilePath)
+		analyzer, err := New(logFilePath)
 		if err != nil {
 			return nil
 		}
