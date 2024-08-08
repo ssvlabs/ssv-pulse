@@ -4,16 +4,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"strings"
 )
-
 
 type Config struct {
 	Network         NetworkName
 	BeaconNodeAddrs []Address
 }
 
-func Init(addrFlag,networkFlag string ) (Config, error) {
+func Init(addrFlag []string, networkFlag string) (Config, error) {
 
 	flag.Parse()
 
@@ -39,13 +37,11 @@ func Init(addrFlag,networkFlag string ) (Config, error) {
 	}, nil
 }
 
-func parseAddresses(addrFlag string) ([]Address, error) {
+func parseAddresses(addrFlag []string) ([]Address, error) {
 	seen := make(map[string]struct{})
 	var addresses []Address
 
-	pairs := strings.Split(addrFlag, ",")
-
-	for _, addr := range pairs {
+	for _, addr := range addrFlag {
 		if _, ok := seen[addr]; ok {
 			return addresses, fmt.Errorf("'%s' flag contains duplicates", "address")
 		}

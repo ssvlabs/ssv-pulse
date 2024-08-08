@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	flags.AddPersistentStringFlag(Run, "address", "", "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'", true)
+	flags.AddPersistentStringSliceFlag(Run, "address", []string{}, "Comma-separated list of urls, e.g. 'http://eth2-lh-mainnet-5052.bloxinfra.com,http://mainnet-standalone-v3.bloxinfra.com:5052'", true)
 	flags.AddPersistentStringFlag(Run, "network", "", "Network to use, either 'mainnet' or 'holesky'", true)
 }
 
@@ -31,13 +31,13 @@ var Run = &cobra.Command{
 		if err := viper.BindPFlag("network", cmd.PersistentFlags().Lookup("network")); err != nil {
 			return err
 		}
-		address := viper.GetString("address")
+		addresses := viper.GetStringSlice("address")
 		network := viper.GetString("network")
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		cfg, err := configs.Init(address, network)
+		cfg, err := configs.Init(addresses, network)
 		if err != nil {
 			panic(err.Error())
 		}
