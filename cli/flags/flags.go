@@ -6,12 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	addrFlagName    = "addresses"
-	networkFlagName = "network"
-	logFilePath     = "logFilePath"
-)
-
 // AddPersistentStringFlag adds a string flag to the command
 func AddPersistentStringFlag(c *cobra.Command, flag, value, description string, isRequired bool) {
 	req := ""
