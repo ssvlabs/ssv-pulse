@@ -29,12 +29,17 @@ type (
 		Measure() (total, used, cached, free float64, err error)
 	}
 
+	cpuMonitor interface {
+		Measure() (system, user float64, err error)
+	}
+
 	Service struct {
 		network        configs.NetworkName
 		peersMonitor   peersMonitor
 		latencyMonitor latencyMonitor
 		blocksMonitor  blocksMonitor
 		memoryMonitor  memoryMonitor
+		cpuMonitor     cpuMonitor
 	}
 )
 
@@ -44,6 +49,7 @@ func New(
 	latencyMonitor latencyMonitor,
 	blocksMonitor blocksMonitor,
 	memoryMonitor memoryMonitor,
+	cpuMonitor cpuMonitor,
 ) *Service {
 	return &Service{
 		network:        network,
@@ -51,6 +57,7 @@ func New(
 		latencyMonitor: latencyMonitor,
 		blocksMonitor:  blocksMonitor,
 		memoryMonitor:  memoryMonitor,
+		cpuMonitor:     cpuMonitor,
 	}
 }
 
@@ -78,14 +85,25 @@ func (s *Service) Start(ctx context.Context) {
 					slog.With("err", err.Error()).Error("error fetching memory metric")
 				}
 
+				systemCPUPercent, userCPUPercent, err := s.cpuMonitor.Measure()
+				if err != nil {
+					slog.With("err", err.Error()).Error("error fetching CPU metric")
+				}
+
 				tbl := table.New(os.Stdout)
-				tbl.SetHeaders("Slot", "Latency (Min | Avg | Max)", "Peers (Consensus | Execution | SSV)", "Blocks (Received | Missed)", "Memory (Total | Used | Cached | Free) MB")
+				tbl.SetHeaders(
+					"Slot", "Latency (Min | Avg | Max)",
+					"Peers (Consensus | Execution | SSV)",
+					"Blocks (Received | Missed)",
+					"Memory (Total | Used | Cached | Free) MB",
+					"CPU (System | User)")
 				tbl.AddRow(
 					fmt.Sprintf("%d", slot),
 					fmt.Sprintf("%s | %s | %s", min, avg, max),
 					fmt.Sprintf("%d | %d | %d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
 					fmt.Sprintf("%d | %d", received, missed),
 					fmt.Sprintf("%.2f | %.2f | %.2f | %.2f", total, used, cached, free),
+					fmt.Sprintf("%f %% | %f %%", systemCPUPercent, userCPUPercent),
 				)
 				tbl.Render()
 				slot++
