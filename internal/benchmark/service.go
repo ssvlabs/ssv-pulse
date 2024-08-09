@@ -12,6 +12,7 @@ import (
 
 	"github.com/ssvlabsinfra/ssv-benchmark/configs"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
 )
 
 type (
@@ -19,7 +20,7 @@ type (
 		Measure() (map[client.Type]uint32, error)
 	}
 	latencyMonitor interface {
-		Measure(slot phase0.Slot) (min, max, avg time.Duration)
+		Measure(slot phase0.Slot) monitor.Latency
 	}
 	blocksMonitor interface {
 		Measure(slot phase0.Slot) (received, missed uint32)
@@ -72,7 +73,7 @@ func (s *Service) Start(ctx context.Context) {
 
 			for {
 				time.Sleep(time.Until(slotTime(configs.GenesisTime[s.network], slot).Add(time.Second * 4)))
-				min, max, avg := s.latencyMonitor.Measure(slot)
+				latency := s.latencyMonitor.Measure(slot)
 
 				peers, err := s.peersMonitor.Measure()
 				if err != nil {
@@ -92,14 +93,14 @@ func (s *Service) Start(ctx context.Context) {
 
 				tbl := table.New(os.Stdout)
 				tbl.SetHeaders(
-					"Slot", "Latency (Min | Avg | Max)",
+					"Slot", "Latency (Min | p10 | p50 | p90 | Max)",
 					"Peers (Consensus | Execution | SSV)",
 					"Blocks (Received | Missed)",
 					"Memory (Total | Used | Cached | Free) MB",
 					"CPU (System | User)")
 				tbl.AddRow(
 					fmt.Sprintf("%d", slot),
-					fmt.Sprintf("%s | %s | %s", min, avg, max),
+					fmt.Sprintf("%s | %s | %s | %s | %s", latency.Min, latency.P10, latency.P50, latency.P90, latency.Max),
 					fmt.Sprintf("%d | %d | %d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
 					fmt.Sprintf("%d | %d", received, missed),
 					fmt.Sprintf("%.2f | %.2f | %.2f | %.2f", total, used, cached, free),

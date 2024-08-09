@@ -6,14 +6,18 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabsinfra/ssv-benchmark/configs"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
 )
 
 type (
 	LatencyMonitor struct {
-		min, max, total time.Duration
-		records         uint32
-		network         configs.NetworkName
-		listener        listenerSvc
+		min, max  time.Duration
+		latencies []time.Duration
+		network   configs.NetworkName
+		listener  listenerSvc
+	}
+	Latency struct {
+		Min, P10, P50, P90, Max time.Duration
 	}
 )
 
@@ -24,15 +28,15 @@ func NewLatency(listener listenerSvc, network configs.NetworkName) *LatencyMonit
 	}
 }
 
-func (l *LatencyMonitor) Measure(slot phase0.Slot) (min, max, avg time.Duration) {
+func (l *LatencyMonitor) Measure(slot phase0.Slot) Latency {
 	receival, ok := l.listener.Receival(slot)
 	if !ok {
-		return l.min, l.max, l.total
+		return Latency{}
 	}
 
 	latency := receival.Received.Sub(slotTime(configs.GenesisTime[l.network], slot))
-	l.total += latency
-	if l.records == 0 {
+
+	if len(l.latencies) == 0 {
 		l.min = latency
 	} else if latency < l.min {
 		l.min = latency
@@ -40,8 +44,19 @@ func (l *LatencyMonitor) Measure(slot phase0.Slot) (min, max, avg time.Duration)
 	if latency > l.max {
 		l.max = latency
 	}
-	l.records++
-	return l.min, l.max, l.total / time.Duration(l.records)
+
+	l.latencies = append(l.latencies, latency)
+	p10 := metric.CalculatePercentile(l.latencies, 10)
+	p50 := metric.CalculatePercentile(l.latencies, 50)
+	p90 := metric.CalculatePercentile(l.latencies, 90)
+
+	return Latency{
+		Min: l.min,
+		P10: p10,
+		P50: p50,
+		P90: p90,
+		Max: l.max,
+	}
 }
 
 func slotTime(genesisTime time.Time, slot phase0.Slot) time.Time {
