@@ -11,11 +11,12 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabsinfra/ssv-benchmark/configs"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
 )
 
 type (
 	peersMonitor interface {
-		Measure() (uint32, error)
+		Measure() (map[client.Type]uint32, error)
 	}
 	latencyMonior interface {
 		Measure(slot phase0.Slot) (min, max, avg time.Duration)
@@ -25,7 +26,6 @@ type (
 	}
 
 	Service struct {
-		addr          string
 		network       configs.NetworkName
 		peersMonitor  peersMonitor
 		latencyMonior latencyMonior
@@ -34,14 +34,12 @@ type (
 )
 
 func New(
-	addr string,
 	network configs.NetworkName,
 	peersMonitor peersMonitor,
 	latencyMonitor latencyMonior,
 	blocksMonitor blocksMonitor,
 ) *Service {
 	return &Service{
-		addr:          addr,
 		network:       network,
 		peersMonitor:  peersMonitor,
 		latencyMonior: latencyMonitor,
@@ -69,12 +67,11 @@ func (s *Service) Start(ctx context.Context) {
 				received, missed := s.blocksMonior.Measure(slot)
 
 				tbl := table.New(os.Stdout)
-				tbl.SetHeaders("Address", "Slot", "Latency (Min/Avg/Max)", "Peers", "Blocks (Received/Missed)")
+				tbl.SetHeaders("Slot", "Latency (Min/Avg/Max)", "Peers (Consensus/Execution/SSV)", "Blocks (Received/Missed)")
 				tbl.AddRow(
-					s.addr,
 					fmt.Sprintf("%d", slot),
 					fmt.Sprintf("%s/%s/%s", min, avg, max),
-					fmt.Sprintf("%d", peers),
+					fmt.Sprintf("%d/%d/%d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
 					fmt.Sprintf("%d/%d", received, missed),
 				)
 				tbl.Render()

@@ -2,27 +2,27 @@ package configs
 
 import (
 	"errors"
-	"flag"
-	"fmt"
 )
 
 type Config struct {
-	Network         NetworkName
-	BeaconNodeAddrs []Address
+	Network            NetworkName
+	ConsensusNodeAddrs Address
+	ExecutionNodeAddrs Address
+	SSVNodeAddrs       Address
 }
 
-func Init(addrFlag []string, networkFlag string) (Config, error) {
-	flag.Parse()
-
+func Init(consensusAddr, executionAddr, ssvAddr Address, networkFlag string) (Config, error) {
 	var cfg Config
-	addresses, err := parseAddresses(addrFlag)
-	if err != nil {
-		return cfg, err
+	if err := consensusAddr.Validate(); err != nil {
+		return cfg, errors.Join(err, errors.New("consensus client address was not valid"))
 	}
-	for _, addr := range addresses {
-		if err := addr.Validate(); err != nil {
-			return cfg, errors.Join(err, errors.New("one of the addressses was not valid"))
-		}
+
+	if err := executionAddr.Validate(); err != nil {
+		return cfg, errors.Join(err, errors.New("execution client address was not valid"))
+	}
+
+	if err := ssvAddr.Validate(); err != nil {
+		return cfg, errors.Join(err, errors.New("ssv client address was not valid"))
 	}
 
 	network := NetworkName(networkFlag)
@@ -31,21 +31,9 @@ func Init(addrFlag []string, networkFlag string) (Config, error) {
 	}
 
 	return Config{
-		BeaconNodeAddrs: addresses,
-		Network:         network,
+		ConsensusNodeAddrs: consensusAddr,
+		ExecutionNodeAddrs: executionAddr,
+		SSVNodeAddrs:       ssvAddr,
+		Network:            network,
 	}, nil
-}
-
-func parseAddresses(addrFlag []string) ([]Address, error) {
-	seen := make(map[string]struct{})
-	var addresses []Address
-
-	for _, addr := range addrFlag {
-		if _, ok := seen[addr]; ok {
-			return addresses, fmt.Errorf("'%s' flag contains duplicates", "address")
-		}
-		addresses = append(addresses, Address(addr))
-		seen[addr] = struct{}{}
-	}
-	return addresses, nil
 }

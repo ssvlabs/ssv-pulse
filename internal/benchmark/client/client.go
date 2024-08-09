@@ -8,12 +8,20 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func Get(ctx context.Context, beaconNodeAddr string) (eth2client.Service, error) {
+type Type string
+
+const (
+	Consensus Type = "Consensus"
+	Execution Type = "Execution"
+	SSV       Type = "SSV"
+)
+
+func GetConsensus(ctx context.Context, addr string) (eth2client.Service, error) {
 	var client eth2client.Service
 	client, err := auto.New(
 		ctx,
 		auto.WithLogLevel(zerolog.DebugLevel),
-		auto.WithAddress(beaconNodeAddr),
+		auto.WithAddress(addr),
 	)
 	if err != nil {
 		return client, err
