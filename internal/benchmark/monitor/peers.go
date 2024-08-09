@@ -1,10 +1,10 @@
 package monitor
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -27,18 +27,24 @@ func NewPeers(consensusClientAddr, executionClientAddr, ssvClientAddr string) *P
 
 func (p *PeersMonitor) Measure() (map[client.Type]uint32, error) {
 	peers := make(map[client.Type]uint32)
+
 	consensusPeers, err := p.fetchConsensusPeers()
 	if err != nil {
-		return peers, errors.Join(err, errors.New("failed to fetch consensus client peers"))
+		return peers, errors.Join(err, errors.New("failed to fetch Consensus client peers"))
 	}
+	peers[client.Consensus] = consensusPeers
 
 	ssvPeers, err := p.fetchSSVPeers()
 	if err != nil {
 		return peers, errors.Join(err, errors.New("failed to fetch SSV client peers"))
 	}
-
-	peers[client.Consensus] = consensusPeers
 	peers[client.SSV] = ssvPeers
+
+	executionPeers, err := p.fetchExecutionPeers()
+	if err != nil {
+		return peers, errors.Join(err, errors.New("failed to fetch Execution client peers"))
+	}
+	peers[client.Execution] = executionPeers
 
 	return peers, nil
 }
@@ -62,11 +68,7 @@ func (p *PeersMonitor) fetchConsensusPeers() (uint32, error) {
 		return peers, fmt.Errorf("received unsuccessful status code when fetching Consensus Client Peer count. Code: '%d'", res.StatusCode)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return peers, err
-	}
-	if err = json.Unmarshal(body, &resp); err != nil {
+	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return peers, err
 	}
 
@@ -96,13 +98,54 @@ func (p *PeersMonitor) fetchSSVPeers() (uint32, error) {
 		return peers, fmt.Errorf("received unsuccessful status code when fetching SSV Client Peer count. Code: '%d'", res.StatusCode)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return peers, err
-	}
-	if err = json.Unmarshal(body, &resp); err != nil {
+	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return peers, err
 	}
 
 	return resp.Advanced.Peers, nil
+}
+
+func (p *PeersMonitor) fetchExecutionPeers() (uint32, error) {
+	var (
+		resp struct {
+			Result string `json:"result"`
+		}
+		peers uint32
+	)
+
+	request := struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Method  string `json:"method"`
+	}{
+		Jsonrpc: "2.0",
+		Method:  "net_peerCount",
+	}
+
+	requestBytes, err := json.Marshal(request)
+	if err != nil {
+		return peers, errors.Join(err, errors.New("failed to marshal RPC request to Execution node during Peers fetching"))
+	}
+
+	res, err := http.Post(p.executionClientAddr, "application/json", bytes.NewBuffer(requestBytes))
+	if err != nil {
+		return peers, errors.Join(err, errors.New("failed sending HTTP request to Execution node during Peers fetching"))
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return peers, fmt.Errorf("received unsuccessful status code when fetching Execution Client Peer count. Code: '%d'", res.StatusCode)
+	}
+
+	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return peers, errors.Join(err, errors.New("failed to decode RPC response from Execution node during Peers fetching"))
+	}
+
+	peerCountHex := resp.Result
+	peerCount, err := strconv.ParseInt(peerCountHex[2:], 16, 64)
+	if err != nil {
+		return peers, errors.Join(err, errors.New("failed to convert peer count response from Execution node during Peers fetching"))
+	}
+	peers = uint32(peerCount)
+
+	return peers, nil
 }
