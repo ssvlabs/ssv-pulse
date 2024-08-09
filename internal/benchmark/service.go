@@ -62,7 +62,7 @@ func (s *Service) Start(ctx context.Context) {
 
 				peers, err := s.peersMonitor.Measure()
 				if err != nil {
-					slog.Error("error fetching peer count")
+					slog.With("err", err.Error()).Error("error fetching peer count")
 				}
 				received, missed := s.blocksMonior.Measure(slot)
 
