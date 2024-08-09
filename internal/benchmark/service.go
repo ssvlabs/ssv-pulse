@@ -18,32 +18,39 @@ type (
 	peersMonitor interface {
 		Measure() (map[client.Type]uint32, error)
 	}
-	latencyMonior interface {
+	latencyMonitor interface {
 		Measure(slot phase0.Slot) (min, max, avg time.Duration)
 	}
 	blocksMonitor interface {
 		Measure(slot phase0.Slot) (received, missed uint32)
 	}
 
+	memoryMonitor interface {
+		Measure() (total, used, cached, free float64, err error)
+	}
+
 	Service struct {
-		network       configs.NetworkName
-		peersMonitor  peersMonitor
-		latencyMonior latencyMonior
-		blocksMonior  blocksMonitor
+		network        configs.NetworkName
+		peersMonitor   peersMonitor
+		latencyMonitor latencyMonitor
+		blocksMonitor  blocksMonitor
+		memoryMonitor  memoryMonitor
 	}
 )
 
 func New(
 	network configs.NetworkName,
 	peersMonitor peersMonitor,
-	latencyMonitor latencyMonior,
+	latencyMonitor latencyMonitor,
 	blocksMonitor blocksMonitor,
+	memoryMonitor memoryMonitor,
 ) *Service {
 	return &Service{
-		network:       network,
-		peersMonitor:  peersMonitor,
-		latencyMonior: latencyMonitor,
-		blocksMonior:  blocksMonitor,
+		network:        network,
+		peersMonitor:   peersMonitor,
+		latencyMonitor: latencyMonitor,
+		blocksMonitor:  blocksMonitor,
+		memoryMonitor:  memoryMonitor,
 	}
 }
 
@@ -58,21 +65,27 @@ func (s *Service) Start(ctx context.Context) {
 
 			for {
 				time.Sleep(time.Until(slotTime(configs.GenesisTime[s.network], slot).Add(time.Second * 4)))
-				min, max, avg := s.latencyMonior.Measure(slot)
+				min, max, avg := s.latencyMonitor.Measure(slot)
 
 				peers, err := s.peersMonitor.Measure()
 				if err != nil {
 					slog.With("err", err.Error()).Error("error fetching peer count")
 				}
-				received, missed := s.blocksMonior.Measure(slot)
+				received, missed := s.blocksMonitor.Measure(slot)
+
+				total, used, cached, free, err := s.memoryMonitor.Measure()
+				if err != nil {
+					slog.With("err", err.Error()).Error("error fetching memory metric")
+				}
 
 				tbl := table.New(os.Stdout)
-				tbl.SetHeaders("Slot", "Latency (Min/Avg/Max)", "Peers (Consensus/Execution/SSV)", "Blocks (Received/Missed)")
+				tbl.SetHeaders("Slot", "Latency (Min | Avg | Max)", "Peers (Consensus | Execution | SSV)", "Blocks (Received | Missed)", "Memory (Total | Used | Cached | Free) MB")
 				tbl.AddRow(
 					fmt.Sprintf("%d", slot),
-					fmt.Sprintf("%s/%s/%s", min, avg, max),
-					fmt.Sprintf("%d/%d/%d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
-					fmt.Sprintf("%d/%d", received, missed),
+					fmt.Sprintf("%s | %s | %s", min, avg, max),
+					fmt.Sprintf("%d | %d | %d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
+					fmt.Sprintf("%d | %d", received, missed),
+					fmt.Sprintf("%.2f | %.2f | %.2f | %.2f", total, used, cached, free),
 				)
 				tbl.Render()
 				slot++

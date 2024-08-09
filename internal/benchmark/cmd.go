@@ -78,7 +78,8 @@ var CMD = &cobra.Command{
 			cfg.Network,
 			monitor.NewPeers(consensusAddr, executionAddr, ssvAddr),
 			monitor.NewLatency(listenerSvc, cfg.Network),
-			monitor.NewBlocks(listenerSvc))
+			monitor.NewBlocks(listenerSvc),
+			monitor.NewMemory())
 
 		go metricSvc.Start(ctx)
 

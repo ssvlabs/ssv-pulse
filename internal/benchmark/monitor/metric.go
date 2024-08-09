@@ -10,11 +10,4 @@ type (
 	listenerSvc interface {
 		Receival(slot phase0.Slot) (listener.SlotData, bool)
 	}
-	Type string
-)
-
-const (
-	Latency Type = "Latency"
-	Peers   Type = "Peers"
-	Blocks  Type = "Blocks"
 )
