@@ -23,10 +23,10 @@ const (
 )
 
 func init() {
-	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address with scheme(http/https)", true)
-	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address scheme(http/https)", true)
-	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV client address scheme(http/https)", true)
-	cmd.AddPersistentStringFlag(CMD, networkFlag, "", "Network to use, either 'mainnet' or 'holesky'", true)
+	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
+	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
+	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)
+	cmd.AddPersistentStringFlag(CMD, networkFlag, "", "Ethereum network to use, either 'mainnet' or 'holesky'", true)
 }
 
 var CMD = &cobra.Command{
