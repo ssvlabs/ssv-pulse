@@ -1,4 +1,4 @@
-package configs
+package network
 
 import (
 	"fmt"
@@ -7,20 +7,20 @@ import (
 )
 
 var (
-	GenesisTime = map[NetworkName]time.Time{
+	GenesisTime = map[Name]time.Time{
 		Holesky: time.Unix(1695902400, 0),
 		Mainnet: time.Unix(1606824023, 0),
 	}
 )
 
-type NetworkName string
+type Name string
 
 const (
-	Holesky NetworkName = "holesky"
-	Mainnet NetworkName = "mainnet"
+	Holesky Name = "holesky"
+	Mainnet Name = "mainnet"
 )
 
-func (n NetworkName) Validate() error {
+func (n Name) Validate() error {
 	if !strings.EqualFold(string(n), string(Holesky)) && !strings.EqualFold(string(n), string(Mainnet)) {
 		return fmt.Errorf("network name should be either '%s' or '%s'", Holesky, Mainnet)
 	}

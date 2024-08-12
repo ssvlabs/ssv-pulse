@@ -5,15 +5,15 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/configs"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/network"
 )
 
 type (
 	LatencyMonitor struct {
 		min, max  time.Duration
 		latencies []time.Duration
-		network   configs.NetworkName
+		network   network.Name
 		listener  listenerSvc
 	}
 	Latency struct {
@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func NewLatency(listener listenerSvc, network configs.NetworkName) *LatencyMonitor {
+func NewLatency(listener listenerSvc, network network.Name) *LatencyMonitor {
 	return &LatencyMonitor{
 		listener: listener,
 		network:  network,
@@ -34,7 +34,7 @@ func (l *LatencyMonitor) Measure(slot phase0.Slot) Latency {
 		return Latency{}
 	}
 
-	latency := receival.Received.Sub(slotTime(configs.GenesisTime[l.network], slot))
+	latency := receival.Received.Sub(slotTime(network.GenesisTime[l.network], slot))
 
 	if len(l.latencies) == 0 {
 		l.min = latency

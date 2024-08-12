@@ -8,9 +8,9 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/configs"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/network"
 )
 
 type (
@@ -32,29 +32,29 @@ type (
 		Measure() (system, user float64, err error)
 	}
 
-	render interface {
-		Update(cols []string)
+	console interface {
+		Update(values []string)
 	}
 
 	Service struct {
-		network        configs.NetworkName
+		network        network.Name
 		peersMonitor   peersMonitor
 		latencyMonitor latencyMonitor
 		blocksMonitor  blocksMonitor
 		memoryMonitor  memoryMonitor
 		cpuMonitor     cpuMonitor
-		render         render
+		console        console
 	}
 )
 
 func New(
-	network configs.NetworkName,
+	network network.Name,
 	peersMonitor peersMonitor,
 	latencyMonitor latencyMonitor,
 	blocksMonitor blocksMonitor,
 	memoryMonitor memoryMonitor,
 	cpuMonitor cpuMonitor,
-	render render,
+	console console,
 ) *Service {
 	return &Service{
 		network:        network,
@@ -63,7 +63,7 @@ func New(
 		blocksMonitor:  blocksMonitor,
 		memoryMonitor:  memoryMonitor,
 		cpuMonitor:     cpuMonitor,
-		render:         render,
+		console:        console,
 	}
 }
 
@@ -71,13 +71,13 @@ func (s *Service) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("cancellation context received. Terminating service")
+			return
 		default:
-			startSlot := currentSlot(configs.GenesisTime[s.network]) + 1
+			startSlot := currentSlot(network.GenesisTime[s.network]) + 1
 			slot := startSlot
 
 			for {
-				time.Sleep(time.Until(slotTime(configs.GenesisTime[s.network], slot).Add(time.Second * 4)))
+				time.Sleep(time.Until(slotTime(network.GenesisTime[s.network], slot).Add(time.Second * 4)))
 				latency := s.latencyMonitor.Measure(slot)
 
 				peers, err := s.peersMonitor.Measure()
@@ -96,7 +96,7 @@ func (s *Service) Start(ctx context.Context) {
 					slog.With("err", err.Error()).Error("error fetching CPU metric")
 				}
 
-				s.render.Update([]string{
+				s.console.Update([]string{
 					fmt.Sprintf("%d", slot),
 					fmt.Sprintf("%s | %s | %s | %s | %s", latency.Min, latency.P10, latency.P50, latency.P90, latency.Max),
 					fmt.Sprintf("%d | %d | %d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),

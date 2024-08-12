@@ -8,11 +8,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/configs"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/config"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor/listener"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/network"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/output"
 )
 
@@ -49,14 +50,14 @@ var CMD = &cobra.Command{
 		consensusAddr := viper.GetString(consensusAddrFlag)
 		executionAddr := viper.GetString(executionAddrFlag)
 		ssvAddr := viper.GetString(ssvAddrFlag)
-		network := viper.GetString(networkFlag)
+		networkName := viper.GetString(networkFlag)
 
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		cfg, err := configs.Init(configs.Address(consensusAddr), configs.Address(executionAddr), configs.Address(ssvAddr), network)
-		if err != nil {
+		isValid, err := config.IsValid(consensusAddr, executionAddr, ssvAddr, networkName)
+		if !isValid {
 			panic(err.Error())
 		}
 
@@ -76,9 +77,9 @@ var CMD = &cobra.Command{
 		}()
 
 		metricSvc := New(
-			cfg.Network,
+			network.Name(networkName),
 			monitor.NewPeers(consensusAddr, executionAddr, ssvAddr),
-			monitor.NewLatency(listenerSvc, cfg.Network),
+			monitor.NewLatency(listenerSvc, network.Name(networkName)),
 			monitor.NewBlocks(listenerSvc),
 			monitor.NewMemory(),
 			monitor.NewCPU(),
