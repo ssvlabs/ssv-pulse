@@ -13,6 +13,7 @@ import (
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor/listener"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/output"
 )
 
 const (
@@ -80,7 +81,15 @@ var CMD = &cobra.Command{
 			monitor.NewLatency(listenerSvc, cfg.Network),
 			monitor.NewBlocks(listenerSvc),
 			monitor.NewMemory(),
-			monitor.NewCPU())
+			monitor.NewCPU(),
+			output.NewConsole([]string{
+				"Slot",
+				"Latency (Min | p10 | p50 | p90 | Max)",
+				"Peers (Consensus | Execution | SSV)",
+				"Blocks (Received | Missed)",
+				"Memory (Total | Used | Cached | Free) MB",
+				"CPU (System | User)",
+			}))
 
 		go metricSvc.Start(ctx)
 

@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
-	"github.com/aquasecurity/table"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabsinfra/ssv-benchmark/configs"
@@ -34,6 +32,10 @@ type (
 		Measure() (system, user float64, err error)
 	}
 
+	render interface {
+		Update(cols []string)
+	}
+
 	Service struct {
 		network        configs.NetworkName
 		peersMonitor   peersMonitor
@@ -41,6 +43,7 @@ type (
 		blocksMonitor  blocksMonitor
 		memoryMonitor  memoryMonitor
 		cpuMonitor     cpuMonitor
+		render         render
 	}
 )
 
@@ -51,6 +54,7 @@ func New(
 	blocksMonitor blocksMonitor,
 	memoryMonitor memoryMonitor,
 	cpuMonitor cpuMonitor,
+	render render,
 ) *Service {
 	return &Service{
 		network:        network,
@@ -59,6 +63,7 @@ func New(
 		blocksMonitor:  blocksMonitor,
 		memoryMonitor:  memoryMonitor,
 		cpuMonitor:     cpuMonitor,
+		render:         render,
 	}
 }
 
@@ -91,22 +96,15 @@ func (s *Service) Start(ctx context.Context) {
 					slog.With("err", err.Error()).Error("error fetching CPU metric")
 				}
 
-				tbl := table.New(os.Stdout)
-				tbl.SetHeaders(
-					"Slot", "Latency (Min | p10 | p50 | p90 | Max)",
-					"Peers (Consensus | Execution | SSV)",
-					"Blocks (Received | Missed)",
-					"Memory (Total | Used | Cached | Free) MB",
-					"CPU (System | User)")
-				tbl.AddRow(
+				s.render.Update([]string{
 					fmt.Sprintf("%d", slot),
 					fmt.Sprintf("%s | %s | %s | %s | %s", latency.Min, latency.P10, latency.P50, latency.P90, latency.Max),
 					fmt.Sprintf("%d | %d | %d", peers[client.Consensus], peers[client.Execution], peers[client.SSV]),
 					fmt.Sprintf("%d | %d", received, missed),
 					fmt.Sprintf("%.2f | %.2f | %.2f | %.2f", total, used, cached, free),
 					fmt.Sprintf("%f %% | %f %%", systemCPUPercent, userCPUPercent),
-				)
-				tbl.Render()
+				})
+
 				slot++
 			}
 
