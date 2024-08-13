@@ -28,8 +28,8 @@ func (s *Service) Start(ctx context.Context) {
 		slog.With("group", metricGroup).Info("launching metric service")
 
 		go func(ctx context.Context) {
-			if err := metricSvc.Start(ctx); err == context.DeadlineExceeded {
-				slog.With("group", metricGroup).Info("service was shut down")
+			if err := metricSvc.Start(ctx); err == context.DeadlineExceeded || err == context.Canceled {
+				slog.With("err", err.Error()).With("group", metricGroup).Warn("service was shut down")
 			}
 		}(ctx)
 	}

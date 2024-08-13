@@ -79,7 +79,7 @@ var CMD = &cobra.Command{
 
 		lifecycle.ListenForApplicationShutDown(ctx, func() {
 			cancel()
-			slog.Info("terminating the application")
+			slog.Warn("terminating the application")
 		}, make(chan os.Signal))
 		return nil
 	},

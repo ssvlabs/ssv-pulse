@@ -18,12 +18,12 @@ func ListenForApplicationShutDown(ctx context.Context, shutdownFunc func(), sign
 	case sig := <-signalChannel:
 		switch sig {
 		case os.Interrupt, syscall.SIGTERM:
-			slog.Info("shutdown signal received")
+			slog.Warn("shutdown signal received")
 			shutdownFunc()
 			time.Sleep(terminationDelay)
 		}
 	case <-ctx.Done():
-		slog.Info("context deadline exceeded or canceled")
+		slog.Warn("context deadline exceeded or canceled")
 		shutdownFunc()
 		time.Sleep(terminationDelay)
 	}
