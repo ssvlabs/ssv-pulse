@@ -1,5 +1,5 @@
 # Use the official Golang image as a base
-FROM golang:1.22@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf AS builder
+FROM golang:1.22@sha256:305aae5c6d68e9c122246147f2fde17700d477c9062b6724c4d182abf6d3907e AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
