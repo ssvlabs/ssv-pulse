@@ -1,4 +1,4 @@
-package monitor
+package infrastructure
 
 import (
 	"github.com/mackerelio/go-osstat/cpu"

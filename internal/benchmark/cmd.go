@@ -2,19 +2,20 @@ package benchmark
 
 import (
 	"context"
-	"sync"
+	"log/slog"
+	"os"
 
-	eth2client "github.com/attestantio/go-eth2-client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/client"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/config"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/monitor/listener"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/consensus"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/execution"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/infrastructure"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/ssv"
 	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/network"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/output"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/lifecycle"
+	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
 )
 
 const (
@@ -52,49 +53,26 @@ var CMD = &cobra.Command{
 		ssvAddr := viper.GetString(ssvAddrFlag)
 		networkName := viper.GetString(networkFlag)
 
-		ctx := context.Background()
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
+		ctx, cancel := context.WithCancel(context.Background())
 
 		isValid, err := config.IsValid(consensusAddr, executionAddr, ssvAddr, networkName)
 		if !isValid {
 			panic(err.Error())
 		}
 
-		var wg sync.WaitGroup
-		wg.Add(2)
+		metricService := New(map[metric.Group]MetricService{
+			metric.ConsensusGroup:      consensus.New(consensusAddr),
+			metric.ExecutionGroup:      execution.New(executionAddr),
+			metric.SSVGroup:            ssv.New(ssvAddr),
+			metric.InfrastructureGroup: infrastructure.New(),
+		})
 
-		client, err := client.GetConsensus(ctx, string(consensusAddr))
-		if err != nil {
-			panic(err.Error())
-		}
+		go metricService.Start(ctx)
 
-		listenerSvc := listener.New(client.(eth2client.EventsProvider))
-		go func() {
-			if err := listenerSvc.Start(ctx); err != nil {
-				panic(err.Error())
-			}
-		}()
-
-		metricSvc := New(
-			network.Name(networkName),
-			monitor.NewPeers(consensusAddr, executionAddr, ssvAddr),
-			monitor.NewLatency(listenerSvc, network.Name(networkName)),
-			monitor.NewBlocks(listenerSvc),
-			monitor.NewMemory(),
-			monitor.NewCPU(),
-			output.NewConsole([]string{
-				"Slot",
-				"Latency (Min | p10 | p50 | p90 | Max)",
-				"Peers (Consensus | Execution | SSV)",
-				"Blocks (Received | Missed)",
-				"Memory (Total | Used | Cached | Free) MB",
-				"CPU (System | User)",
-			}))
-
-		go metricSvc.Start(ctx)
-
-		wg.Wait()
+		lifecycle.ListenForApplicationShutDown(func() {
+			cancel()
+			slog.Info("terminating the application")
+		}, make(chan os.Signal))
 		return nil
 	},
 }
