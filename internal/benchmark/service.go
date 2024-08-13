@@ -24,8 +24,8 @@ func New(metrics map[metric.Group]MetricService) *Service {
 }
 
 func (s *Service) Start(ctx context.Context) {
-	for metricType, metricSvc := range s.metrics {
-		slog.With("type", metricType).Info("launching metric service")
+	for metricGroup, metricSvc := range s.metrics {
+		slog.With("group", metricGroup).Info("launching metric service")
 		go metricSvc.Start(ctx)
 	}
 }
