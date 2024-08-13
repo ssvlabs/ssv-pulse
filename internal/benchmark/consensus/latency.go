@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
 var (

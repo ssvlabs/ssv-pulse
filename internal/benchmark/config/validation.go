@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/network"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/network"
 )
 
 func IsValid(consensusAddr, executionAddr, ssvAddr string, networkFlag string) (bool, error) {

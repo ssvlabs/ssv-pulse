@@ -8,14 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/config"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/consensus"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/execution"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/infrastructure"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark/ssv"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/lifecycle"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/config"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/consensus"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/execution"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/infrastructure"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/ssv"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/lifecycle"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
 const (

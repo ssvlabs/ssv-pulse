@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
 func init() {

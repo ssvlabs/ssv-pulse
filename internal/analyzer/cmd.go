@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
 )
 
 func init() {

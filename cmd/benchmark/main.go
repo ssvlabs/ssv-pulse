@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/analyzer"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/benchmark"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/cmd"
-	_ "github.com/ssvlabsinfra/ssv-benchmark/internal/platform/logger"
+	"github.com/ssvlabs/ssv-benchmark/internal/analyzer"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
+	_ "github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 )
 
 var (

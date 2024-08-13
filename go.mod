@@ -1,4 +1,4 @@
-module github.com/ssvlabsinfra/ssv-benchmark
+module github.com/ssvlabs/ssv-benchmark
 
 go 1.22
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/logger"
-	"github.com/ssvlabsinfra/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
 const (
