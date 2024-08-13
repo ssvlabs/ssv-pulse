@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -10,13 +11,19 @@ import (
 
 const terminationDelay = time.Second
 
-func ListenForApplicationShutDown(shutdownFunc func(), signalChannel chan os.Signal) {
+func ListenForApplicationShutDown(ctx context.Context, shutdownFunc func(), signalChannel chan os.Signal) {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
-	sig := <-signalChannel
-	switch sig {
-	case os.Interrupt, syscall.SIGTERM:
-		slog.Info("shutdown signal received")
+	select {
+	case sig := <-signalChannel:
+		switch sig {
+		case os.Interrupt, syscall.SIGTERM:
+			slog.Info("shutdown signal received")
+			shutdownFunc()
+			time.Sleep(terminationDelay)
+		}
+	case <-ctx.Done():
+		slog.Info("context deadline exceeded or canceled")
 		shutdownFunc()
 		time.Sleep(terminationDelay)
 	}

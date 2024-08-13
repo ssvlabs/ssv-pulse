@@ -22,7 +22,7 @@ func New(apiURL string) *Service {
 	}
 }
 
-func (s *Service) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -36,7 +36,7 @@ func (s *Service) Start(ctx context.Context) {
 				logger.WriteMetric(metric.SSVGroup, Peers, map[string]any{"peers": peers})
 			}
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
 }

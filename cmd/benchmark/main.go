@@ -34,7 +34,7 @@ func main() {
 	rootCmd.Version = version
 
 	if err := rootCmd.Execute(); err != nil {
-		slog.Error("failed to execute root command")
+		slog.With("err", err.Error()).Error("failed to execute root command")
 		panic(err.Error())
 	}
 }

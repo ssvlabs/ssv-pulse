@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"os"
 	"sync"
 	"syscall"
@@ -19,7 +20,7 @@ func Test_GivenTerminationSignal_WhenListenForShutdown_ThenCallsTheFunctionPasse
 	}
 	wg.Add(1)
 
-	go ListenForApplicationShutDown(shutdownFunc, shutdownSignal)
+	go ListenForApplicationShutDown(context.TODO(), shutdownFunc, shutdownSignal)
 
 	shutdownSignal <- syscall.SIGTERM
 	wg.Wait()

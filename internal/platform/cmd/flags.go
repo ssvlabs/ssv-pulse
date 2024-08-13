@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -42,6 +43,20 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	}
 
 	c.PersistentFlags().StringSlice(flag, value, fmt.Sprintf("%s%s", description, req))
+
+	if isRequired {
+		_ = c.MarkPersistentFlagRequired(flag)
+	}
+}
+
+// AddPersistentIntFlag adds a int flag to the command
+func AddPersistentDurationFlag(c *cobra.Command, flag string, value time.Duration, description string, isRequired bool) {
+	req := ""
+	if isRequired {
+		req = " (required)"
+	}
+
+	c.PersistentFlags().Duration(flag, value, fmt.Sprintf("%s%s", description, req))
 
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)

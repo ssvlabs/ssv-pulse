@@ -25,7 +25,7 @@ func New(apiURL string) *Service {
 	}
 }
 
-func (s *Service) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) error {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
@@ -52,7 +52,7 @@ func (s *Service) Start(ctx context.Context) {
 				})
 			}
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
 }

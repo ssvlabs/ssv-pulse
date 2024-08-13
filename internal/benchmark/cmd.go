@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -19,13 +20,15 @@ import (
 )
 
 const (
-	consensusAddrFlag = "consensusAddr"
-	executionAddrFlag = "executionAddr"
-	ssvAddrFlag       = "ssvAddr"
-	networkFlag       = "network"
+	executionDurationSecFlag = "executionDurationSec"
+	consensusAddrFlag        = "consensusAddr"
+	executionAddrFlag        = "executionAddr"
+	ssvAddrFlag              = "ssvAddr"
+	networkFlag              = "network"
 )
 
 func init() {
+	cmd.AddPersistentDurationFlag(CMD, executionDurationSecFlag, time.Second*60, "Duration for which the application will run to gather metrics", false)
 	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
 	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
 	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)
@@ -36,6 +39,9 @@ var CMD = &cobra.Command{
 	Use:   "benchmark",
 	Short: "Run benchmarks of ssv node",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := viper.BindPFlag(executionDurationSecFlag, cmd.PersistentFlags().Lookup(executionDurationSecFlag)); err != nil {
+			return err
+		}
 		if err := viper.BindPFlag(consensusAddrFlag, cmd.PersistentFlags().Lookup(consensusAddrFlag)); err != nil {
 			return err
 		}
@@ -48,12 +54,14 @@ var CMD = &cobra.Command{
 		if err := viper.BindPFlag(networkFlag, cmd.PersistentFlags().Lookup(networkFlag)); err != nil {
 			return err
 		}
+
 		consensusAddr := viper.GetString(consensusAddrFlag)
 		executionAddr := viper.GetString(executionAddrFlag)
 		ssvAddr := viper.GetString(ssvAddrFlag)
 		networkName := viper.GetString(networkFlag)
+		executionDuration := viper.GetDuration(executionDurationSecFlag)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), executionDuration)
 
 		isValid, err := config.IsValid(consensusAddr, executionAddr, ssvAddr, networkName)
 		if !isValid {
@@ -69,7 +77,7 @@ var CMD = &cobra.Command{
 
 		go metricService.Start(ctx)
 
-		lifecycle.ListenForApplicationShutDown(func() {
+		lifecycle.ListenForApplicationShutDown(ctx, func() {
 			cancel()
 			slog.Info("terminating the application")
 		}, make(chan os.Signal))

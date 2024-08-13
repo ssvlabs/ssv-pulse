@@ -9,7 +9,7 @@ import (
 
 type (
 	MetricService interface {
-		Start(context.Context)
+		Start(context.Context) error
 	}
 
 	Service struct {
@@ -26,6 +26,11 @@ func New(metrics map[metric.Group]MetricService) *Service {
 func (s *Service) Start(ctx context.Context) {
 	for metricGroup, metricSvc := range s.metrics {
 		slog.With("group", metricGroup).Info("launching metric service")
-		go metricSvc.Start(ctx)
+
+		go func(ctx context.Context) {
+			if err := metricSvc.Start(ctx); err == context.DeadlineExceeded {
+				slog.With("group", metricGroup).Info("service was shut down")
+			}
+		}(ctx)
 	}
 }
