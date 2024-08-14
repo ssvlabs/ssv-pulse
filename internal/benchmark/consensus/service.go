@@ -11,6 +11,7 @@ import (
 const (
 	Peers   metric.Name = "Peers"
 	Latency metric.Name = "Latency"
+	Client  metric.Name = "Client"
 )
 
 type (
@@ -18,6 +19,7 @@ type (
 		interval      time.Duration
 		peerMetric    *PeerMetric
 		latencyMetric *LatencyMetric
+		clientMetric  *ClientVersionMetric
 	}
 )
 
@@ -26,12 +28,22 @@ func New(apiURL string) *Service {
 		interval:      time.Second * 5,
 		peerMetric:    NewPeerMetric(apiURL),
 		latencyMetric: NewLatencyMetric(apiURL),
+		clientMetric:  NewClientVersionMetric(apiURL),
 	}
 }
 
 func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
+
+	clientVersion, err := s.clientMetric.Get()
+	if err != nil {
+		logger.WriteError(metric.ConsensusGroup, Client, err)
+	} else {
+		logger.WriteMetric(metric.ConsensusGroup, Client, map[string]any{
+			"client_version": clientVersion,
+		})
+	}
 
 	for {
 		select {
@@ -62,6 +74,9 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, err
 					Value:    []byte(metric.FormatPercentiles(s.latencyMetric.Aggregate())),
 					Health:   "",
 					Severity: "",
+				},
+				Client: {
+					Value: []byte(clientVersion),
 				},
 			}, ctx.Err()
 		}
