@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	executionDurationSecFlag = "executionDurationSec"
+	executionDurationFlag    = "executionDuration"
 	consensusAddrFlag        = "consensusAddr"
 	executionAddrFlag        = "executionAddr"
 	ssvAddrFlag              = "ssvAddr"
@@ -30,7 +30,7 @@ const (
 )
 
 func init() {
-	cmd.AddPersistentDurationFlag(CMD, executionDurationSecFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics", false)
+	cmd.AddPersistentDurationFlag(CMD, executionDurationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'", false)
 	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
 	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
 	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)
@@ -41,7 +41,7 @@ var CMD = &cobra.Command{
 	Use:   "benchmark",
 	Short: "Run benchmarks of ssv node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := viper.BindPFlag(executionDurationSecFlag, cmd.PersistentFlags().Lookup(executionDurationSecFlag)); err != nil {
+		if err := viper.BindPFlag(executionDurationFlag, cmd.PersistentFlags().Lookup(executionDurationFlag)); err != nil {
 			return err
 		}
 		if err := viper.BindPFlag(consensusAddrFlag, cmd.PersistentFlags().Lookup(consensusAddrFlag)); err != nil {
@@ -61,7 +61,7 @@ var CMD = &cobra.Command{
 		executionAddr := viper.GetString(executionAddrFlag)
 		ssvAddr := viper.GetString(ssvAddrFlag)
 		networkName := viper.GetString(networkFlag)
-		executionDuration := viper.GetDuration(executionDurationSecFlag)
+		executionDuration := viper.GetDuration(executionDurationFlag)
 
 		ctx, cancel := context.WithTimeout(context.Background(), executionDuration)
 
