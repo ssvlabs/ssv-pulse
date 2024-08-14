@@ -7,15 +7,15 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-type MemoryMonitor struct {
+type MemoryMetric struct {
 	totalMbs, usedMbs, cachedMbs, freeMbs []float64
 }
 
-func NewMemory() *MemoryMonitor {
-	return &MemoryMonitor{}
+func NewMemoryMetric() *MemoryMetric {
+	return &MemoryMetric{}
 }
 
-func (m *MemoryMonitor) Measure() (totalMb, usedMb, cachedMb, freeMb float64, err error) {
+func (m *MemoryMetric) Get() (totalMb, usedMb, cachedMb, freeMb float64, err error) {
 	memory, err := memory.Get()
 	if err != nil {
 		return totalMb, usedMb, cachedMb, freeMb, errors.Join(err, errors.New("failed to measure memory metric"))
@@ -35,7 +35,7 @@ func (m *MemoryMonitor) Measure() (totalMb, usedMb, cachedMb, freeMb float64, er
 	return totalMb, usedMb, cachedMb, freeMb, err
 }
 
-func (c *MemoryMonitor) GetAggregatedValues() (totalP50, usedP50, cachedP50, freeP50 float64) {
+func (c *MemoryMetric) Aggregate() (totalP50, usedP50, cachedP50, freeP50 float64) {
 	totalP50 = metric.CalculatePercentile(c.totalMbs, 50)
 	usedP50 = metric.CalculatePercentile(c.usedMbs, 50)
 	cachedP50 = metric.CalculatePercentile(c.cachedMbs, 50)

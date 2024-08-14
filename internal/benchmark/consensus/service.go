@@ -15,44 +15,54 @@ const (
 
 type (
 	Service struct {
-		apiURL   string
-		interval time.Duration
+		interval      time.Duration
+		peerMetric    *PeerMetric
+		latencyMetric *LatencyMetric
 	}
 )
 
 func New(apiURL string) *Service {
 	return &Service{
-		apiURL:   apiURL,
-		interval: time.Second * 5,
+		interval:      time.Second * 5,
+		peerMetric:    NewPeerMetric(apiURL),
+		latencyMetric: NewLatencyMetric(apiURL),
 	}
 }
 
-func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
+func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			peers, err := getPeers(s.apiURL)
+			peers, err := s.peerMetric.Get()
 			if err != nil {
 				logger.WriteError(metric.ConsensusGroup, Peers, err)
 			} else {
 				logger.WriteMetric(metric.ConsensusGroup, Peers, map[string]any{"peers": peers})
 			}
 
-			latency, err := getLatency(s.apiURL)
+			latency, err := s.latencyMetric.Get()
 			if err != nil {
 				logger.WriteError(metric.ConsensusGroup, Latency, err)
 			} else {
 				logger.WriteMetric(metric.ConsensusGroup, Latency, map[string]any{
-					"latencyMS": latency.Milliseconds(),
+					"latency_ms": latency.Milliseconds(),
 				})
 			}
 		case <-ctx.Done():
-			return map[metric.Name][]byte{
-				Latency: []byte(metric.FormatPercentiles(getAggregatedLatencyValues())),
-				Peers:   []byte(metric.FormatPercentiles(getAggregatedPeersValues())),
+			return map[metric.Name]metric.Result{
+				Peers: {
+					Value:    []byte(metric.FormatPercentiles(s.peerMetric.Aggregate())),
+					Health:   "",
+					Severity: "",
+				},
+				Latency: {
+					Value:    []byte(metric.FormatPercentiles(s.latencyMetric.Aggregate())),
+					Health:   "",
+					Severity: "",
+				},
 			}, ctx.Err()
 		}
 	}

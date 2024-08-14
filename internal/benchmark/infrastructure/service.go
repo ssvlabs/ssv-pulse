@@ -15,27 +15,27 @@ const (
 )
 
 type Service struct {
-	cpu      *CPUMonitor
-	memory   *MemoryMonitor
+	cpu      *CPUMetric
+	memory   *MemoryMetric
 	interval time.Duration
 }
 
 func New() *Service {
 	return &Service{
-		cpu:      NewCPU(),
-		memory:   NewMemory(),
+		cpu:      NewCPUMetric(),
+		memory:   NewMemoryMetric(),
 		interval: time.Second * 5,
 	}
 }
 
-func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
+func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			system, user, err := s.cpu.Measure()
+			system, user, err := s.cpu.Get()
 			if err != nil {
 				logger.WriteError(metric.InfrastructureGroup, CPU, err)
 			} else {
@@ -45,7 +45,7 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 				})
 			}
 
-			total, used, cached, free, err := s.memory.Measure()
+			total, used, cached, free, err := s.memory.Get()
 			if err != nil {
 				logger.WriteError(metric.InfrastructureGroup, Memory, err)
 			} else {
@@ -57,11 +57,20 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 				})
 			}
 		case <-ctx.Done():
-			userP50, systemP50, total := s.cpu.GetAggregatedValues()
-			totalP50, usedP50, cachedP50, freeP50 := s.memory.GetAggregatedValues()
-			return map[metric.Name][]byte{
-				CPU:    []byte(fmt.Sprintf("userP50=%v, systemP50=%v, total=%v", userP50, systemP50, total)),
-				Memory: []byte(fmt.Sprintf("totalP50=%v, usedP50=%v, cachedP50=%v freeP50=%v", totalP50, usedP50, cachedP50, freeP50)),
+			userP50, systemP50, total := s.cpu.Aggregate()
+			totalP50, usedP50, cachedP50, freeP50 := s.memory.Aggregate()
+
+			return map[metric.Name]metric.Result{
+				CPU: {
+					Value:    []byte(fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v", userP50, systemP50, total)),
+					Health:   "",
+					Severity: "",
+				},
+				Memory: {
+					Value:    []byte(fmt.Sprintf("total_P50=%.2fMB, used_P50=%.2fMB, cached_P50=%.2fMB, free_P50=%.2fMB", totalP50, usedP50, cachedP50, freeP50)),
+					Health:   "",
+					Severity: "",
+				},
 			}, ctx.Err()
 		}
 	}

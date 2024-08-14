@@ -9,9 +9,18 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-var peers []uint32
+type PeerMetric struct {
+	url   string
+	peers []uint32
+}
 
-func getPeers(url string) (uint32, error) {
+func NewPeerMetric(url string) *PeerMetric {
+	return &PeerMetric{
+		url: url,
+	}
+}
+
+func (p *PeerMetric) Get() (uint32, error) {
 	var (
 		resp struct {
 			Data struct {
@@ -20,7 +29,7 @@ func getPeers(url string) (uint32, error) {
 		}
 		peerNumber uint32
 	)
-	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/peer_count", url))
+	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/peer_count", p.url))
 	if err != nil {
 		return peerNumber, err
 	}
@@ -39,17 +48,17 @@ func getPeers(url string) (uint32, error) {
 		return peerNumber, err
 	}
 	peerNumber = uint32(peerNr)
-	peers = append(peers, peerNumber)
+	p.peers = append(p.peers, peerNumber)
 
 	return peerNumber, nil
 }
 
-func getAggregatedPeersValues() (min, p10, p50, p90, max uint32) {
-	min = metric.CalculatePercentile(peers, 0)
-	p10 = metric.CalculatePercentile(peers, 10)
-	p50 = metric.CalculatePercentile(peers, 50)
-	p90 = metric.CalculatePercentile(peers, 90)
-	max = metric.CalculatePercentile(peers, 100)
+func (p *PeerMetric) Aggregate() (min, p10, p50, p90, max uint32) {
+	min = metric.CalculatePercentile(p.peers, 0)
+	p10 = metric.CalculatePercentile(p.peers, 10)
+	p50 = metric.CalculatePercentile(p.peers, 50)
+	p90 = metric.CalculatePercentile(p.peers, 90)
+	max = metric.CalculatePercentile(p.peers, 100)
 
 	return
 }

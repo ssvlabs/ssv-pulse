@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 	slog.Debug("logger initialized")
 }
@@ -22,12 +22,13 @@ func WriteMetric(metricGroup metric.Group, metricName metric.Name, nameValue map
 	logger.
 		With("metric_group", strings.ToLower(string(metricGroup))).
 		With("metric_name", strings.ToLower(string(metricName))).
-		Info("measured")
+		Debug("measured")
 }
 
 func WriteError(metricGroup metric.Group, metricName metric.Name, err error) {
 	slog.
+		With("err", err.Error()).
 		With("metric_group", strings.ToLower(string(metricGroup))).
 		With("metric_name", strings.ToLower(string(metricName))).
-		Info("error")
+		Error("error")
 }

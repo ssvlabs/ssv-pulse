@@ -3,7 +3,6 @@ package benchmark
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
@@ -11,7 +10,7 @@ import (
 
 type (
 	metricService interface {
-		Start(context.Context) (map[metric.Name][]byte, error)
+		Start(context.Context) (map[metric.Name]metric.Result, error)
 	}
 
 	reportService interface {
@@ -47,12 +46,13 @@ func (s *Service) Start(ctx context.Context) {
 				slog.With("err", err.Error()).With("group", metricGroup).Warn("service was shut down")
 			}
 
-			for metricName, metricValue := range result {
+			for metricName, metricResult := range result {
 				s.report.AddRecord(report.Record{
 					GroupName:  metricGroup,
 					MetricName: metricName,
-					Value:      string(metricValue),
-					Timestamp:  time.Now(),
+					Value:      string(metricResult.Value),
+					Health:     metricResult.Health,
+					Severity:   metricResult.Severity,
 				})
 			}
 

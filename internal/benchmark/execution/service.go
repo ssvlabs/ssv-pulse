@@ -9,38 +9,41 @@ import (
 )
 
 const (
-	Peers   metric.Name = "Peers"
-	Latency metric.Name = "Latency"
+	Peers metric.Name = "Peers"
 )
 
 type Service struct {
-	apiURL   string
-	interval time.Duration
+	interval   time.Duration
+	peerMetric *PeerMetric
 }
 
 func New(apiURL string) *Service {
 	return &Service{
-		apiURL:   apiURL,
-		interval: time.Second * 5,
+		peerMetric: NewPeerMetric(apiURL),
+		interval:   time.Second * 5,
 	}
 }
 
-func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
+func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			peers, err := getPeers(s.apiURL)
+			peers, err := s.peerMetric.Get()
 			if err != nil {
 				logger.WriteError(metric.ExecutionGroup, Peers, err)
 			} else {
 				logger.WriteMetric(metric.ExecutionGroup, Peers, map[string]any{"peers": peers})
 			}
 		case <-ctx.Done():
-			return map[metric.Name][]byte{
-				Peers: []byte(metric.FormatPercentiles(getAggregatedPeersValues())),
+			return map[metric.Name]metric.Result{
+				Peers: {
+					Value:    []byte(metric.FormatPercentiles(s.peerMetric.Aggregate())),
+					Health:   "",
+					Severity: "",
+				},
 			}, ctx.Err()
 		}
 	}

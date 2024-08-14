@@ -7,14 +7,21 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-var (
+type LatencyMetric struct {
+	url       string
 	latencies []time.Duration
-)
+}
 
-func getLatency(address string) (time.Duration, error) {
+func NewLatencyMetric(url string) *LatencyMetric {
+	return &LatencyMetric{
+		url: url,
+	}
+}
+
+func (l *LatencyMetric) Get() (time.Duration, error) {
 	var latency time.Duration
 	start := time.Now()
-	res, err := http.Get(address)
+	res, err := http.Get(l.url)
 	if err != nil {
 		return latency, err
 	}
@@ -24,17 +31,17 @@ func getLatency(address string) (time.Duration, error) {
 
 	latency = end.Sub(start)
 
-	latencies = append(latencies, latency)
+	l.latencies = append(l.latencies, latency)
 
 	return latency, nil
 }
 
-func getAggregatedLatencyValues() (min, p10, p50, p90, max time.Duration) {
-	min = metric.CalculatePercentile(latencies, 0)
-	p10 = metric.CalculatePercentile(latencies, 10)
-	p50 = metric.CalculatePercentile(latencies, 50)
-	p90 = metric.CalculatePercentile(latencies, 90)
-	max = metric.CalculatePercentile(latencies, 100)
+func (l *LatencyMetric) Aggregate() (min, p10, p50, p90, max time.Duration) {
+	min = metric.CalculatePercentile(l.latencies, 0)
+	p10 = metric.CalculatePercentile(l.latencies, 10)
+	p50 = metric.CalculatePercentile(l.latencies, 50)
+	p90 = metric.CalculatePercentile(l.latencies, 90)
+	max = metric.CalculatePercentile(l.latencies, 100)
 
 	return
 }

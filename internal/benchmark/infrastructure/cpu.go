@@ -5,16 +5,16 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-type CPUMonitor struct {
+type CPUMetric struct {
 	user, system, total          uint64
 	systemPercents, userPercents []float64
 }
 
-func NewCPU() *CPUMonitor {
-	return &CPUMonitor{}
+func NewCPUMetric() *CPUMetric {
+	return &CPUMetric{}
 }
 
-func (c *CPUMonitor) Measure() (systemPercent, userPercent float64, err error) {
+func (c *CPUMetric) Get() (systemPercent, userPercent float64, err error) {
 	cpu, err := cpu.Get()
 	if err != nil {
 		return systemPercent, userPercent, err
@@ -32,7 +32,7 @@ func (c *CPUMonitor) Measure() (systemPercent, userPercent float64, err error) {
 	return systemPercent, userPercent, nil
 }
 
-func (c *CPUMonitor) GetAggregatedValues() (userP50, systemP50 float64, total uint64) {
+func (c *CPUMetric) Aggregate() (userP50, systemP50 float64, total uint64) {
 	userP50 = metric.CalculatePercentile(c.userPercents, 50)
 	systemP50 = metric.CalculatePercentile(c.systemPercents, 50)
 

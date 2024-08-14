@@ -3,17 +3,19 @@ package report
 import (
 	"os"
 	"sync"
-	"time"
 
 	"github.com/aquasecurity/table"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+var headers = []string{"Group Name", "Metric Name", "Value", "Health", "Severity"}
+
 type Record struct {
 	GroupName  metric.Group
 	MetricName metric.Name
 	Value      string
-	Timestamp  time.Time
+	Health     metric.HealthStatus
+	Severity   metric.SeverityLevel
 }
 
 type Report struct {
@@ -24,8 +26,14 @@ type Report struct {
 func New() *Report {
 	t := table.New(os.Stdout)
 
-	t.SetHeaders("Group Name", "Metric Name", "Value", "Timestamp")
-	t.SetAlignment(table.AlignCenter, table.AlignCenter, table.AlignCenter, table.AlignCenter)
+	t.SetHeaders(headers...)
+
+	var alignments []table.Alignment
+	for i := 0; i < len(headers); i++ {
+		alignments = append(alignments, table.AlignCenter)
+	}
+	t.SetAlignment(alignments...)
+
 	return &Report{
 		t: t,
 	}
@@ -39,7 +47,8 @@ func (r *Report) AddRecord(metric Record) {
 		string(metric.GroupName),
 		string(metric.MetricName),
 		metric.Value,
-		metric.Timestamp.Format("2006-01-02 15:04:05"),
+		string(metric.Health),
+		string(metric.Severity),
 	)
 }
 

@@ -26,10 +26,11 @@ const (
 	executionAddrFlag        = "executionAddr"
 	ssvAddrFlag              = "ssvAddr"
 	networkFlag              = "network"
+	defaultExecutionDuration = time.Second * 60 * 5
 )
 
 func init() {
-	cmd.AddPersistentDurationFlag(CMD, executionDurationSecFlag, time.Second*60, "Duration for which the application will run to gather metrics", false)
+	cmd.AddPersistentDurationFlag(CMD, executionDurationSecFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics", false)
 	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
 	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
 	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)

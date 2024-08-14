@@ -11,9 +11,18 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-var peers []uint32
+type PeerMetric struct {
+	url   string
+	peers []uint32
+}
 
-func getPeers(url string) (uint32, error) {
+func NewPeerMetric(url string) *PeerMetric {
+	return &PeerMetric{
+		url: url,
+	}
+}
+
+func (p *PeerMetric) Get() (uint32, error) {
 	var (
 		resp struct {
 			Result string `json:"result"`
@@ -34,7 +43,7 @@ func getPeers(url string) (uint32, error) {
 		return peerNumber, errors.Join(err, errors.New("failed to marshal RPC request to Execution node during Peers fetching"))
 	}
 
-	res, err := http.Post(url, "application/json", bytes.NewBuffer(requestBytes))
+	res, err := http.Post(p.url, "application/json", bytes.NewBuffer(requestBytes))
 	if err != nil {
 		return peerNumber, errors.Join(err, errors.New("failed sending HTTP request to Execution node during Peers fetching"))
 	}
@@ -55,17 +64,17 @@ func getPeers(url string) (uint32, error) {
 	}
 	peerNumber = uint32(peerCount)
 
-	peers = append(peers, uint32(peerNumber))
+	p.peers = append(p.peers, uint32(peerNumber))
 
 	return peerNumber, nil
 }
 
-func getAggregatedPeersValues() (min, p10, p50, p90, max uint32) {
-	min = metric.CalculatePercentile(peers, 0)
-	p10 = metric.CalculatePercentile(peers, 10)
-	p50 = metric.CalculatePercentile(peers, 50)
-	p90 = metric.CalculatePercentile(peers, 90)
-	max = metric.CalculatePercentile(peers, 100)
+func (p *PeerMetric) Aggregate() (min, p10, p50, p90, max uint32) {
+	min = metric.CalculatePercentile(p.peers, 0)
+	p10 = metric.CalculatePercentile(p.peers, 10)
+	p50 = metric.CalculatePercentile(p.peers, 50)
+	p90 = metric.CalculatePercentile(p.peers, 90)
+	max = metric.CalculatePercentile(p.peers, 100)
 
 	return
 }
