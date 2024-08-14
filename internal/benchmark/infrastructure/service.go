@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
@@ -56,9 +57,11 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 				})
 			}
 		case <-ctx.Done():
+			userP50, systemP50, total := s.cpu.GetAggregatedValues()
+			totalP50, usedP50, cachedP50, freeP50 := s.memory.GetAggregatedValues()
 			return map[metric.Name][]byte{
-				CPU:    {},
-				Memory: {},
+				CPU:    []byte(fmt.Sprintf("userP50=%v, systemP50=%v, total=%v", userP50, systemP50, total)),
+				Memory: []byte(fmt.Sprintf("totalP50=%v, usedP50=%v, cachedP50=%v freeP50=%v", totalP50, usedP50, cachedP50, freeP50)),
 			}, ctx.Err()
 		}
 	}

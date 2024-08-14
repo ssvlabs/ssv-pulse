@@ -8,35 +8,33 @@ import (
 )
 
 var (
-	min, max  time.Duration
 	latencies []time.Duration
 )
 
-func getLatency(address string) (Min, P10, P50, P90, Max time.Duration, err error) {
+func getLatency(address string) (time.Duration, error) {
+	var latency time.Duration
 	start := time.Now()
 	res, err := http.Get(address)
 	if err != nil {
-		return Min, P10, P50, P90, Max, err
+		return latency, err
 	}
 	defer res.Body.Close()
 
 	end := time.Now()
 
-	latency := end.Sub(start)
-
-	if len(latencies) == 0 {
-		min = latency
-	} else if latency < min {
-		min = latency
-	}
-	if latency > max {
-		max = latency
-	}
+	latency = end.Sub(start)
 
 	latencies = append(latencies, latency)
-	p10 := metric.CalculatePercentile(latencies, 10)
-	p50 := metric.CalculatePercentile(latencies, 50)
-	p90 := metric.CalculatePercentile(latencies, 90)
 
-	return min, p10, p50, p90, max, err
+	return latency, nil
+}
+
+func getAggregatedLatencyValues() (min, p10, p50, p90, max time.Duration) {
+	min = metric.CalculatePercentile(latencies, 0)
+	p10 = metric.CalculatePercentile(latencies, 10)
+	p50 = metric.CalculatePercentile(latencies, 50)
+	p90 = metric.CalculatePercentile(latencies, 90)
+	max = metric.CalculatePercentile(latencies, 100)
+
+	return
 }

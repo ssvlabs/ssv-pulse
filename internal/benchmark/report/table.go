@@ -23,8 +23,9 @@ type Report struct {
 
 func New() *Report {
 	t := table.New(os.Stdout)
+
 	t.SetHeaders("Group Name", "Metric Name", "Value", "Timestamp")
-	t.SetAlignment(table.AlignLeft, table.AlignRight, table.AlignRight, table.AlignRight, table.AlignLeft)
+	t.SetAlignment(table.AlignCenter, table.AlignCenter, table.AlignCenter, table.AlignCenter)
 	return &Report{
 		t: t,
 	}
@@ -42,6 +43,6 @@ func (r *Report) AddRecord(metric Record) {
 	)
 }
 
-func (mt *Report) Render() {
-	mt.t.Render()
+func (r *Report) Render() {
+	r.t.Render()
 }

@@ -2,10 +2,12 @@ package infrastructure
 
 import (
 	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
 type CPUMonitor struct {
-	user, system, total uint64
+	user, system, total          uint64
+	systemPercents, userPercents []float64
 }
 
 func NewCPU() *CPUMonitor {
@@ -24,5 +26,15 @@ func (c *CPUMonitor) Measure() (systemPercent, userPercent float64, err error) {
 	c.system = cpu.System
 	c.total = cpu.Total
 
+	c.systemPercents = append(c.systemPercents, systemPercent)
+	c.userPercents = append(c.userPercents, userPercent)
+
 	return systemPercent, userPercent, nil
+}
+
+func (c *CPUMonitor) GetAggregatedValues() (userP50, systemP50 float64, total uint64) {
+	userP50 = metric.CalculatePercentile(c.userPercents, 50)
+	systemP50 = metric.CalculatePercentile(c.systemPercents, 50)
+
+	return userP50, systemP50, c.total
 }

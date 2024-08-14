@@ -13,17 +13,19 @@ const (
 )
 
 type Service struct {
-	apiURL string
+	apiURL   string
+	interval time.Duration
 }
 
 func New(apiURL string) *Service {
 	return &Service{
-		apiURL: apiURL,
+		apiURL:   apiURL,
+		interval: time.Second * 5,
 	}
 }
 
 func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
@@ -37,7 +39,7 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 			}
 		case <-ctx.Done():
 			return map[metric.Name][]byte{
-				Peers: {},
+				Peers: []byte(metric.FormatPercentiles(getAggregatedPeersValues())),
 			}, ctx.Err()
 		}
 	}

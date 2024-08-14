@@ -40,8 +40,7 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 			}
 		case <-ctx.Done():
 			return map[metric.Name][]byte{
-				Latency: []byte{},
-				Peers:   []byte{},
+				Peers: []byte(metric.FormatPercentiles(getAggregatedPeersValues())),
 			}, ctx.Err()
 		}
 	}

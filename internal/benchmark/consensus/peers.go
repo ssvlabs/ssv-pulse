@@ -5,34 +5,51 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-func getPeers(url string) (uint16, error) {
+var peers []uint32
+
+func getPeers(url string) (uint32, error) {
 	var (
 		resp struct {
 			Data struct {
 				Connected string `json:"connected"`
 			} `json:"data"`
 		}
-		peers uint16
+		peerNumber uint32
 	)
 	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/peer_count", url))
 	if err != nil {
-		return peers, err
+		return peerNumber, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return peers, fmt.Errorf("received unsuccessful status code when fetching Consensus Client Peer count. Code: '%d'", res.StatusCode)
+		return peerNumber, fmt.Errorf("received unsuccessful status code when fetching Consensus Client Peer count. Code: '%d'", res.StatusCode)
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		return peers, err
+		return peerNumber, err
 	}
 
-	convertedPeers, err := strconv.Atoi(resp.Data.Connected)
+	peerNr, err := strconv.Atoi(resp.Data.Connected)
 	if err != nil {
-		return uint16(convertedPeers), err
+		return peerNumber, err
 	}
-	return uint16(convertedPeers), nil
+	peerNumber = uint32(peerNr)
+	peers = append(peers, peerNumber)
+
+	return peerNumber, nil
+}
+
+func getAggregatedPeersValues() (min, p10, p50, p90, max uint32) {
+	min = metric.CalculatePercentile(peers, 0)
+	p10 = metric.CalculatePercentile(peers, 10)
+	p50 = metric.CalculatePercentile(peers, 50)
+	p90 = metric.CalculatePercentile(peers, 90)
+	max = metric.CalculatePercentile(peers, 100)
+
+	return
 }
