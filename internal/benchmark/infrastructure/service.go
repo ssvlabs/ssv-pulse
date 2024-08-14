@@ -27,7 +27,7 @@ func New() *Service {
 	}
 }
 
-func (s *Service) Start(ctx context.Context) error {
+func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
@@ -55,9 +55,11 @@ func (s *Service) Start(ctx context.Context) error {
 					"free":   free,
 				})
 			}
-
 		case <-ctx.Done():
-			return ctx.Err()
+			return map[metric.Name][]byte{
+				CPU:    {},
+				Memory: {},
+			}, ctx.Err()
 		}
 	}
 }

@@ -25,7 +25,7 @@ func New(apiURL string) *Service {
 	}
 }
 
-func (s *Service) Start(ctx context.Context) error {
+func (s *Service) Start(ctx context.Context) (map[metric.Name][]byte, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
@@ -52,7 +52,10 @@ func (s *Service) Start(ctx context.Context) error {
 				})
 			}
 		case <-ctx.Done():
-			return ctx.Err()
+			return map[metric.Name][]byte{
+				Latency: []byte(""),
+				Peers:   []byte(""),
+			}, ctx.Err()
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/consensus"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/execution"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/infrastructure"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/ssv"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/lifecycle"
@@ -68,12 +69,13 @@ var CMD = &cobra.Command{
 			panic(err.Error())
 		}
 
-		metricService := New(map[metric.Group]MetricService{
+		metricService := New(map[metric.Group]metricService{
 			metric.ConsensusGroup:      consensus.New(consensusAddr),
 			metric.ExecutionGroup:      execution.New(executionAddr),
 			metric.SSVGroup:            ssv.New(ssvAddr),
 			metric.InfrastructureGroup: infrastructure.New(),
-		})
+		},
+			report.New())
 
 		go metricService.Start(ctx)
 
