@@ -1,7 +1,9 @@
 package report
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/aquasecurity/table"
@@ -12,10 +14,10 @@ var headers = []string{"Group Name", "Metric Name", "Value", "Health", "Severity
 
 type Record struct {
 	GroupName  metric.Group
-	MetricName metric.Name
+	MetricName string
 	Value      string
 	Health     metric.HealthStatus
-	Severity   metric.SeverityLevel
+	Severity   map[string]metric.SeverityLevel
 }
 
 type Report struct {
@@ -48,10 +50,26 @@ func (r *Report) AddRecord(metric Record) {
 		string(metric.MetricName),
 		metric.Value,
 		string(metric.Health),
-		string(metric.Severity),
+		formatSeverityMap(metric.Severity),
 	)
 }
 
 func (r *Report) Render() {
 	r.t.Render()
+}
+
+func formatSeverityMap(severityMap map[string]metric.SeverityLevel) string {
+	var builder strings.Builder
+
+	for name, severity := range severityMap {
+		builder.WriteString(fmt.Sprintf("%s: %s, ", name, severity))
+	}
+
+	// Remove the trailing comma and space, if necessary
+	result := builder.String()
+	if len(result) > 2 {
+		result = result[:len(result)-2]
+	}
+
+	return result
 }

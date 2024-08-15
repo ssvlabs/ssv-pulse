@@ -3,18 +3,21 @@ package metric
 import (
 	"fmt"
 	"sort"
+
+	"golang.org/x/exp/constraints"
 )
 
 type (
-	numeric interface {
-		~int | ~int64 | ~float64 | ~uint16 | ~uint32
+	Metricable interface {
+		constraints.Ordered
 	}
+
 	stringable interface {
 		~int | ~int64 | ~float64 | ~uint64 | ~uint16 | ~uint32 | string
 	}
 )
 
-func CalculatePercentile[T numeric](values []T, percentile float64) T {
+func CalculatePercentile[T Metricable](values []T, percentile float64) T {
 	if len(values) == 0 {
 		var zero T
 		return zero

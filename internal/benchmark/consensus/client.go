@@ -4,19 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-type ClientVersionMetric struct {
-	url string
+const (
+	Version = "Version"
+)
+
+type ClientMetric struct {
+	metric.Base[string]
+	url        string
+	isMeasured bool
 }
 
-func NewClientVersionMetric(url string) *ClientVersionMetric {
-	return &ClientVersionMetric{
+func NewClientMetric(url, name string, healthCondition []metric.HealthCondition[string]) *ClientMetric {
+	return &ClientMetric{
 		url: url,
+		Base: metric.Base[string]{
+			HealthConditions: healthCondition,
+			Name:             name,
+		},
 	}
 }
 
-func (c *ClientVersionMetric) Get() (string, error) {
+func (c *ClientMetric) Measure() {
 	var (
 		resp struct {
 			Data struct {
@@ -24,19 +37,42 @@ func (c *ClientVersionMetric) Get() (string, error) {
 			} `json:"data"`
 		}
 	)
+	if c.isMeasured {
+		return
+	}
 	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/version", c.url))
 	if err != nil {
-		return "", err
+		c.AddDataPoint(map[string]string{
+			Version: "",
+		})
+		logger.WriteError(metric.ConsensusGroup, c.Name, err)
+		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("received unsuccessful status code when fetching Consensus Client Version. Code: '%d'", res.StatusCode)
+		c.AddDataPoint(map[string]string{
+			Version: "",
+		})
+		logger.WriteError(metric.ConsensusGroup, c.Name, fmt.Errorf("received unsuccessful status code. Code: '%s'. Metric: '%s'", res.Status, c.Name))
+		return
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		return "", err
+		c.AddDataPoint(map[string]string{
+			Version: "",
+		})
+		logger.WriteError(metric.ConsensusGroup, c.Name, err)
+		return
 	}
 
-	return resp.Data.Version, nil
+	c.AddDataPoint(map[string]string{
+		Version: resp.Data.Version,
+	})
+	c.isMeasured = true
+	logger.WriteMetric(metric.ConsensusGroup, c.Name, map[string]any{"version": resp.Data.Version})
+}
+
+func (p *ClientMetric) AggregateResults() string {
+	return p.DataPoints[0].Values[Version]
 }

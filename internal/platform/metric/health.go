@@ -22,7 +22,8 @@ const (
 	OperatorEqual              Operator = "=="
 )
 
-type HealthCondition[T numeric] struct {
+type HealthCondition[T Metricable] struct {
+	Name      string
 	Threshold T
 	Operator  Operator
 	Severity  SeverityLevel

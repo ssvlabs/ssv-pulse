@@ -5,79 +5,79 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+const (
+	PeerCountMeasurement = "Count"
+)
+
 type PeerMetric struct {
-	url              string
-	peers            []uint32
-	healthConditions []metric.HealthCondition[uint32]
+	metric.Base[uint32]
+	url string
 }
 
-func NewPeerMetric(url string, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
+func NewPeerMetric(url, name string, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
 	return &PeerMetric{
-		url:              url,
-		healthConditions: healthCondition,
+		url: url,
+		Base: metric.Base[uint32]{
+			HealthConditions: healthCondition,
+			Name:             name,
+		},
 	}
 }
 
-func (p *PeerMetric) Get() (uint32, error) {
+func (p *PeerMetric) Measure() {
 	var (
 		resp struct {
 			Advanced struct {
 				Peers uint32 `json:"peers"`
 			} `json:"advanced"`
 		}
-		peerNumber uint32
 	)
 	res, err := http.Get(fmt.Sprintf("%s/v1/node/health", p.url))
 	if err != nil {
-		p.peers = append(p.peers, 0)
-		return peerNumber, err
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.SSVGroup, p.Name, err)
+		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		p.peers = append(p.peers, 0)
-		return peerNumber, fmt.Errorf("received unsuccessful status code when fetching SSV Client Peer count. Code: '%d'", res.StatusCode)
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.SSVGroup, p.Name, fmt.Errorf("received unsuccessful status code. Code: '%s'. Metric: '%s'", res.Status, p.Name))
+		return
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		p.peers = append(p.peers, 0)
-		return peerNumber, err
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.SSVGroup, p.Name, err)
+		return
 	}
 
-	peerNumber = resp.Advanced.Peers
-	p.peers = append(p.peers, peerNumber)
+	p.AddDataPoint(map[string]uint32{
+		PeerCountMeasurement: resp.Advanced.Peers,
+	})
 
-	return peerNumber, nil
+	logger.WriteMetric(metric.SSVGroup, p.Name, map[string]any{"peers": resp.Advanced.Peers})
 }
 
-func (p *PeerMetric) Aggregate() (min, p10, p50, p90, max uint32) {
-	min = metric.CalculatePercentile(p.peers, 0)
-	p10 = metric.CalculatePercentile(p.peers, 10)
-	p50 = metric.CalculatePercentile(p.peers, 50)
-	p90 = metric.CalculatePercentile(p.peers, 90)
-	max = metric.CalculatePercentile(p.peers, 100)
-
-	return
-}
-
-func (p *PeerMetric) Health() (metric.HealthStatus, metric.SeverityLevel) {
-	overallHealth := metric.Healthy
-	maxSeverity := metric.SeverityNone
-
-	for _, peerValue := range p.peers {
-		for _, condition := range p.healthConditions {
-			if condition.Evaluate(peerValue) {
-				overallHealth = metric.Unhealthy
-
-				if metric.CompareSeverities(condition.Severity, maxSeverity) > 0 {
-					maxSeverity = condition.Severity
-				}
-			}
-		}
+func (p *PeerMetric) AggregateResults() string {
+	var values []uint32
+	for _, point := range p.DataPoints {
+		values = append(values, point.Values[PeerCountMeasurement])
 	}
-
-	return overallHealth, maxSeverity
+	return metric.FormatPercentiles(
+		metric.CalculatePercentile(values, 0),
+		metric.CalculatePercentile(values, 10),
+		metric.CalculatePercentile(values, 50),
+		metric.CalculatePercentile(values, 90),
+		metric.CalculatePercentile(values, 100))
 }

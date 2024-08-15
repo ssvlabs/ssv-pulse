@@ -1,47 +1,70 @@
 package infrastructure
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/mackerelio/go-osstat/memory"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+const (
+	UsedMemoryMeasurement   = "Used"
+	TotalMemoryMeasurement  = "Total"
+	CachedMemoryMeasurement = "Cached"
+	FreeMemoryMeasurement   = "Free"
+)
+
 type MemoryMetric struct {
-	totalMbs, usedMbs, cachedMbs, freeMbs []float64
+	metric.Base[uint64]
 }
 
-func NewMemoryMetric() *MemoryMetric {
-	return &MemoryMetric{}
+func NewMemoryMetric(name string, healthCondition []metric.HealthCondition[uint64]) *MemoryMetric {
+	return &MemoryMetric{
+		Base: metric.Base[uint64]{
+			HealthConditions: healthCondition,
+			Name:             name,
+		},
+	}
 }
 
-func (m *MemoryMetric) Get() (totalMb, usedMb, cachedMb, freeMb float64, err error) {
+func (m *MemoryMetric) Measure() {
 	memory, err := memory.Get()
 	if err != nil {
-		return totalMb, usedMb, cachedMb, freeMb, errors.Join(err, errors.New("failed to measure memory metric"))
+		logger.WriteError(metric.InfrastructureGroup, m.Name, err)
+		return
 	}
-	totalMb = toMegabytes(memory.Total)
-	m.totalMbs = append(m.totalMbs, totalMb)
 
-	usedMb = toMegabytes(memory.Used)
-	m.usedMbs = append(m.usedMbs, usedMb)
+	m.AddDataPoint(map[string]uint64{
+		CachedMemoryMeasurement: memory.Cached,
+		UsedMemoryMeasurement:   memory.Used,
+		FreeMemoryMeasurement:   memory.Free,
+		TotalMemoryMeasurement:  memory.Total,
+	})
 
-	cachedMb = toMegabytes(memory.Cached)
-	m.cachedMbs = append(m.cachedMbs, cachedMb)
-
-	freeMb = toMegabytes(memory.Free)
-	m.freeMbs = append(m.freeMbs, freeMb)
-
-	return totalMb, usedMb, cachedMb, freeMb, err
+	logger.WriteMetric(metric.InfrastructureGroup, m.Name, map[string]any{
+		"total":  toMegabytes(memory.Total),
+		"used":   toMegabytes(memory.Used),
+		"cached": toMegabytes(memory.Cached),
+		"free":   toMegabytes(memory.Free),
+	})
 }
 
-func (c *MemoryMetric) Aggregate() (totalP50, usedP50, cachedP50, freeP50 float64) {
-	totalP50 = metric.CalculatePercentile(c.totalMbs, 50)
-	usedP50 = metric.CalculatePercentile(c.usedMbs, 50)
-	cachedP50 = metric.CalculatePercentile(c.cachedMbs, 50)
-	freeP50 = metric.CalculatePercentile(c.freeMbs, 50)
+func (p *MemoryMetric) AggregateResults() string {
+	var values map[string][]float64 = make(map[string][]float64)
 
-	return
+	for _, point := range p.DataPoints {
+		values[TotalMemoryMeasurement] = append(values[TotalMemoryMeasurement], toMegabytes(point.Values[TotalMemoryMeasurement]))
+		values[FreeMemoryMeasurement] = append(values[FreeMemoryMeasurement], toMegabytes(point.Values[FreeMemoryMeasurement]))
+		values[UsedMemoryMeasurement] = append(values[UsedMemoryMeasurement], toMegabytes(point.Values[UsedMemoryMeasurement]))
+		values[CachedMemoryMeasurement] = append(values[CachedMemoryMeasurement], toMegabytes(point.Values[CachedMemoryMeasurement]))
+	}
+
+	return fmt.Sprintf("total_P50=%.2fMB, used_P50=%.2fMB, cached_P50=%.2fMB, free_P50=%.2fMB",
+		metric.CalculatePercentile(values[TotalMemoryMeasurement], 50),
+		metric.CalculatePercentile(values[UsedMemoryMeasurement], 50),
+		metric.CalculatePercentile(values[CachedMemoryMeasurement], 50),
+		metric.CalculatePercentile(values[FreeMemoryMeasurement], 50))
 }
 
 func toMegabytes(bytes uint64) float64 {

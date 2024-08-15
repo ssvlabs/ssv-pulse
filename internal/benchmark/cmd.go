@@ -71,10 +71,28 @@ var CMD = &cobra.Command{
 		}
 
 		metricService := New(map[metric.Group]metricService{
-			metric.ConsensusGroup:      consensus.New(consensusAddr),
-			metric.ExecutionGroup:      execution.New(executionAddr),
-			metric.SSVGroup:            ssv.New(ssvAddr),
-			metric.InfrastructureGroup: infrastructure.New(),
+			metric.ConsensusGroup: consensus.New([]metric.Metric{
+				consensus.NewLatencyMetric(consensusAddr, "Latency", []metric.HealthCondition[time.Duration]{}),
+				consensus.NewPeerMetric(consensusAddr, "Peers", []metric.HealthCondition[uint32]{}),
+				consensus.NewClientMetric(consensusAddr, "Client", []metric.HealthCondition[string]{}),
+			}),
+
+			metric.ExecutionGroup: execution.New([]metric.Metric{
+				execution.NewPeerMetric(executionAddr, "Peers", []metric.HealthCondition[uint32]{}),
+			}),
+
+			metric.SSVGroup: ssv.New([]metric.Metric{
+				ssv.NewPeerMetric(ssvAddr, "Peers", []metric.HealthCondition[uint32]{
+					{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+					{Name: ssv.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+				}),
+			}),
+			metric.InfrastructureGroup: infrastructure.New([]metric.Metric{
+				infrastructure.NewMemoryMetric("Memory", []metric.HealthCondition[uint64]{
+					{Name: infrastructure.FreeMemoryMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				}),
+				infrastructure.NewCPUMetric("CPU", []metric.HealthCondition[float64]{}),
+			}),
 		},
 			report.New())
 

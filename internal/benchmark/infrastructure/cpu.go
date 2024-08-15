@@ -1,40 +1,65 @@
 package infrastructure
 
 import (
+	"fmt"
+
 	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+const (
+	SystemCPUMeasurement = "System"
+	UserCPUMeasurement   = "User"
+)
+
 type CPUMetric struct {
-	user, system, total          uint64
-	systemPercents, userPercents []float64
+	metric.Base[float64]
+	prevUser, prevSystem, total uint64
 }
 
-func NewCPUMetric() *CPUMetric {
-	return &CPUMetric{}
+func NewCPUMetric(name string, healthCondition []metric.HealthCondition[float64]) *CPUMetric {
+	return &CPUMetric{
+		Base: metric.Base[float64]{
+			Name:             name,
+			HealthConditions: healthCondition,
+		},
+	}
 }
 
-func (c *CPUMetric) Get() (systemPercent, userPercent float64, err error) {
+func (m *CPUMetric) Measure() {
 	cpu, err := cpu.Get()
 	if err != nil {
-		return systemPercent, userPercent, err
+		logger.WriteError(metric.InfrastructureGroup, m.Name, err)
+		return
 	}
-	systemPercent = float64(cpu.System-c.system) / float64(cpu.Total-c.total) * 100
-	userPercent = float64(cpu.User-c.user) / float64(cpu.Total-c.total) * 100
+	systemPercent := float64(cpu.System-m.prevSystem) / float64(cpu.Total-m.total) * 100
+	userPercent := float64(cpu.User-m.prevUser) / float64(cpu.Total-m.total) * 100
 
-	c.user = cpu.User
-	c.system = cpu.System
-	c.total = cpu.Total
+	m.prevUser = cpu.User
+	m.prevSystem = cpu.System
+	m.total = cpu.Total
 
-	c.systemPercents = append(c.systemPercents, systemPercent)
-	c.userPercents = append(c.userPercents, userPercent)
+	m.AddDataPoint(map[string]float64{
+		SystemCPUMeasurement: systemPercent,
+		UserCPUMeasurement:   userPercent,
+	})
 
-	return systemPercent, userPercent, nil
+	logger.WriteMetric(metric.InfrastructureGroup, m.Name, map[string]any{
+		"system": systemPercent,
+		"user":   userPercent,
+	})
 }
 
-func (c *CPUMetric) Aggregate() (userP50, systemP50 float64, total uint64) {
-	userP50 = metric.CalculatePercentile(c.userPercents, 50)
-	systemP50 = metric.CalculatePercentile(c.systemPercents, 50)
+func (p *CPUMetric) AggregateResults() string {
+	var values map[string][]float64 = make(map[string][]float64)
 
-	return userP50, systemP50, c.total
+	for _, point := range p.DataPoints {
+		values[SystemCPUMeasurement] = append(values[SystemCPUMeasurement], point.Values[SystemCPUMeasurement])
+		values[UserCPUMeasurement] = append(values[UserCPUMeasurement], point.Values[UserCPUMeasurement])
+	}
+
+	return fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v",
+		metric.CalculatePercentile(values[UserCPUMeasurement], 50),
+		metric.CalculatePercentile(values[SystemCPUMeasurement], 50), p.total)
 }

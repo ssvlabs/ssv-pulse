@@ -3,82 +3,112 @@ package execution
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+const (
+	PeerCountMeasurement = "Count"
+)
+
 type PeerMetric struct {
-	url   string
-	peers []uint32
+	metric.Base[uint32]
+	url string
 }
 
-func NewPeerMetric(url string) *PeerMetric {
+func NewPeerMetric(url, name string, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
 	return &PeerMetric{
 		url: url,
+		Base: metric.Base[uint32]{
+			HealthConditions: healthCondition,
+			Name:             name,
+		},
 	}
 }
 
-func (p *PeerMetric) Get() (uint32, error) {
+func (p *PeerMetric) Measure() {
 	var (
 		resp struct {
 			Result string `json:"result"`
 		}
-		peerNumber uint32
 	)
 
 	request := struct {
-		Jsonrpc string        `json:"jsonrpc"`
-		Method  string        `json:"method"`
-		Params  []interface{} `json:"params"`
-		ID      int           `json:"id"`
+		Jsonrpc string `json:"jsonrpc"`
+		Method  string `json:"method"`
+		Params  []any  `json:"params"`
+		ID      int    `json:"id"`
 	}{
 		Jsonrpc: "2.0",
 		Method:  "net_peerCount",
-		Params:  []interface{}{},
+		Params:  []any{},
 		ID:      1,
 	}
 
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return peerNumber, errors.Join(err, errors.New("failed to marshal RPC request to Execution node during Peers fetching"))
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		return
 	}
 
 	res, err := http.Post(p.url, "application/json", bytes.NewBuffer(requestBytes))
 	if err != nil {
-		return peerNumber, errors.Join(err, errors.New("failed sending HTTP request to Execution node during Peers fetching"))
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return peerNumber, fmt.Errorf("received unsuccessful status code when fetching Execution Client Peer count. Code: '%d'", res.StatusCode)
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, fmt.Errorf("received unsuccessful status code. Code: '%s'. Metric: '%s'", res.Status, p.Name))
+		return
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		return peerNumber, errors.Join(err, errors.New("failed to decode RPC response from Execution node during Peers fetching"))
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		return
 	}
 
 	peerCountHex := resp.Result
 	peerCount, err := strconv.ParseInt(peerCountHex[2:], 16, 64)
 	if err != nil {
-		return peerNumber, errors.Join(err, errors.New("failed to convert peer count response from Execution node during Peers fetching"))
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 	}
-	peerNumber = uint32(peerCount)
 
-	p.peers = append(p.peers, uint32(peerNumber))
+	p.AddDataPoint(map[string]uint32{
+		PeerCountMeasurement: uint32(peerCount),
+	})
 
-	return peerNumber, nil
+	logger.WriteMetric(metric.ExecutionGroup, p.Name, map[string]any{"peers": peerCount})
 }
 
-func (p *PeerMetric) Aggregate() (min, p10, p50, p90, max uint32) {
-	min = metric.CalculatePercentile(p.peers, 0)
-	p10 = metric.CalculatePercentile(p.peers, 10)
-	p50 = metric.CalculatePercentile(p.peers, 50)
-	p90 = metric.CalculatePercentile(p.peers, 90)
-	max = metric.CalculatePercentile(p.peers, 100)
-
-	return
+func (p *PeerMetric) AggregateResults() string {
+	var values []uint32
+	for _, point := range p.DataPoints {
+		values = append(values, point.Values[PeerCountMeasurement])
+	}
+	return metric.FormatPercentiles(
+		metric.CalculatePercentile(values, 0),
+		metric.CalculatePercentile(values, 10),
+		metric.CalculatePercentile(values, 50),
+		metric.CalculatePercentile(values, 90),
+		metric.CalculatePercentile(values, 100))
 }

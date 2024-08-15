@@ -1,14 +1,6 @@
 package metric
 
-type (
-	Group  string
-	Name   string
-	Result struct {
-		Value    []byte
-		Health   HealthStatus
-		Severity SeverityLevel
-	}
-)
+type Group string
 
 const (
 	ConsensusGroup      Group = "Consensus"
@@ -16,3 +8,9 @@ const (
 	SSVGroup            Group = "SSV"
 	InfrastructureGroup Group = "Infrastructure"
 )
+
+type GroupResult struct {
+	ViewResult string
+	Health     HealthStatus
+	Severity   map[string]SeverityLevel
+}

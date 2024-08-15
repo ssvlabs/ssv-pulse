@@ -9,12 +9,12 @@ import (
 )
 
 func init() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 	slog.Debug("logger initialized")
 }
 
-func WriteMetric(metricGroup metric.Group, metricName metric.Name, nameValue map[string]any) {
+func WriteMetric(metricGroup metric.Group, metricName string, nameValue map[string]any) {
 	logger := slog.Default()
 
 	logger = logger.With("values", nameValue)
@@ -25,7 +25,7 @@ func WriteMetric(metricGroup metric.Group, metricName metric.Name, nameValue map
 		Debug("measured")
 }
 
-func WriteError(metricGroup metric.Group, metricName metric.Name, err error) {
+func WriteError(metricGroup metric.Group, metricName string, err error) {
 	slog.
 		With("err", err.Error()).
 		With("metric_group", strings.ToLower(string(metricGroup))).

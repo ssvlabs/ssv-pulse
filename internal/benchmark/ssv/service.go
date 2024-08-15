@@ -4,51 +4,44 @@ import (
 	"context"
 	"time"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
-const (
-	Peers metric.Name = "Peers"
-)
-
 type Service struct {
-	peerMetric *PeerMetric
-	interval   time.Duration
+	interval time.Duration
+	metrics  []metric.Metric
 }
 
-func New(url string) *Service {
+func New(metrics []metric.Metric) *Service {
 	return &Service{
-		peerMetric: NewPeerMetric(url, []metric.HealthCondition[uint32]{
-			{Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
-			{Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
-		}),
+		metrics:  metrics,	
 		interval: time.Second * 5,
 	}
 }
 
-func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, error) {
+func (s *Service) Start(ctx context.Context) (map[string]metric.GroupResult, error) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			peers, err := s.peerMetric.Get()
-			if err != nil {
-				logger.WriteError(metric.SSVGroup, Peers, err)
-			} else {
-				logger.WriteMetric(metric.SSVGroup, Peers, map[string]any{"peers": peers})
+			for _, metric := range s.metrics {
+				metric.Measure()
 			}
 		case <-ctx.Done():
-			health, severity := s.peerMetric.Health()
-			return map[metric.Name]metric.Result{
-				Peers: {
-					Value:    []byte(metric.FormatPercentiles(s.peerMetric.Aggregate())),
-					Health:   health,
-					Severity: severity,
-				},
-			}, ctx.Err()
+			var result map[string]metric.GroupResult = make(map[string]metric.GroupResult, len(s.metrics))
+
+			for _, m := range s.metrics {
+				health, severity := m.EvaluateMetric()
+
+				result[m.GetName()] = metric.GroupResult{
+					ViewResult: m.AggregateResults(),
+					Health:     health,
+					Severity:   severity,
+				}
+			}
+			return result, ctx.Err()
 		}
 	}
 }

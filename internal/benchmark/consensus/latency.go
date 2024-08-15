@@ -4,26 +4,39 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
 )
 
+const (
+	Duration = "Duration"
+)
+
 type LatencyMetric struct {
-	url       string
-	latencies []time.Duration
+	metric.Base[time.Duration]
+	url string
 }
 
-func NewLatencyMetric(url string) *LatencyMetric {
+func NewLatencyMetric(url, name string, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
 	return &LatencyMetric{
 		url: url,
+		Base: metric.Base[time.Duration]{
+			HealthConditions: healthCondition,
+			Name:             name,
+		},
 	}
 }
 
-func (l *LatencyMetric) Get() (time.Duration, error) {
+func (l *LatencyMetric) Measure() {
 	var latency time.Duration
 	start := time.Now()
 	res, err := http.Get(l.url)
 	if err != nil {
-		return latency, err
+		l.AddDataPoint(map[string]time.Duration{
+			Duration: 0,
+		})
+		logger.WriteError(metric.ConsensusGroup, l.Name, err)
+		return
 	}
 	defer res.Body.Close()
 
@@ -31,17 +44,22 @@ func (l *LatencyMetric) Get() (time.Duration, error) {
 
 	latency = end.Sub(start)
 
-	l.latencies = append(l.latencies, latency)
+	l.AddDataPoint(map[string]time.Duration{
+		Duration: latency,
+	})
 
-	return latency, nil
+	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{"duration": latency})
 }
 
-func (l *LatencyMetric) Aggregate() (min, p10, p50, p90, max time.Duration) {
-	min = metric.CalculatePercentile(l.latencies, 0)
-	p10 = metric.CalculatePercentile(l.latencies, 10)
-	p50 = metric.CalculatePercentile(l.latencies, 50)
-	p90 = metric.CalculatePercentile(l.latencies, 90)
-	max = metric.CalculatePercentile(l.latencies, 100)
-
-	return
+func (p *LatencyMetric) AggregateResults() string {
+	var values []time.Duration
+	for _, point := range p.DataPoints {
+		values = append(values, point.Values[Duration])
+	}
+	return metric.FormatPercentiles(
+		metric.CalculatePercentile(values, 0),
+		metric.CalculatePercentile(values, 10),
+		metric.CalculatePercentile(values, 50),
+		metric.CalculatePercentile(values, 90),
+		metric.CalculatePercentile(values, 100))
 }

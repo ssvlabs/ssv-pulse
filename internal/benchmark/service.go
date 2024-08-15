@@ -10,7 +10,7 @@ import (
 
 type (
 	metricService interface {
-		Start(context.Context) (map[metric.Name]metric.Result, error)
+		Start(context.Context) (map[string]metric.GroupResult, error)
 	}
 
 	reportService interface {
@@ -47,10 +47,11 @@ func (s *Service) Start(ctx context.Context) {
 			}
 
 			for metricName, metricResult := range result {
+				slog.With("metric_group", metricGroup).With("metric_name", metricName).Info("adding report record")
 				s.report.AddRecord(report.Record{
 					GroupName:  metricGroup,
 					MetricName: metricName,
-					Value:      string(metricResult.Value),
+					Value:      metricResult.ViewResult,
 					Health:     metricResult.Health,
 					Severity:   metricResult.Severity,
 				})
@@ -58,6 +59,7 @@ func (s *Service) Start(ctx context.Context) {
 
 			writtenMetrics++
 			if writtenMetrics == uint8(metricCount) {
+				slog.Info("rendering")
 				s.report.Render()
 			}
 		}(ctx)
