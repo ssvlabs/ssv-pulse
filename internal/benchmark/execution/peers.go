@@ -31,11 +31,15 @@ func (p *PeerMetric) Get() (uint32, error) {
 	)
 
 	request := struct {
-		Jsonrpc string `json:"jsonrpc"`
-		Method  string `json:"method"`
+		Jsonrpc string        `json:"jsonrpc"`
+		Method  string        `json:"method"`
+		Params  []interface{} `json:"params"`
+		ID      int           `json:"id"`
 	}{
 		Jsonrpc: "2.0",
 		Method:  "net_peerCount",
+		Params:  []interface{}{},
+		ID:      1,
 	}
 
 	requestBytes, err := json.Marshal(request)
