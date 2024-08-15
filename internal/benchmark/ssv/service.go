@@ -21,7 +21,7 @@ func New(url string) *Service {
 	return &Service{
 		peerMetric: NewPeerMetric(url, []metric.HealthCondition[uint32]{
 			{Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
-			{Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+			{Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 		}),
 		interval: time.Second * 5,
 	}
