@@ -1,6 +1,6 @@
 module github.com/ssvlabs/ssv-benchmark
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/aquasecurity/table v1.8.0
