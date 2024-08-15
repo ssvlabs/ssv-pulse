@@ -17,10 +17,13 @@ type Service struct {
 	interval   time.Duration
 }
 
-func New(apiURL string) *Service {
+func New(url string) *Service {
 	return &Service{
-		peerMetric: NewPeerMetric(apiURL),
-		interval:   time.Second * 5,
+		peerMetric: NewPeerMetric(url, []metric.HealthCondition[uint32]{
+			{Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+			{Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+		}),
+		interval: time.Second * 5,
 	}
 }
 
@@ -38,11 +41,12 @@ func (s *Service) Start(ctx context.Context) (map[metric.Name]metric.Result, err
 				logger.WriteMetric(metric.SSVGroup, Peers, map[string]any{"peers": peers})
 			}
 		case <-ctx.Done():
+			health, severity := s.peerMetric.Health()
 			return map[metric.Name]metric.Result{
 				Peers: {
 					Value:    []byte(metric.FormatPercentiles(s.peerMetric.Aggregate())),
-					Health:   "",
-					Severity: "",
+					Health:   health,
+					Severity: severity,
 				},
 			}, ctx.Err()
 		}
