@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const terminationDelay = time.Second * 10
+const terminationDelay = time.Second * 5
 
 func ListenForApplicationShutDown(ctx context.Context, shutdownFunc func(), signalChannel chan os.Signal) {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
