@@ -77,7 +77,9 @@ var CMD = &cobra.Command{
 					{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 					{Name: consensus.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				}),
-				consensus.NewClientMetric(consensusAddr, "Client", []metric.HealthCondition[string]{}),
+				consensus.NewClientMetric(consensusAddr, "Client", []metric.HealthCondition[string]{
+					{Name: consensus.Version, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				}),
 			},
 
 			metric.ExecutionGroup: {
