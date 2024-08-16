@@ -7,7 +7,6 @@ import (
 
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
-	"golang.org/x/exp/maps"
 )
 
 type (
@@ -42,17 +41,7 @@ func (s *Service) Start(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 
-	var enabledMetrics map[metric.Group][]string = make(map[metric.Group][]string)
-	for group, metrics := range s.metrics {
-		for _, metric := range metrics {
-			enabledMetrics[group] = append(enabledMetrics[group], metric.GetName())
-		}
-	}
-
-	slog.
-		With("groups", maps.Keys(enabledMetrics)).
-		With("metrics", maps.Values(enabledMetrics)).
-		Debug("starting benchmark service")
+	slog.With("metrics", s.metrics).Debug("starting benchmark service")
 
 	for {
 		select {
