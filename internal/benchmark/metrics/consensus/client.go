@@ -54,7 +54,13 @@ func (c *ClientMetric) Measure() {
 		c.AddDataPoint(map[string]string{
 			Version: "",
 		})
-		logger.WriteError(metric.ConsensusGroup, c.Name, fmt.Errorf("received unsuccessful status code. Code: '%s'. Metric: '%s'", res.Status, c.Name))
+		var errorResponse any
+		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
+		jsonErrResponse, _ := json.Marshal(errorResponse)
+		logger.WriteError(
+			metric.ConsensusGroup,
+			c.Name,
+			fmt.Errorf("received unsuccessful status code. Code: '%s'. Response: '%s'", res.Status, jsonErrResponse))
 		return
 	}
 
@@ -69,6 +75,7 @@ func (c *ClientMetric) Measure() {
 	c.AddDataPoint(map[string]string{
 		Version: resp.Data.Version,
 	})
+
 	c.isMeasured = true
 	logger.WriteMetric(metric.ConsensusGroup, c.Name, map[string]any{"version": resp.Data.Version})
 }

@@ -72,7 +72,14 @@ func (p *PeerMetric) Measure() {
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
-		logger.WriteError(metric.ExecutionGroup, p.Name, fmt.Errorf("received unsuccessful status code. Code: '%s'. Metric: '%s'", res.Status, p.Name))
+
+		var errorResponse any
+		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
+		jsonErrResponse, _ := json.Marshal(errorResponse)
+		logger.WriteError(
+			metric.ExecutionGroup,
+			p.Name,
+			fmt.Errorf("received unsuccessful status code. Code: '%s'. Response: '%s'", res.Status, jsonErrResponse))
 		return
 	}
 
@@ -91,6 +98,7 @@ func (p *PeerMetric) Measure() {
 			PeerCountMeasurement: 0,
 		})
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		return
 	}
 
 	p.AddDataPoint(map[string]uint32{
