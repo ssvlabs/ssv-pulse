@@ -3,6 +3,7 @@ package benchmark
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
@@ -10,22 +11,24 @@ import (
 
 type (
 	metricService interface {
-		Start(context.Context) (map[string]metric.GroupResult, error)
+		Measure()
+		GetName() string
+		AggregateResults() string
+		EvaluateMetric() (metric.HealthStatus, map[string]metric.SeverityLevel)
 	}
-
 	reportService interface {
 		AddRecord(metric report.Record)
 		Render()
 	}
 
 	Service struct {
-		metrics map[metric.Group]metricService
+		metrics map[metric.Group][]metricService
 		report  reportService
 	}
 )
 
 func New(
-	metrics map[metric.Group]metricService,
+	metrics map[metric.Group][]metricService,
 	reportService reportService,
 ) *Service {
 	return &Service{
@@ -35,33 +38,36 @@ func New(
 }
 
 func (s *Service) Start(ctx context.Context) {
-	metricCount := len(s.metrics)
-	var writtenMetrics uint8
-	for metricGroup, metricSvc := range s.metrics {
-		slog.With("group", metricGroup).Info("launching metric service")
+	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
 
-		go func(ctx context.Context) {
-			result, err := metricSvc.Start(ctx)
-			if err == context.DeadlineExceeded || err == context.Canceled {
-				slog.With("err", err.Error()).With("group", metricGroup).Warn("service was shut down")
+	for {
+		select {
+		case <-ticker.C:
+			for _, groupMetrics := range s.metrics {
+				for _, metric := range groupMetrics {
+					go metric.Measure()
+				}
+			}
+		case <-ctx.Done():
+			for metricGroup, groupMetrics := range s.metrics {
+				for _, m := range groupMetrics {
+					health, severity := m.EvaluateMetric()
+
+					slog.With("metric_group", metricGroup).With("metric_name", m.GetName()).Info("adding report record")
+					s.report.AddRecord(report.Record{
+						GroupName:  metricGroup,
+						MetricName: m.GetName(),
+						Value:      m.AggregateResults(),
+						Health:     health,
+						Severity:   severity,
+					})
+				}
 			}
 
-			for metricName, metricResult := range result {
-				slog.With("metric_group", metricGroup).With("metric_name", metricName).Info("adding report record")
-				s.report.AddRecord(report.Record{
-					GroupName:  metricGroup,
-					MetricName: metricName,
-					Value:      metricResult.ViewResult,
-					Health:     metricResult.Health,
-					Severity:   metricResult.Severity,
-				})
-			}
-
-			writtenMetrics++
-			if writtenMetrics == uint8(metricCount) {
-				slog.Info("rendering")
-				s.report.Render()
-			}
-		}(ctx)
+			slog.Info("rendering")
+			s.report.Render()
+			return
+		}
 	}
 }

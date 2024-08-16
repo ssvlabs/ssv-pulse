@@ -3,15 +3,9 @@ package metric
 import (
 	"fmt"
 	"sort"
-
-	"golang.org/x/exp/constraints"
 )
 
 type (
-	Metricable interface {
-		constraints.Ordered
-	}
-
 	stringable interface {
 		~int | ~int64 | ~float64 | ~uint64 | ~uint16 | ~uint32 | string
 	}

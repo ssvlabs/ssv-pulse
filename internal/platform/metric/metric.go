@@ -1,13 +1,14 @@
 package metric
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/exp/constraints"
+)
 
 type (
-	Metric interface {
-		Measure()
-		GetName() string
-		AggregateResults() string
-		EvaluateMetric() (HealthStatus, map[string]SeverityLevel)
+	Metricable interface {
+		constraints.Integer | constraints.Float | ~string
 	}
 
 	Base[T Metricable] struct {

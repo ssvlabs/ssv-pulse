@@ -10,11 +10,11 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/config"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/consensus"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/execution"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/infrastructure"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/consensus"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/execution"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/infrastructure"
+	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/ssv"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/ssv"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/lifecycle"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
@@ -70,31 +70,36 @@ var CMD = &cobra.Command{
 			panic(err.Error())
 		}
 
-		metricService := New(map[metric.Group]metricService{
-			metric.ConsensusGroup: consensus.New([]metric.Metric{
+		metricService := New(map[metric.Group][]metricService{
+			metric.ConsensusGroup: {
 				consensus.NewLatencyMetric(consensusAddr, "Latency", []metric.HealthCondition[time.Duration]{}),
-				consensus.NewPeerMetric(consensusAddr, "Peers", []metric.HealthCondition[uint32]{}),
+				consensus.NewPeerMetric(consensusAddr, "Peers", []metric.HealthCondition[uint32]{
+					{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+					{Name: consensus.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+				}),
 				consensus.NewClientMetric(consensusAddr, "Client", []metric.HealthCondition[string]{}),
-			}),
+			},
 
-			metric.ExecutionGroup: execution.New([]metric.Metric{
-				execution.NewPeerMetric(executionAddr, "Peers", []metric.HealthCondition[uint32]{}),
-			}),
+			metric.ExecutionGroup: {
+				execution.NewPeerMetric(executionAddr, "Peers", []metric.HealthCondition[uint32]{
+					{Name: execution.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+					{Name: execution.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+				}),
+			},
 
-			metric.SSVGroup: ssv.New([]metric.Metric{
+			metric.SSVGroup: {
 				ssv.NewPeerMetric(ssvAddr, "Peers", []metric.HealthCondition[uint32]{
 					{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 					{Name: ssv.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				}),
-			}),
-			metric.InfrastructureGroup: infrastructure.New([]metric.Metric{
+			},
+			metric.InfrastructureGroup: {
 				infrastructure.NewMemoryMetric("Memory", []metric.HealthCondition[uint64]{
 					{Name: infrastructure.FreeMemoryMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				}),
 				infrastructure.NewCPUMetric("CPU", []metric.HealthCondition[float64]{}),
-			}),
-		},
-			report.New())
+			},
+		}, report.New())
 
 		go metricService.Start(ctx)
 
