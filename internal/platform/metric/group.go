@@ -8,9 +8,3 @@ const (
 	SSVGroup            Group = "SSV"
 	InfrastructureGroup Group = "Infrastructure"
 )
-
-type GroupResult struct {
-	ViewResult string
-	Health     HealthStatus
-	Severity   map[string]SeverityLevel
-}
