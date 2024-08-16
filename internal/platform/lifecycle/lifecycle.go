@@ -28,10 +28,3 @@ func ListenForApplicationShutDown(ctx context.Context, shutdownFunc func(), sign
 		time.Sleep(terminationDelay)
 	}
 }
-
-func ShutDown(shutdownFunc func(), code int) {
-	shutdownFunc()
-	time.Sleep(terminationDelay)
-	slog.Warn("application was terminated")
-	os.Exit(code)
-}
