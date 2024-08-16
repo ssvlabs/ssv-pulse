@@ -50,3 +50,6 @@ When evaluating a metric, the system:
 2. For each data point, evaluates it against all associated health conditions.
 3. Determines the overall health of the metric based on the conditions met.
 4. Assigns the highest severity level from the triggered conditions.
+
+## Architecture
+[Architecture](https://github.com/ssvlabs/ssv-benchmark/blob/main/docs/architecture.png)\

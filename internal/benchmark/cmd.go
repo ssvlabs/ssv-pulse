@@ -70,7 +70,7 @@ var CMD = &cobra.Command{
 			panic(err.Error())
 		}
 
-		metricService := New(map[metric.Group][]metricService{
+		benchmarkService := New(map[metric.Group][]metricService{
 			metric.ConsensusGroup: {
 				consensus.NewLatencyMetric(consensusAddr, "Latency", []metric.HealthCondition[time.Duration]{}),
 				consensus.NewPeerMetric(consensusAddr, "Peers", []metric.HealthCondition[uint32]{
@@ -103,7 +103,7 @@ var CMD = &cobra.Command{
 			},
 		}, report.New())
 
-		go metricService.Start(ctx)
+		go benchmarkService.Start(ctx)
 
 		lifecycle.ListenForApplicationShutDown(ctx, func() {
 			cancel()
