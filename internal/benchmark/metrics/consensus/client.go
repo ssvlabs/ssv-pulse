@@ -81,5 +81,8 @@ func (c *ClientMetric) Measure() {
 }
 
 func (p *ClientMetric) AggregateResults() string {
-	return p.DataPoints[0].Values[Version]
+	if len(p.DataPoints) != 0 {
+		return p.DataPoints[0].Values[Version]
+	}
+	return ""
 }

@@ -17,11 +17,10 @@ func init() {
 func WriteMetric(metricGroup metric.Group, metricName string, nameValue map[string]any) {
 	logger := slog.Default()
 
-	logger = logger.With("values", nameValue)
-
 	logger.
 		With("metric_group", strings.ToLower(string(metricGroup))).
 		With("metric_name", strings.ToLower(string(metricName))).
+		With("values", nameValue).
 		Debug("measured")
 }
 
