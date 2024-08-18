@@ -92,7 +92,7 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 				log.Printf("failed to parse attestation_data_time: %v", err)
 				continue
 			}
-			if uint64(t) > 100 {
+			if uint64(t) > 1000 {
 				log.Printf("attestation_data_time too high: %d", uint64(t))
 				continue
 			}
