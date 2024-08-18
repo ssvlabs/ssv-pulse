@@ -1,6 +1,9 @@
 package analyzer
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -10,10 +13,8 @@ import (
 const filePathFlag = "log-file-path"
 
 func init() {
-	CMD.Flags().String(filePathFlag, "", "Path to ssv node log file to analyze")
-	if err := viper.BindPFlag("analyzer.log-file-path", CMD.Flags().Lookup(filePathFlag)); err != nil {
-		panic(err.Error())
-	}
+	cmd.AddPersistentStringFlag(CMD, "logFilePath", "", "Path to ssv node log file to analyze", true)
+	cmd.AddPersistentStringFlag(CMD, "cluster", "1,2,3,4", "Cluster to analyze", true)
 }
 
 var CMD = &cobra.Command{
@@ -24,10 +25,26 @@ var CMD = &cobra.Command{
 		if !isValid {
 			panic(err.Error())
 		}
-
-		analyzer, err := New(configs.Values.Analyzer.LogFilePath)
+		logFilePath := viper.GetString("logFilePath")
+		if strings.Contains(logFilePath, "../") {
+			return fmt.Errorf("❕ flag should not contain traversal")
+		}
+		if logFilePath == "" {
+			return fmt.Errorf("❕ logFilePath flag can not be empty")
+		}
+		if err := viper.BindPFlag("cluster", cmd.PersistentFlags().Lookup("cluster")); err != nil {
+			return err
+		}
+		cluster := viper.GetStringSlice("cluster")
+		if strings.Contains(logFilePath, "../") {
+			return fmt.Errorf("❕ flag should not contain traversal")
+		}
+		if len(cluster) == 0 {
+			return fmt.Errorf("❕ operator IDs at cluster flag can not be empty")
+		}
+		analyzer, err := New(logFilePath, cluster)
 		if err != nil {
-			return nil
+			return err
 		}
 		if err = analyzer.AnalyzeConsensus(); err != nil {
 			return err
