@@ -7,26 +7,33 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/ssvlabs/ssv-benchmark/internal/utils"
 )
 
 type LogAnalyzer struct {
 	logFile *os.File
+	cluster []uint64
 }
 
 // LogEntry represents a single log entry
 type LogEntry struct {
-	Level         string    `json:"L"`
-	Timestamp     time.Time `json:"T"`
-	Component     string    `json:"N"`
-	Message       string    `json:"M"`
-	Pubkey        string    `json:"pubkey"`
-	Role          string    `json:"role"`
-	DutyID        string    `json:"duty_id"`
-	Height        int       `json:"height"`
-	Round         int       `json:"round"`
-	CommitSigners []int     `json:"commit-signers"`
-	Root          string    `json:"root"`
+	Level           string    `json:"L"`
+	Timestamp       time.Time `json:"T"`
+	Component       string    `json:"N"`
+	Message         string    `json:"M"`
+	Pubkey          string    `json:"pubkey"`
+	Role            string    `json:"role"`
+	DutyID          string    `json:"duty_id"`
+	Height          int       `json:"height"`
+	Round           int       `json:"round"`
+	CommitSigners   []int     `json:"commit-signers"`
+	Root            string    `json:"root"`
+	AttestationTime string    `json:"attestation_data_time"`
+	Leaer           int       `json:"leader"`
 }
 
 // SignerStats keeps track of signer's score and total delay
@@ -45,13 +52,18 @@ type SignerPerformance struct {
 // Scores for ranks
 var rankScores = []int{5, 4, 3, 2, 1, 0}
 
-func New(logFilePath string) (*LogAnalyzer, error) {
+func New(logFilePath string, cluster []string) (*LogAnalyzer, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %v", err)
 	}
+	ids, err := utils.StingSliceToUintArray(cluster)
+	if err != nil {
+		return nil, err
+	}
 	return &LogAnalyzer{
 		logFile: file,
+		cluster: ids,
 	}, nil
 }
 
@@ -67,8 +79,23 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			log.Printf("failed to parse log entry: %v", err)
+			fmt.Printf("failed to parse log entry: %v", err)
 			continue
+		}
+		// Check attestation_data_time
+		if strings.Contains(entry.Message, "starting QBFT instance") {
+			if entry.AttestationTime == "" {
+				continue
+			}
+			t, err := strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
+			if err != nil {
+				log.Printf("failed to parse attestation_data_time: %v", err)
+				continue
+			}
+			if uint64(t) > 100 {
+				log.Printf("attestation_data_time too high: %d", uint64(t))
+				continue
+			}
 		}
 
 		// Consider only logs with round 1
