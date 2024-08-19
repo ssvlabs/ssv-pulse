@@ -19,12 +19,6 @@ var (
 	version = "1.0"
 )
 
-func init() {
-	rootCmd.AddCommand(analyzer.CMD)
-	rootCmd.AddCommand(benchmark.CMD)
-	rootCmd.AddCommand(cmd.Version)
-}
-
 var rootCmd = &cobra.Command{
 	Use:   "ssv-benchmark",
 	Short: "CLI for analyzing and benchmarking ssv node",
@@ -43,6 +37,11 @@ var rootCmd = &cobra.Command{
 			slog.With("err", err.Error()).Error(errMsg)
 			return errors.Join(err, errors.New(errMsg))
 		}
+
+		slog.
+			With("config_file", viper.ConfigFileUsed()).
+			With("config", configs.Values).
+			Debug("configurations loaded")
 		return nil
 	},
 }
@@ -50,6 +49,10 @@ var rootCmd = &cobra.Command{
 func main() {
 	rootCmd.Short = appName
 	rootCmd.Version = version
+
+	rootCmd.AddCommand(analyzer.CMD)
+	rootCmd.AddCommand(benchmark.CMD)
+	rootCmd.AddCommand(cmd.Version)
 
 	if err := rootCmd.Execute(); err != nil {
 		slog.With("err", err.Error()).Error("failed to execute root command")
