@@ -62,15 +62,15 @@ type BenchmarkConfig struct {
 
 func (bc BenchmarkConfig) Validate() (bool, error) {
 	if bc.Consensus.Address == "" {
-		return false, errors.New("consensus client address was not valid")
+		return false, errors.New("consensus client address was empty")
 	}
 
 	if bc.Execution.Address == "" {
-		return false, errors.New("execution client address was not valid")
+		return false, errors.New("execution client address was empty")
 	}
 
 	if bc.Ssv.Address == "" {
-		return false, errors.New("SSV client address was not valid")
+		return false, errors.New("SSV client address was empty")
 	}
 
 	network := network.Name(bc.Network)
