@@ -49,7 +49,7 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	}
 }
 
-// AddPersistentIntFlag adds a int flag to the command
+// AddPersistentDurationFlag adds a int flag to the command
 func AddPersistentDurationFlag(c *cobra.Command, flag string, value time.Duration, description string, isRequired bool) {
 	req := ""
 	if isRequired {
@@ -57,6 +57,20 @@ func AddPersistentDurationFlag(c *cobra.Command, flag string, value time.Duratio
 	}
 
 	c.PersistentFlags().Duration(flag, value, fmt.Sprintf("%s%s", description, req))
+
+	if isRequired {
+		_ = c.MarkPersistentFlagRequired(flag)
+	}
+}
+
+// AddPersistentBoolFlag adds a int flag to the command
+func AddPersistentBoolFlag(c *cobra.Command, flag string, value bool, description string, isRequired bool) {
+	req := ""
+	if isRequired {
+		req = " (required)"
+	}
+
+	c.PersistentFlags().Bool(flag, value, fmt.Sprintf("%s%s", description, req))
 
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)

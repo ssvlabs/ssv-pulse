@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
+	"github.com/ssvlabs/ssv-benchmark/configs"
 	"github.com/ssvlabs/ssv-benchmark/internal/analyzer"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
@@ -25,7 +28,22 @@ func init() {
 var rootCmd = &cobra.Command{
 	Use:   "ssv-benchmark",
 	Short: "CLI for analyzing and benchmarking ssv node",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(".")
+
+		if err := viper.ReadInConfig(); err != nil {
+			const errMsg = "error reading config file"
+			slog.With("err", err.Error()).Error(errMsg)
+			return errors.Join(err, errors.New(errMsg))
+		}
+		if err := viper.Unmarshal(&configs.Values); err != nil {
+			const errMsg = "unable to decode application config"
+			slog.With("err", err.Error()).Error(errMsg)
+			return errors.Join(err, errors.New(errMsg))
+		}
+		return nil
 	},
 }
 

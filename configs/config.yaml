@@ -1,0 +1,31 @@
+benchmark:
+  duration: 2m
+  network: "holesky"
+  consensus:
+    address: ""
+    metrics: 
+      client:
+        enabled: true
+      latency:
+        enabled: true
+      peers:
+        enabled: true
+
+  execution:
+    address: ""
+    metrics: 
+      peers:
+        enabled: true
+
+  ssv:
+    address: ""
+    metrics: 
+      peers:
+        enabled: true
+  
+  infrastructure:
+    metrics:
+      cpu:
+        enabled: true
+      memory:
+        enabled: true

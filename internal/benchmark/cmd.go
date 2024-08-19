@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/config"
+	"github.com/ssvlabs/ssv-benchmark/configs"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/consensus"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/execution"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/infrastructure"
@@ -21,76 +21,71 @@ import (
 )
 
 const (
-	executionDurationFlag    = "executionDuration"
-	consensusAddrFlag        = "consensusAddr"
-	executionAddrFlag        = "executionAddr"
-	ssvAddrFlag              = "ssvAddr"
+	durationFlag = "duration"
+
+	consensusAddrFlag          = "consensus-addr"
+	consensusMetricClientFlag  = "consensus-metric-client-enabled"
+	consensusMetricLatencyFlag = "consensus-metric-latency-enabled"
+	consensusMetricPeersFlag   = "consensus-metric-peers-enabled"
+
+	executionAddrFlag        = "execution-addr"
+	executionMetricPeersFlag = "execution-metric-peers-enabled"
+
+	ssvAddrFlag        = "ssv-addr"
+	ssvMetricPeersFlag = "ssv-metric-peers-enabled"
+
+	infraMetricCPUFlag    = "infra-metric-cpu-enabled"
+	infraMetricMemoryFlag = "infra-metric-memory-enabled"
+
 	networkFlag              = "network"
 	defaultExecutionDuration = time.Second * 60 * 5
 )
 
 func init() {
-	cmd.AddPersistentDurationFlag(CMD, executionDurationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'", false)
-	cmd.AddPersistentStringFlag(CMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
-	cmd.AddPersistentStringFlag(CMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
-	cmd.AddPersistentStringFlag(CMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)
-	cmd.AddPersistentStringFlag(CMD, networkFlag, "", "Ethereum network to use, either 'mainnet' or 'holesky'", true)
+
 }
 
 var CMD = &cobra.Command{
 	Use:   "benchmark",
 	Short: "Run benchmarks of ssv node",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := viper.BindPFlag(executionDurationFlag, cmd.PersistentFlags().Lookup(executionDurationFlag)); err != nil {
-			return err
+	RunE: func(cobraCMD *cobra.Command, args []string) error {
+		addFlags(cobraCMD)
+		if err := bindFlags(cobraCMD); err != nil {
+			panic(err.Error())
 		}
-		if err := viper.BindPFlag(consensusAddrFlag, cmd.PersistentFlags().Lookup(consensusAddrFlag)); err != nil {
-			return err
-		}
-		if err := viper.BindPFlag(executionAddrFlag, cmd.PersistentFlags().Lookup(executionAddrFlag)); err != nil {
-			return err
-		}
-		if err := viper.BindPFlag(ssvAddrFlag, cmd.PersistentFlags().Lookup(ssvAddrFlag)); err != nil {
-			return err
-		}
-		if err := viper.BindPFlag(networkFlag, cmd.PersistentFlags().Lookup(networkFlag)); err != nil {
-			return err
-		}
+		slog.
+			With("config_file", viper.ConfigFileUsed()).
+			With("config", configs.Values).
+			Debug("configurations loaded")
 
-		consensusAddr := viper.GetString(consensusAddrFlag)
-		executionAddr := viper.GetString(executionAddrFlag)
-		ssvAddr := viper.GetString(ssvAddrFlag)
-		networkName := viper.GetString(networkFlag)
-		executionDuration := viper.GetDuration(executionDurationFlag)
+		ctx, cancel := context.WithTimeout(context.Background(), configs.Values.Benchmark.Duration)
 
-		ctx, cancel := context.WithTimeout(context.Background(), executionDuration)
-
-		isValid, err := config.IsValid(consensusAddr, executionAddr, ssvAddr, networkName)
+		isValid, err := configs.Values.Benchmark.Validate()
 		if !isValid {
 			panic(err.Error())
 		}
 
 		benchmarkService := New(map[metric.Group][]metricService{
 			metric.ConsensusGroup: {
-				consensus.NewLatencyMetric(consensusAddr, "Latency", []metric.HealthCondition[time.Duration]{}),
-				consensus.NewPeerMetric(consensusAddr, "Peers", []metric.HealthCondition[uint32]{
+				consensus.NewLatencyMetric(configs.Values.Benchmark.Consensus.Address, "Latency", []metric.HealthCondition[time.Duration]{}),
+				consensus.NewPeerMetric(configs.Values.Benchmark.Consensus.Address, "Peers", []metric.HealthCondition[uint32]{
 					{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 					{Name: consensus.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				}),
-				consensus.NewClientMetric(consensusAddr, "Client", []metric.HealthCondition[string]{
+				consensus.NewClientMetric(configs.Values.Benchmark.Consensus.Address, "Client", []metric.HealthCondition[string]{
 					{Name: consensus.Version, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				}),
 			},
 
 			metric.ExecutionGroup: {
-				execution.NewPeerMetric(executionAddr, "Peers", []metric.HealthCondition[uint32]{
+				execution.NewPeerMetric(configs.Values.Benchmark.Execution.Address, "Peers", []metric.HealthCondition[uint32]{
 					{Name: execution.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 					{Name: execution.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				}),
 			},
 
 			metric.SSVGroup: {
-				ssv.NewPeerMetric(ssvAddr, "Peers", []metric.HealthCondition[uint32]{
+				ssv.NewPeerMetric(configs.Values.Benchmark.Ssv.Address, "Peers", []metric.HealthCondition[uint32]{
 					{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 					{Name: ssv.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				}),
@@ -111,4 +106,63 @@ var CMD = &cobra.Command{
 		}, make(chan os.Signal))
 		return nil
 	},
+}
+
+func addFlags(cobraCMD *cobra.Command) {
+	cmd.AddPersistentDurationFlag(cobraCMD, durationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'", false)
+	cmd.AddPersistentStringFlag(cobraCMD, consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052", true)
+	cmd.AddPersistentBoolFlag(cobraCMD, consensusMetricClientFlag, true, "Enable consensus client metric", false)
+	cmd.AddPersistentBoolFlag(cobraCMD, consensusMetricLatencyFlag, true, "Enable consensus latency metric", false)
+	cmd.AddPersistentBoolFlag(cobraCMD, consensusMetricPeersFlag, true, "Enable consensus peers metric", false)
+
+	cmd.AddPersistentStringFlag(cobraCMD, executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545", true)
+	cmd.AddPersistentBoolFlag(cobraCMD, executionMetricPeersFlag, true, "Enable execution peers metric", false)
+
+	cmd.AddPersistentStringFlag(cobraCMD, ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000", true)
+	cmd.AddPersistentBoolFlag(cobraCMD, ssvMetricPeersFlag, true, "Enable SSV peers metric", false)
+
+	cmd.AddPersistentBoolFlag(cobraCMD, infraMetricCPUFlag, true, "Enable infrastructure CPU metric", false)
+	cmd.AddPersistentBoolFlag(cobraCMD, infraMetricMemoryFlag, true, "Enable infrastructure memory metric", false)
+
+	cmd.AddPersistentStringFlag(cobraCMD, networkFlag, "", "Ethereum network to use, either 'mainnet' or 'holesky'", true)
+}
+
+func bindFlags(cmd *cobra.Command) error {
+	if err := viper.BindPFlag("benchmark.execution-duration", cmd.PersistentFlags().Lookup(durationFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.consensus.address", cmd.PersistentFlags().Lookup(consensusAddrFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.execution.address", cmd.PersistentFlags().Lookup(executionAddrFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.ssv.address", cmd.PersistentFlags().Lookup(ssvAddrFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.network", cmd.PersistentFlags().Lookup(networkFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.consensus.metrics.client.enabled", cmd.PersistentFlags().Lookup(consensusMetricClientFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.consensus.metrics.latency.enabled", cmd.PersistentFlags().Lookup(consensusMetricLatencyFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.consensus.metrics.peers.enabled", cmd.PersistentFlags().Lookup(consensusMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.execution.metrics.peers.enabled", cmd.PersistentFlags().Lookup(executionMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.ssv.metrics.peers.enabled", cmd.PersistentFlags().Lookup(ssvMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.infrastructure.metrics.cpu.enabled", cmd.PersistentFlags().Lookup(infraMetricCPUFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.infrastructure.metrics.memory.enabled", cmd.PersistentFlags().Lookup(infraMetricMemoryFlag)); err != nil {
+		return err
+	}
+	return nil
 }

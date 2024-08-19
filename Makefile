@@ -1,23 +1,23 @@
-BINARY_DIR=${EXEC_DIR}/bin/benchmark
 EXEC_DIR=cmd/benchmark
+BINARY_DIR=${EXEC_DIR}/bin
+BINARY_NAME=benchmark
 DOCKER_IMAGE_NANE=benchmark
-CONSENSUS_ADDR=REPLACE_WITH_ADDR
-EXECUTION_ADDR=REPLACE_WITH_ADDR
-SSV_ADDR=REPLACE_WITH_ADDR
-NETWORK=REPLACE_WITH_NETWORK_NAME
+CONFIG_DIR=./configs
+CONFIG_FILE=config.yaml
 LOG_FILE_PATH=REPLACE_WITH_PATH
 
 .PHONY: build
 build:
-	go build -o ${BINARY_DIR} ${EXEC_DIR}/main.go
+	go build -o ${BINARY_DIR}/${BINARY_NAME} ${EXEC_DIR}/main.go
+	@cp $(CONFIG_DIR)/$(CONFIG_FILE) $(BINARY_DIR)/
 
 .PHONY: run-benchmark
 run-benchmark: build
-	./${BINARY_DIR} benchmark --consensusAddr=${CONSENSUS_ADDR} --executionAddr=${EXECUTION_ADDR} --ssvAddr=${SSV_ADDR} --network=${NETWORK}
+	@cd ${BINARY_DIR} && ./${BINARY_NAME} benchmark
 
 .PHONY: run-analyzer
 run-analyzer: build
-	./${BINARY_DIR} log-analyzer --logFilePath=${LOG_FILE_PATH}
+	./${BINARY_DIR}/${BINARY_NAME} log-analyzer --logFilePath=${LOG_FILE_PATH}
 
 ########## DOCKER
 .PHONY: docker-build
