@@ -52,4 +52,4 @@ When evaluating a metric, the system:
 4. Assigns the highest severity level from the triggered conditions.
 
 ## Architecture
-[Architecture](https://github.com/ssvlabs/ssv-benchmark/blob/main/docs/architecture.png)\
+[Architecture](https://github.com/ssvlabs/ssv-benchmark/blob/main/docs/architecture.png)
