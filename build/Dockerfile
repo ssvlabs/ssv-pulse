@@ -1,26 +1,35 @@
-# Use the official Golang image as a base
+###############################################
 FROM golang:1.23@sha256:613a108a4a4b1dfb6923305db791a19d088f77632317cfc3446825c54fb862cd AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the rest of the application source code to the working directory
 COPY . .
+RUN CGO_ENABLED=0 go build -o bin/benchmark cmd/benchmark/main.go
 
-# Build the Go application
-RUN CGO_ENABLED=0 go build  -o bin/benchmark cmd/benchmark/main.go
+###############################################
+FROM busybox AS busybox
+RUN addgroup -S benchmarkgroup && adduser -S -G benchmarkgroup benchmarkuser
 
-# Use a minimal base image for the final container
+###############################################
+FROM debian:stable-slim AS certs
+RUN apt-get update && apt-get install -y ca-certificates
+
+###############################################
 FROM scratch
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the binary from the builder stage to the final image
-COPY --from=builder /app/bin .
+COPY --from=builder /app/bin/benchmark .
+COPY --from=builder /app/configs/config.yaml ./config.yaml
 
-# Set the entrypoint to run the binary
+COPY --from=busybox /etc/passwd /etc/passwd
+COPY --from=busybox /etc/group /etc/group
+
+COPY --from=certs /etc/ssl/certs /etc/ssl/certs
+COPY --from=certs /etc/ssl/private /etc/ssl/private
+COPY --from=certs /usr/share/ca-certificates /usr/share/ca-certificates
+
+USER benchmarkuser:benchmarkgroup
+
 ENTRYPOINT ["/app/benchmark"]
-
-# Set the default command to be empty, allowing arguments to be passed
 CMD []

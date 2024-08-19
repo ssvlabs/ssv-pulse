@@ -1,0 +1,12 @@
+# Exclude the git directory
+.git
+
+# Exclude the vendor directory
+vendor/
+
+# Exclude any local config files
+*.local
+
+# Exclude Docker-related files that shouldn’t be copied
+Dockerfile
+.dockerignore
