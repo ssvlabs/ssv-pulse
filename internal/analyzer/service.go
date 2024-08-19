@@ -73,28 +73,27 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 	scanner := bufio.NewScanner(r.logFile)
 	dutySignerTimes := make(map[string]map[int]time.Time)
 	signerStats := make(map[int]SignerStats)
-
+	var attestationTimeCount uint64
+	var attestationTimeTotal uint64
+	var attestationTimeAverage uint64
+	attestationDelayCount := 0
 	for scanner.Scan() {
 		var entry LogEntry
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			fmt.Printf("failed to parse log entry: %v", err)
+			log.Printf("failed to parse log entry: %v", err)
 			continue
 		}
+
 		// Check attestation_data_time
 		if strings.Contains(entry.Message, "starting QBFT instance") {
-			if entry.AttestationTime == "" {
-				continue
-			}
-			t, err := strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
-			if err != nil {
-				log.Printf("failed to parse attestation_data_time: %v", err)
-				continue
-			}
+			t, _ := strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
+			attestationTimeCount = attestationTimeCount + 1
+			attestationTimeTotal = attestationTimeTotal + uint64(t)
+			attestationTimeAverage = attestationTimeTotal / attestationTimeCount
 			if uint64(t) > 1000 {
-				log.Printf("attestation_data_time too high: %d", uint64(t))
-				continue
+				attestationDelayCount++
 			}
 		}
 
@@ -159,6 +158,9 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 	})
 
 	// Output scores and delays per signer
+	fmt.Printf("attestation data time average: %dms\n", attestationTimeAverage)
+	fmt.Printf("attestation data time > 1 sec: %d/%d\n", attestationDelayCount, attestationTimeCount)
+
 	fmt.Println("Total Scores and Delays per Signer:")
 	for _, stats := range sortedSigners {
 		fmt.Printf("Signer: %d, Score: %d, Total Delay: %d seconds\n", stats.Signer, stats.Score, int(stats.Delay.Seconds()))
