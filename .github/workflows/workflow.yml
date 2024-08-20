@@ -61,6 +61,8 @@ jobs:
 
   docker-build-push:
     needs: [go-lint, go-build, go-test]
+    # Runs on 'main' or if previous jobs succeeded
+    if: ${{ github.ref == 'refs/heads/main' || success() }}  
     name: Build Push Docker Image
     runs-on: ubuntu-latest
     permissions:
