@@ -1,0 +1,97 @@
+name: "Feature branch workflow"
+
+on:
+  push:
+    branches:
+      - '**'
+
+env:  
+  GO_VERSION: 1.23
+  IMAGE_ARCHITECTURES: linux/amd64
+  IMAGE_REGISTRY: ghcr.io
+  DOCKERFILE_PATH: build/Dockerfile
+
+jobs:
+  go-lint:
+    name: "Runs Go Linter steps"
+    if: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  go-build:
+    name: "Runs Go Build steps"
+    if: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build
+        run: make build
+
+  go-test:
+    name: "Runs Go Test steps"
+    if: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Test
+        run: make test
+
+  docker-build-push:
+    needs: [go-lint, go-build, go-test]
+    name: Build Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        run: |
+          echo $GITHUB_SHA
+          echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c 1-6)" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ env.IMAGE_ARCHITECTURES }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          platforms: ${{ env.IMAGE_ARCHITECTURES }}
+          tags: ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:${{ env.IMAGE_TAG }}
