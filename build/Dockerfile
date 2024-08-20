@@ -1,10 +1,14 @@
 ###############################################
-FROM golang:1.23@sha256:613a108a4a4b1dfb6923305db791a19d088f77632317cfc3446825c54fb862cd AS builder
+FROM --platform=$BUILDPLATFORM golang:1.23@sha256:613a108a4a4b1dfb6923305db791a19d088f77632317cfc3446825c54fb862cd AS builder
 
 WORKDIR /app
 
 COPY . .
-RUN CGO_ENABLED=0 go build -o bin/benchmark cmd/benchmark/main.go
+
+ARG TARGETOS TARGETARCH
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
+
+RUN go build -o bin/benchmark cmd/benchmark/main.go
 
 ###############################################
 FROM busybox AS busybox
