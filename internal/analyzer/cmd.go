@@ -4,22 +4,28 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabs/ssv-benchmark/configs"
 )
 
+const filePathFlag = "log-file-path"
+
 func init() {
-	cmd.AddPersistentStringFlag(CMD, "logFilePath", "", "Path to ssv node log file to analyze", true)
+	CMD.Flags().String(filePathFlag, "", "Path to ssv node log file to analyze")
+	if err := viper.BindPFlag("analyzer.log-file-path", CMD.Flags().Lookup(filePathFlag)); err != nil {
+		panic(err.Error())
+	}
 }
 
 var CMD = &cobra.Command{
 	Use:   "log-analyzer",
 	Short: "Read and analyze ssv node logs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
-			return err
+		isValid, err := configs.Values.Analyzer.Validate()
+		if !isValid {
+			panic(err.Error())
 		}
-		logFilePath := viper.GetString("logFilePath")
-		analyzer, err := New(logFilePath)
+
+		analyzer, err := New(configs.Values.Analyzer.LogFilePath)
 		if err != nil {
 			return nil
 		}

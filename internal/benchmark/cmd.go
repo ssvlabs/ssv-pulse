@@ -84,7 +84,7 @@ func addFlags(cobraCMD *cobra.Command) {
 }
 
 func bindFlags(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("benchmark.execution-duration", cmd.Flags().Lookup(durationFlag)); err != nil {
+	if err := viper.BindPFlag("benchmark.duration", cmd.Flags().Lookup(durationFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.consensus.address", cmd.Flags().Lookup(consensusAddrFlag)); err != nil {

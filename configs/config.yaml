@@ -29,3 +29,6 @@ benchmark:
         enabled: true
       memory:
         enabled: true
+
+analyzer:
+  log-file-path: ""

@@ -4,7 +4,6 @@ BINARY_NAME=benchmark
 DOCKER_IMAGE_NANE=benchmark
 CONFIG_DIR=./configs
 CONFIG_FILE=config.yaml
-LOG_FILE_PATH=REPLACE_WITH_PATH
 
 .PHONY: build
 build:
@@ -17,7 +16,7 @@ run-benchmark: build
 
 .PHONY: run-analyzer
 run-analyzer: build
-	./${BINARY_DIR}/${BINARY_NAME} log-analyzer --logFilePath=${LOG_FILE_PATH}
+	@cd ${BINARY_DIR} && ./${BINARY_NAME} log-analyzer
 
 ########## DOCKER
 .PHONY: docker-build
