@@ -81,7 +81,7 @@ jobs:
           platforms: ${{ env.IMAGE_ARCHITECTURES }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
