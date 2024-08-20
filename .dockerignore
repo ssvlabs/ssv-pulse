@@ -9,4 +9,5 @@ vendor/
 
 # Exclude Docker-related files that shouldn’t be copied
 Dockerfile
+**/Dockerfile
 .dockerignore
