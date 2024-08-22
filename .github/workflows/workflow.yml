@@ -103,7 +103,7 @@ jobs:
     name: Publish Release
     runs-on: ubuntu-latest
     needs: docker-build-push
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
     permissions:
       contents: write
     steps:
