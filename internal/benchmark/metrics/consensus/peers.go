@@ -84,7 +84,7 @@ func (p *PeerMetric) Measure() {
 		PeerCountMeasurement: uint32(peerNr),
 	})
 
-	logger.WriteMetric(metric.ConsensusGroup, p.Name, map[string]any{"peers": peerNr})
+	logger.WriteMetric(metric.ConsensusGroup, p.Name, map[string]any{PeerCountMeasurement: peerNr})
 }
 
 func (p *PeerMetric) AggregateResults() string {

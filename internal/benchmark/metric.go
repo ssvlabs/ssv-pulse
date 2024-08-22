@@ -20,7 +20,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			configs.Values.Benchmark.Consensus.Address,
 			"Client",
 			[]metric.HealthCondition[string]{
-				{Name: consensus.Version, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				{Name: consensus.VersionMeasurement, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 			}))
 	}
 

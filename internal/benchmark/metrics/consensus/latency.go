@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	Duration = "Duration"
+	DurationMeasurement = "Duration"
 )
 
 type LatencyMetric struct {
@@ -33,7 +33,7 @@ func (l *LatencyMetric) Measure() {
 	res, err := http.Get(l.url)
 	if err != nil {
 		l.AddDataPoint(map[string]time.Duration{
-			Duration: 0,
+			DurationMeasurement: 0,
 		})
 		logger.WriteError(metric.ConsensusGroup, l.Name, err)
 		return
@@ -45,16 +45,16 @@ func (l *LatencyMetric) Measure() {
 	latency = end.Sub(start)
 
 	l.AddDataPoint(map[string]time.Duration{
-		Duration: latency,
+		DurationMeasurement: latency,
 	})
 
-	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{"duration": latency})
+	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{DurationMeasurement: latency})
 }
 
-func (p *LatencyMetric) AggregateResults() string {
+func (l *LatencyMetric) AggregateResults() string {
 	var values []time.Duration
-	for _, point := range p.DataPoints {
-		values = append(values, point.Values[Duration])
+	for _, point := range l.DataPoints {
+		values = append(values, point.Values[DurationMeasurement])
 	}
 	return metric.FormatPercentiles(
 		metric.CalculatePercentile(values, 0),

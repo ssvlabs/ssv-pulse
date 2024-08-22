@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Version = "Version"
+	VersionMeasurement = "Version"
 )
 
 type ClientMetric struct {
@@ -43,7 +43,7 @@ func (c *ClientMetric) Measure() {
 	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/version", c.url))
 	if err != nil {
 		c.AddDataPoint(map[string]string{
-			Version: "",
+			VersionMeasurement: "",
 		})
 		logger.WriteError(metric.ConsensusGroup, c.Name, err)
 		return
@@ -52,7 +52,7 @@ func (c *ClientMetric) Measure() {
 
 	if res.StatusCode != http.StatusOK {
 		c.AddDataPoint(map[string]string{
-			Version: "",
+			VersionMeasurement: "",
 		})
 		var errorResponse any
 		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
@@ -66,23 +66,23 @@ func (c *ClientMetric) Measure() {
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		c.AddDataPoint(map[string]string{
-			Version: "",
+			VersionMeasurement: "",
 		})
 		logger.WriteError(metric.ConsensusGroup, c.Name, err)
 		return
 	}
 
 	c.AddDataPoint(map[string]string{
-		Version: resp.Data.Version,
+		VersionMeasurement: resp.Data.Version,
 	})
 
 	c.isMeasured = true
-	logger.WriteMetric(metric.ConsensusGroup, c.Name, map[string]any{"version": resp.Data.Version})
+	logger.WriteMetric(metric.ConsensusGroup, c.Name, map[string]any{VersionMeasurement: resp.Data.Version})
 }
 
-func (p *ClientMetric) AggregateResults() string {
-	if len(p.DataPoints) != 0 {
-		return p.DataPoints[0].Values[Version]
+func (c *ClientMetric) AggregateResults() string {
+	if len(c.DataPoints) != 0 {
+		return c.DataPoints[0].Values[VersionMeasurement]
 	}
 	return ""
 }

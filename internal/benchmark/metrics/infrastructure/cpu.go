@@ -27,39 +27,39 @@ func NewCPUMetric(name string, healthCondition []metric.HealthCondition[float64]
 	}
 }
 
-func (m *CPUMetric) Measure() {
+func (c *CPUMetric) Measure() {
 	cpu, err := cpu.Get()
 	if err != nil {
-		logger.WriteError(metric.InfrastructureGroup, m.Name, err)
+		logger.WriteError(metric.InfrastructureGroup, c.Name, err)
 		return
 	}
-	systemPercent := float64(cpu.System-m.prevSystem) / float64(cpu.Total-m.total) * 100
-	userPercent := float64(cpu.User-m.prevUser) / float64(cpu.Total-m.total) * 100
+	systemPercent := float64(cpu.System-c.prevSystem) / float64(cpu.Total-c.total) * 100
+	userPercent := float64(cpu.User-c.prevUser) / float64(cpu.Total-c.total) * 100
 
-	m.prevUser = cpu.User
-	m.prevSystem = cpu.System
-	m.total = cpu.Total
+	c.prevUser = cpu.User
+	c.prevSystem = cpu.System
+	c.total = cpu.Total
 
-	m.AddDataPoint(map[string]float64{
+	c.AddDataPoint(map[string]float64{
 		SystemCPUMeasurement: systemPercent,
 		UserCPUMeasurement:   userPercent,
 	})
 
-	logger.WriteMetric(metric.InfrastructureGroup, m.Name, map[string]any{
-		"system": systemPercent,
-		"user":   userPercent,
+	logger.WriteMetric(metric.InfrastructureGroup, c.Name, map[string]any{
+		SystemCPUMeasurement: systemPercent,
+		UserCPUMeasurement:   userPercent,
 	})
 }
 
-func (p *CPUMetric) AggregateResults() string {
+func (c *CPUMetric) AggregateResults() string {
 	var values map[string][]float64 = make(map[string][]float64)
 
-	for _, point := range p.DataPoints {
+	for _, point := range c.DataPoints {
 		values[SystemCPUMeasurement] = append(values[SystemCPUMeasurement], point.Values[SystemCPUMeasurement])
 		values[UserCPUMeasurement] = append(values[UserCPUMeasurement], point.Values[UserCPUMeasurement])
 	}
 
 	return fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v",
 		metric.CalculatePercentile(values[UserCPUMeasurement], 50),
-		metric.CalculatePercentile(values[SystemCPUMeasurement], 50), p.total)
+		metric.CalculatePercentile(values[SystemCPUMeasurement], 50), c.total)
 }

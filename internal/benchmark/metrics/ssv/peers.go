@@ -73,7 +73,7 @@ func (p *PeerMetric) Measure() {
 		PeerCountMeasurement: resp.Advanced.Peers,
 	})
 
-	logger.WriteMetric(metric.SSVGroup, p.Name, map[string]any{"peers": resp.Advanced.Peers})
+	logger.WriteMetric(metric.SSVGroup, p.Name, map[string]any{PeerCountMeasurement: resp.Advanced.Peers})
 }
 
 func (p *PeerMetric) AggregateResults() string {

@@ -43,17 +43,17 @@ func (m *MemoryMetric) Measure() {
 	})
 
 	logger.WriteMetric(metric.InfrastructureGroup, m.Name, map[string]any{
-		"total":  toMegabytes(memory.Total),
-		"used":   toMegabytes(memory.Used),
-		"cached": toMegabytes(memory.Cached),
-		"free":   toMegabytes(memory.Free),
+		TotalMemoryMeasurement:  toMegabytes(memory.Total),
+		UsedMemoryMeasurement:   toMegabytes(memory.Used),
+		CachedMemoryMeasurement: toMegabytes(memory.Cached),
+		FreeMemoryMeasurement:   toMegabytes(memory.Free),
 	})
 }
 
-func (p *MemoryMetric) AggregateResults() string {
+func (m *MemoryMetric) AggregateResults() string {
 	var values map[string][]float64 = make(map[string][]float64)
 
-	for _, point := range p.DataPoints {
+	for _, point := range m.DataPoints {
 		values[TotalMemoryMeasurement] = append(values[TotalMemoryMeasurement], toMegabytes(point.Values[TotalMemoryMeasurement]))
 		values[FreeMemoryMeasurement] = append(values[FreeMemoryMeasurement], toMegabytes(point.Values[FreeMemoryMeasurement]))
 		values[UsedMemoryMeasurement] = append(values[UsedMemoryMeasurement], toMegabytes(point.Values[UsedMemoryMeasurement]))
