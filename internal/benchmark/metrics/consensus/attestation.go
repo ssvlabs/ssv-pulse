@@ -32,12 +32,12 @@ type (
 
 	AttestationMetric struct {
 		metric.Base[float64]
-		client             client.Service
-		genesisTime        time.Time
-		receivals          sync.Map
-		receivedBlockRoots sync.Map
-		isLaunched         bool
-		quitChan           chan struct{}
+		client                client.Service
+		genesisTime           time.Time
+		eventBlockRoots       sync.Map
+		attestationBlockRoots sync.Map
+		isLaunched            bool
+		quitChan              chan struct{}
 	}
 )
 
@@ -55,11 +55,11 @@ func NewAttestationMetric(url, name string, genesisTime time.Time, healthConditi
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		client:             client,
-		quitChan:           make(chan struct{}),
-		receivals:          sync.Map{},
-		receivedBlockRoots: sync.Map{},
-		genesisTime:        genesisTime,
+		client:                client,
+		quitChan:              make(chan struct{}),
+		eventBlockRoots:       sync.Map{},
+		attestationBlockRoots: sync.Map{},
+		genesisTime:           genesisTime,
 	}
 }
 
@@ -70,20 +70,23 @@ func (a *AttestationMetric) Measure() {
 
 	go a.launchListener()
 
-	time.Sleep(time.Until(slotTime(a.genesisTime, currentSlot(a.genesisTime))))
-
-	slotTicker := time.NewTicker(blockMintingTime)
-
 	go func() {
+		slot := currentSlot(a.genesisTime)
+		const calculationSlotLag = 2
+		laggedSlot := slot + calculationSlotLag
 		for {
+			slot++
+			nextSlotWithDelay := time.After(time.Until(slotTime(a.genesisTime, slot).Add(time.Second * 4)))
 			select {
-			case <-slotTicker.C:
-				go func() {
-					a.fetchAttestationData()
-					a.calculateMeasurements()
-				}()
+			case <-nextSlotWithDelay:
+				go func(slot phase0.Slot) {
+					a.fetchAttestationData(slot)
+
+					if slot > laggedSlot {
+						a.calculateMeasurements(slot - calculationSlotLag)
+					}
+				}(slot)
 			case <-a.quitChan:
-				slotTicker.Stop()
 				return
 			}
 		}
@@ -92,8 +95,7 @@ func (a *AttestationMetric) Measure() {
 	a.isLaunched = true
 }
 
-func (a *AttestationMetric) fetchAttestationData() {
-	slot := currentSlot(a.genesisTime)
+func (a *AttestationMetric) fetchAttestationData(slot phase0.Slot) {
 	attestationData, err := a.client.(client.AttestationDataProvider).AttestationData(
 		context.TODO(),
 		&api.AttestationDataOpts{
@@ -106,8 +108,7 @@ func (a *AttestationMetric) fetchAttestationData() {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 		return
 	}
-
-	a.receivedBlockRoots.Store(slot, attestationData.Data.BeaconBlockRoot)
+	a.attestationBlockRoots.Store(slot, attestationData.Data.BeaconBlockRoot)
 }
 
 func (a *AttestationMetric) launchListener() {
@@ -116,7 +117,7 @@ func (a *AttestationMetric) launchListener() {
 		[]string{"head"},
 		func(event *v1.Event) {
 			data := event.Data.(*v1.HeadEvent)
-			a.receivals.Store(data.Slot, SlotData{
+			a.eventBlockRoots.Store(data.Slot, SlotData{
 				Received:  time.Now(),
 				RootBlock: data.Block,
 			})
@@ -145,9 +146,8 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations/receivedBlocks*100)
 }
 
-func (a *AttestationMetric) calculateMeasurements() {
-	currentSlot := currentSlot(a.genesisTime)
-	receival, ok := a.receivals.Load(currentSlot)
+func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
+	receival, ok := a.eventBlockRoots.Load(slot)
 
 	if !ok {
 		a.AddDataPoint(map[string]float64{
@@ -167,7 +167,7 @@ func (a *AttestationMetric) calculateMeasurements() {
 		ReceivedBlockMeasurement: 1,
 	})
 
-	blockRoot, ok := a.receivedBlockRoots.Load(currentSlot)
+	blockRoot, ok := a.attestationBlockRoots.Load(slot)
 	if !ok {
 		a.AddDataPoint(map[string]float64{
 			MissedAttestationMeasurement: 1,
