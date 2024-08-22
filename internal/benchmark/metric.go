@@ -9,6 +9,7 @@ import (
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/infrastructure"
 	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/metrics/ssv"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabs/ssv-benchmark/internal/platform/network"
 )
 
 func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService {
@@ -37,6 +38,15 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 				{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				{Name: consensus.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 			}))
+	}
+
+	if config.Benchmark.Consensus.Metrics.Attestation.Enabled {
+		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewAttestationMetric(
+			configs.Values.Benchmark.Consensus.Address,
+			"Attestation",
+			network.GenesisTime[network.Name(config.Benchmark.Network)],
+			[]metric.HealthCondition[float64]{},
+		))
 	}
 
 	if config.Benchmark.Execution.Metrics.Peers.Enabled {
