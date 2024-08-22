@@ -10,6 +10,8 @@ benchmark:
         enabled: true
       peers:
         enabled: true
+      attestation:
+        enabled: true
 
   execution:
     address: ""

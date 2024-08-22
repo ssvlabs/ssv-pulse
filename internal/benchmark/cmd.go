@@ -17,10 +17,11 @@ import (
 const (
 	durationFlag = "duration"
 
-	consensusAddrFlag          = "consensus-addr"
-	consensusMetricClientFlag  = "consensus-metric-client-enabled"
-	consensusMetricLatencyFlag = "consensus-metric-latency-enabled"
-	consensusMetricPeersFlag   = "consensus-metric-peers-enabled"
+	consensusAddrFlag              = "consensus-addr"
+	consensusMetricClientFlag      = "consensus-metric-client-enabled"
+	consensusMetricLatencyFlag     = "consensus-metric-latency-enabled"
+	consensusMetricPeersFlag       = "consensus-metric-peers-enabled"
+	consensusMetricAttestationFlag = "consensus-metric-attestation-enabled"
 
 	executionAddrFlag        = "execution-addr"
 	executionMetricPeersFlag = "execution-metric-peers-enabled"
@@ -70,6 +71,7 @@ func addFlags(cobraCMD *cobra.Command) {
 	cobraCMD.Flags().Bool(consensusMetricClientFlag, true, "Enable consensus client metric")
 	cobraCMD.Flags().Bool(consensusMetricLatencyFlag, true, "Enable consensus latency metric")
 	cobraCMD.Flags().Bool(consensusMetricPeersFlag, true, "Enable consensus peers metric")
+	cobraCMD.Flags().Bool(consensusMetricAttestationFlag, true, "Enable consensus attestation metric")
 
 	cobraCMD.Flags().String(executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545")
 	cobraCMD.Flags().Bool(executionMetricPeersFlag, true, "Enable execution peers metric")
@@ -106,6 +108,9 @@ func bindFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.consensus.metrics.peers.enabled", cmd.Flags().Lookup(consensusMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.consensus.metrics.attestation.enabled", cmd.Flags().Lookup(consensusMetricAttestationFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.execution.metrics.peers.enabled", cmd.Flags().Lookup(executionMetricPeersFlag)); err != nil {

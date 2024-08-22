@@ -12,9 +12,10 @@ type Metric struct {
 }
 
 type ConsensusMetrics struct {
-	Client  Metric `mapstructure:"client"`
-	Latency Metric `mapstructure:"latency"`
-	Peers   Metric `mapstructure:"peers"`
+	Client      Metric `mapstructure:"client"`
+	Latency     Metric `mapstructure:"latency"`
+	Peers       Metric `mapstructure:"peers"`
+	Attestation Metric `mapstructure:"attestation"`
 }
 
 type ExecutionMetrics struct {
