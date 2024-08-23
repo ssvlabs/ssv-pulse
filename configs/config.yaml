@@ -1,5 +1,5 @@
 benchmark:
-  duration: 20m
+  duration: 15m
   network: "mainnet"
   consensus:
     address: ""
