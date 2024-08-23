@@ -68,11 +68,10 @@ func NewAttestationMetric(url, name string, genesisTime time.Time, healthConditi
 	}
 }
 
-func (a *AttestationMetric) Measure() {
+func (a *AttestationMetric) Measure(ctx context.Context) {
 	if a.isLaunched {
 		return
 	}
-	ctx := context.TODO()
 
 	go a.launchListener(ctx)
 
@@ -123,16 +122,16 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 				RootBlock: data.Block,
 			})
 
-			go a.checkUnreadyBlock(data.Slot, data.Block)
+			go a.checkUnreadyBlock(ctx, data.Slot, data.Block)
 		},
 	); err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 	}
 }
 
-func (a *AttestationMetric) checkUnreadyBlock(slot phase0.Slot, block phase0.Root) {
+func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.Slot, block phase0.Root) {
 	time.Sleep(time.Millisecond * unreadyBlockDelayMs)
-	blockRoot, err := a.fetchAttestationBlockRoot(context.TODO(), slot)
+	blockRoot, err := a.fetchAttestationBlockRoot(ctx, slot)
 	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 		return

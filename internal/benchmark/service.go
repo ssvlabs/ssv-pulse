@@ -11,7 +11,7 @@ import (
 
 type (
 	metricService interface {
-		Measure()
+		Measure(context.Context)
 		GetName() string
 		AggregateResults() string
 		EvaluateMetric() (metric.HealthStatus, map[string]metric.SeverityLevel)
@@ -48,7 +48,7 @@ func (s *Service) Start(ctx context.Context) {
 		case <-ticker.C:
 			for _, groupMetrics := range s.metrics {
 				for _, metric := range groupMetrics {
-					go metric.Measure()
+					go metric.Measure(ctx)
 				}
 			}
 		case <-ctx.Done():

@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -27,14 +28,19 @@ func NewLatencyMetric(url, name string, healthCondition []metric.HealthCondition
 	}
 }
 
-func (l *LatencyMetric) Measure() {
+func (l *LatencyMetric) Measure(ctx context.Context) {
 	var latency time.Duration
 	start := time.Now()
-	res, err := http.Get(l.url)
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, l.url, nil)
 	if err != nil {
-		l.AddDataPoint(map[string]time.Duration{
-			DurationMeasurement: 0,
-		})
+		logger.WriteError(metric.ConsensusGroup, l.Name, err)
+		return
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, l.Name, err)
 		return
 	}

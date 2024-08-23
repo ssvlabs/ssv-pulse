@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mackerelio/go-osstat/cpu"
@@ -27,7 +28,7 @@ func NewCPUMetric(name string, healthCondition []metric.HealthCondition[float64]
 	}
 }
 
-func (c *CPUMetric) Measure() {
+func (c *CPUMetric) Measure(context.Context) {
 	cpu, err := cpu.Get()
 	if err != nil {
 		logger.WriteError(metric.InfrastructureGroup, c.Name, err)

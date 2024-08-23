@@ -1,9 +1,11 @@
 package ssv
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
@@ -28,7 +30,7 @@ func NewPeerMetric(url, name string, healthCondition []metric.HealthCondition[ui
 	}
 }
 
-func (p *PeerMetric) Measure() {
+func (p *PeerMetric) Measure(ctx context.Context) {
 	var (
 		resp struct {
 			Advanced struct {
@@ -36,7 +38,14 @@ func (p *PeerMetric) Measure() {
 			} `json:"advanced"`
 		}
 	)
-	res, err := http.Get(fmt.Sprintf("%s/v1/node/health", p.url))
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/node/health", p.url), nil)
+	if err != nil {
+		logger.WriteError(metric.SSVGroup, p.Name, err)
+		return
+	}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,

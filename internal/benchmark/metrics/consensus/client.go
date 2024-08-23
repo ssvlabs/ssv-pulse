@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,7 +30,7 @@ func NewClientMetric(url, name string, healthCondition []metric.HealthCondition[
 	}
 }
 
-func (c *ClientMetric) Measure() {
+func (c *ClientMetric) Measure(ctx context.Context) {
 	var (
 		resp struct {
 			Data struct {

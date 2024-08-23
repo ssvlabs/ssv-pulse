@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mackerelio/go-osstat/memory"
@@ -28,7 +29,7 @@ func NewMemoryMetric(name string, healthCondition []metric.HealthCondition[uint6
 	}
 }
 
-func (m *MemoryMetric) Measure() {
+func (m *MemoryMetric) Measure(context.Context) {
 	memory, err := memory.Get()
 	if err != nil {
 		logger.WriteError(metric.InfrastructureGroup, m.Name, err)

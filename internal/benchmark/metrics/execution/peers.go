@@ -2,10 +2,12 @@ package execution
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
@@ -30,7 +32,7 @@ func NewPeerMetric(url, name string, healthCondition []metric.HealthCondition[ui
 	}
 }
 
-func (p *PeerMetric) Measure() {
+func (p *PeerMetric) Measure(ctx context.Context) {
 	var (
 		resp struct {
 			Result string `json:"result"`
@@ -51,14 +53,17 @@ func (p *PeerMetric) Measure() {
 
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 		return
 	}
-
-	res, err := http.Post(p.url, "application/json", bytes.NewBuffer(requestBytes))
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.url, bytes.NewBuffer(requestBytes))
+	if err != nil {
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		return
+	}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
