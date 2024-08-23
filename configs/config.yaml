@@ -1,6 +1,6 @@
 benchmark:
-  duration: 2m
-  network: "holesky"
+  duration: 20m
+  network: "mainnet"
   consensus:
     address: ""
     metrics: 
