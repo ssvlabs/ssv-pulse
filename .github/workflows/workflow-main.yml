@@ -43,7 +43,8 @@ jobs:
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
-          push: true 
+          # TODO: enable pushes when GitHub Registry permissions sorted out
+          push: false 
           platforms: ${{ env.IMAGE_ARCHITECTURES }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:${{ env.IMAGE_TAG }}
 
