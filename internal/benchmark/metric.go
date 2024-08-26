@@ -28,6 +28,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewLatencyMetric(
 			configs.Values.Benchmark.Consensus.Address,
 			"Latency",
+			time.Second*3,
 			[]metric.HealthCondition[time.Duration]{
 				{Name: consensus.DurationMeasurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
 			}))
@@ -37,6 +38,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewPeerMetric(
 			configs.Values.Benchmark.Consensus.Address,
 			"Peers",
+			time.Second*10,
 			[]metric.HealthCondition[uint32]{
 				{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				{Name: consensus.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
@@ -56,6 +58,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 		enabledMetrics[metric.ExecutionGroup] = append(enabledMetrics[metric.ExecutionGroup], execution.NewPeerMetric(
 			configs.Values.Benchmark.Execution.Address,
 			"Peers",
+			time.Second*10,
 			[]metric.HealthCondition[uint32]{
 				{Name: execution.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				{Name: execution.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
@@ -66,6 +69,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 		enabledMetrics[metric.SSVGroup] = append(enabledMetrics[metric.SSVGroup], ssv.NewPeerMetric(
 			configs.Values.Benchmark.SSV.Address,
 			"Peers",
+			time.Second*10,
 			[]metric.HealthCondition[uint32]{
 				{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 				{Name: ssv.PeerCountMeasurement, Threshold: 50, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
@@ -74,13 +78,13 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 
 	if config.Benchmark.Infrastructure.Metrics.CPU.Enabled {
 		enabledMetrics[metric.InfrastructureGroup] = append(enabledMetrics[metric.InfrastructureGroup],
-			infrastructure.NewCPUMetric("CPU", []metric.HealthCondition[float64]{}),
+			infrastructure.NewCPUMetric("CPU", time.Second*5, []metric.HealthCondition[float64]{}),
 		)
 	}
 
 	if config.Benchmark.Infrastructure.Metrics.Memory.Enabled {
 		enabledMetrics[metric.InfrastructureGroup] = append(enabledMetrics[metric.InfrastructureGroup],
-			infrastructure.NewMemoryMetric("Memory", []metric.HealthCondition[uint64]{
+			infrastructure.NewMemoryMetric("Memory", time.Second*10, []metric.HealthCondition[uint64]{
 				{Name: infrastructure.FreeMemoryMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
 			}),
 		)

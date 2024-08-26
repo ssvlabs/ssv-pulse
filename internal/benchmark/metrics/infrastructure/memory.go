@@ -3,6 +3,8 @@ package infrastructure
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/mackerelio/go-osstat/memory"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
@@ -18,18 +20,35 @@ const (
 
 type MemoryMetric struct {
 	metric.Base[uint64]
+	interval time.Duration
 }
 
-func NewMemoryMetric(name string, healthCondition []metric.HealthCondition[uint64]) *MemoryMetric {
+func NewMemoryMetric(name string, interval time.Duration, healthCondition []metric.HealthCondition[uint64]) *MemoryMetric {
 	return &MemoryMetric{
 		Base: metric.Base[uint64]{
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
+		interval: interval,
 	}
 }
 
-func (m *MemoryMetric) Measure(context.Context) {
+func (m *MemoryMetric) Measure(ctx context.Context) {
+	ticker := time.NewTicker(m.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.With("metric_name", m.Name).Debug("metric was stopped")
+			return
+		case <-ticker.C:
+			m.measure()
+		}
+	}
+}
+
+func (m *MemoryMetric) measure() {
 	memory, err := memory.Get()
 	if err != nil {
 		logger.WriteError(metric.InfrastructureGroup, m.Name, err)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,20 +20,37 @@ const (
 
 type PeerMetric struct {
 	metric.Base[uint32]
-	url string
+	url      string
+	interval time.Duration
 }
 
-func NewPeerMetric(url, name string, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
+func NewPeerMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
 	return &PeerMetric{
 		url: url,
 		Base: metric.Base[uint32]{
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
+		interval: interval,
 	}
 }
 
 func (p *PeerMetric) Measure(ctx context.Context) {
+	ticker := time.NewTicker(p.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.With("metric_name", p.Name).Debug("metric was stopped")
+			return
+		case <-ticker.C:
+			p.measure(ctx)
+		}
+	}
+}
+
+func (p *PeerMetric) measure(ctx context.Context) {
 	var (
 		resp struct {
 			Result string `json:"result"`

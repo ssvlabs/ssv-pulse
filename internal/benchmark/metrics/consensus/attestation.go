@@ -3,6 +3,7 @@ package consensus
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -41,8 +42,6 @@ type (
 		genesisTime           time.Time
 		eventBlockRoots       sync.Map
 		attestationBlockRoots sync.Map
-		isLaunched            bool
-		quitChan              chan struct{}
 	}
 )
 
@@ -61,7 +60,6 @@ func NewAttestationMetric(url, name string, genesisTime time.Time, healthConditi
 			Name:             name,
 		},
 		client:                client,
-		quitChan:              make(chan struct{}),
 		eventBlockRoots:       sync.Map{},
 		attestationBlockRoots: sync.Map{},
 		genesisTime:           genesisTime,
@@ -69,10 +67,6 @@ func NewAttestationMetric(url, name string, genesisTime time.Time, healthConditi
 }
 
 func (a *AttestationMetric) Measure(ctx context.Context) {
-	if a.isLaunched {
-		return
-	}
-
 	go a.launchListener(ctx)
 
 	go func() {
@@ -91,13 +85,12 @@ func (a *AttestationMetric) Measure(ctx context.Context) {
 						a.calculateMeasurements(slot - calculationSlotLag)
 					}
 				}(slot)
-			case <-a.quitChan:
+			case <-ctx.Done():
+				slog.With("metric_name", a.Name).Debug("metric was stopped")
 				return
 			}
 		}
 	}()
-
-	a.isLaunched = true
 }
 
 func (a *AttestationMetric) fetchAttestationData(ctx context.Context, slot phase0.Slot) {
@@ -164,7 +157,6 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 }
 
 func (a *AttestationMetric) AggregateResults() string {
-	close(a.quitChan)
 	var missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks float64
 
 	for _, point := range a.DataPoints {

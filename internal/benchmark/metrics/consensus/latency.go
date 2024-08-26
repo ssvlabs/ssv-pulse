@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,20 +16,37 @@ const (
 
 type LatencyMetric struct {
 	metric.Base[time.Duration]
-	url string
+	url      string
+	interval time.Duration
 }
 
-func NewLatencyMetric(url, name string, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
+func NewLatencyMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
 	return &LatencyMetric{
 		url: url,
 		Base: metric.Base[time.Duration]{
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
+		interval: interval,
 	}
 }
 
 func (l *LatencyMetric) Measure(ctx context.Context) {
+	ticker := time.NewTicker(l.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.With("metric_name", l.Name).Debug("metric was stopped")
+			return
+		case <-ticker.C:
+			l.measure(ctx)
+		}
+	}
+}
+
+func (l *LatencyMetric) measure(ctx context.Context) {
 	var latency time.Duration
 	start := time.Now()
 

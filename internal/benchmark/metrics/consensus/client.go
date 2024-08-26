@@ -16,8 +16,7 @@ const (
 
 type ClientMetric struct {
 	metric.Base[string]
-	url        string
-	isMeasured bool
+	url string
 }
 
 func NewClientMetric(url, name string, healthCondition []metric.HealthCondition[string]) *ClientMetric {
@@ -38,9 +37,6 @@ func (c *ClientMetric) Measure(ctx context.Context) {
 			} `json:"data"`
 		}
 	)
-	if c.isMeasured {
-		return
-	}
 	res, err := http.Get(fmt.Sprintf("%s/eth/v1/node/version", c.url))
 	if err != nil {
 		c.AddDataPoint(map[string]string{
@@ -77,7 +73,6 @@ func (c *ClientMetric) Measure(ctx context.Context) {
 		VersionMeasurement: resp.Data.Version,
 	})
 
-	c.isMeasured = true
 	logger.WriteMetric(metric.ConsensusGroup, c.Name, map[string]any{VersionMeasurement: resp.Data.Version})
 }
 

@@ -3,6 +3,8 @@ package infrastructure
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
@@ -17,18 +19,35 @@ const (
 type CPUMetric struct {
 	metric.Base[float64]
 	prevUser, prevSystem, total uint64
+	interval                    time.Duration
 }
 
-func NewCPUMetric(name string, healthCondition []metric.HealthCondition[float64]) *CPUMetric {
+func NewCPUMetric(name string, interval time.Duration, healthCondition []metric.HealthCondition[float64]) *CPUMetric {
 	return &CPUMetric{
 		Base: metric.Base[float64]{
 			Name:             name,
 			HealthConditions: healthCondition,
 		},
+		interval: interval,
 	}
 }
 
-func (c *CPUMetric) Measure(context.Context) {
+func (c *CPUMetric) Measure(ctx context.Context) {
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.With("metric_name", c.Name).Debug("metric was stopped")
+			return
+		case <-ticker.C:
+			c.measure()
+		}
+	}
+}
+
+func (c *CPUMetric) measure() {
 	cpu, err := cpu.Get()
 	if err != nil {
 		logger.WriteError(metric.InfrastructureGroup, c.Name, err)
