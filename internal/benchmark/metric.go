@@ -25,9 +25,12 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 	}
 
 	if config.Benchmark.Consensus.Metrics.Latency.Enabled {
-		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup],
-			consensus.NewLatencyMetric(configs.Values.Benchmark.Consensus.Address, "Latency", []metric.HealthCondition[time.Duration]{}),
-		)
+		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewLatencyMetric(
+			configs.Values.Benchmark.Consensus.Address,
+			"Latency",
+			[]metric.HealthCondition[time.Duration]{
+				{Name: consensus.DurationMeasurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
+			}))
 	}
 
 	if config.Benchmark.Consensus.Metrics.Peers.Enabled {
