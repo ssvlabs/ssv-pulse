@@ -53,23 +53,32 @@ type Infrastructure struct {
 type Benchmark struct {
 	Consensus      Consensus      `mapstructure:"consensus"`
 	Execution      Execution      `mapstructure:"execution"`
-	Ssv            SSV            `mapstructure:"ssv"`
+	SSV            SSV            `mapstructure:"ssv"`
 	Infrastructure Infrastructure `mapstructure:"infrastructure"`
 	Duration       time.Duration  `mapstructure:"duration"`
 	Network        string         `mapstructure:"network"`
 }
 
 func (b Benchmark) Validate() (bool, error) {
-	if b.Consensus.Address == "" {
-		return false, errors.New("consensus client address was empty")
+	if b.Consensus.Metrics.Peers.Enabled ||
+		b.Consensus.Metrics.Attestation.Enabled ||
+		b.Consensus.Metrics.Client.Enabled ||
+		b.Consensus.Metrics.Latency.Enabled {
+		if err := validateURL(b.Consensus.Address); err != nil {
+			return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
+		}
 	}
 
-	if b.Execution.Address == "" {
-		return false, errors.New("execution client address was empty")
+	if b.Execution.Metrics.Peers.Enabled {
+		if err := validateURL(b.Execution.Address); err != nil {
+			return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
+		}
 	}
 
-	if b.Ssv.Address == "" {
-		return false, errors.New("SSV client address was empty")
+	if b.SSV.Metrics.Peers.Enabled {
+		if err := validateURL(b.SSV.Address); err != nil {
+			return false, errors.Join(err, errors.New("SSV client address was not a valid URL"))
+		}
 	}
 
 	network := network.Name(b.Network)

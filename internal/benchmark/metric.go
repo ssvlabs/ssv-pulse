@@ -59,9 +59,9 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			}))
 	}
 
-	if config.Benchmark.Ssv.Metrics.Peers.Enabled {
+	if config.Benchmark.SSV.Metrics.Peers.Enabled {
 		enabledMetrics[metric.SSVGroup] = append(enabledMetrics[metric.SSVGroup], ssv.NewPeerMetric(
-			configs.Values.Benchmark.Ssv.Address,
+			configs.Values.Benchmark.SSV.Address,
 			"Peers",
 			[]metric.HealthCondition[uint32]{
 				{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
