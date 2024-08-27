@@ -9,6 +9,10 @@ env:
   IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
   IMAGE_REGISTRY: ghcr.io
   DOCKERFILE_PATH: build/Dockerfile
+  IMAGE_DESCRIPTION: |
+    SSV Pulse
+
+    This Docker image is a CLI tool for evaluating the health and severity of various metrics over time.
 
 jobs:
   publish-release:
@@ -67,3 +71,5 @@ jobs:
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:latest
+          outputs: |
+            type=image,name=target,annotation-index.org.opencontainers.image.description="${{ env.IMAGE_DESCRIPTION }}"
