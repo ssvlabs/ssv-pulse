@@ -102,12 +102,20 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 
 		// Check attestation_data_time
 		if strings.Contains(entry.Message, "starting QBFT instance") {
-			t, _ := strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
-			attestationTimeCount = attestationTimeCount + 1
-			attestationTimeTotal = attestationTimeTotal + uint64(t)
-			attestationTimeAverage = attestationTimeTotal / attestationTimeCount
-			if uint64(t) > 1000 {
-				attestationDelayCount++
+			var t float64
+			t, err = strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
+			// try parse mircosec
+			if err != nil {
+				t, _ = strconv.ParseFloat(strings.Replace(entry.AttestationTime, "µs", "", 2), 64)
+				t = t / 1000
+			}
+			if t != 0 {
+				attestationTimeCount = attestationTimeCount + 1
+				attestationTimeTotal = attestationTimeTotal + uint64(t)
+				attestationTimeAverage = attestationTimeTotal / attestationTimeCount
+				if uint64(t) > 1000 {
+					attestationDelayCount++
+				}
 			}
 		}
 
