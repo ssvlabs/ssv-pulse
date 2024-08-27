@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/metric"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/report"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
 )
 
 type (

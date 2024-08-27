@@ -6,21 +6,20 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/ssvlabs/ssv-benchmark/configs"
-	"github.com/ssvlabs/ssv-benchmark/internal/analyzer"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark"
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
-	_ "github.com/ssvlabs/ssv-benchmark/internal/platform/logger"
+	"github.com/ssvlabsinfra/ssv-pulse/configs"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/analyzer"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/cmd"
+	_ "github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
 )
 
 var (
-	appName = "ssv-benchmark"
+	appName = "ssv-pulse"
 	version = "1.0"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ssv-benchmark",
+	Use:   "ssv-pulse",
 	Short: "CLI for analyzing and benchmarking ssv node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		viper.SetConfigName("config")
