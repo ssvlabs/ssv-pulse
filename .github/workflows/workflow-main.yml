@@ -12,7 +12,12 @@ env:
   IMAGE_DESCRIPTION: |
     SSV Pulse
 
-    This Docker image is a CLI tool for evaluating the health and severity of various metrics over time.
+    This Docker image is a CLI tool for evaluating the health and severity of various SSV client related metrics over time.
+
+    Run all metrics:
+      `docker run ghcr.io/ssvlabsinfra/ssv-pulse:latest benchmark --consensus-addr=REPLACE_WITH_ADDR --execution-addr=REPLACE_WITH_ADDR --ssv-addr=REPLACE_WITH_ADDR`
+    View all available flags:
+      `docker run ghcr.io/ssvlabsinfra/ssv-pulse:latest benchmark -h`
 
 jobs:
   publish-release:
