@@ -14,7 +14,7 @@ const filePathFlag = "log-file-path"
 
 func init() {
 	cmd.AddPersistentStringFlag(CMD, "logFilePath", "", "Path to ssv node log file to analyze", true)
-	cmd.AddPersistentStringFlag(CMD, "cluster", "1,2,3,4", "Cluster to analyze", true)
+	cmd.AddPersistentStringSliceFlag(CMD, "cluster", []string{"1,2,3,4"}, "Cluster to analyze", true)
 }
 
 var CMD = &cobra.Command{
