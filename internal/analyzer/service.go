@@ -215,6 +215,9 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 
 			}
 		}
+		if prepareMessageCount == 0 {
+			continue
+		}
 		averageTimePrepareMessage = totalTimePrepareMessage.Milliseconds() / int64(prepareMessageCount)
 		proposeStats[int(ID)] = ProposeSignerStats{
 			Signer:          int(ID),
@@ -250,7 +253,7 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 		}
 		fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].AverageDelay)
 		fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].HighestDelay.Milliseconds())
-		fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n", proposeStats[int(ID)].MoreSecondDelay, proposeStats[int(ID)].Count)
+		fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[int(ID)].MoreSecondDelay, proposeStats[int(ID)].Count)
 	}
 	return nil
 }
