@@ -19,7 +19,7 @@ import (
 
 const (
 	blockMintingTime             = time.Second * 12
-	unreadyBlockDelayMs          = 200
+	unreadyBlockDelay            = time.Millisecond * 200
 	MissedBlockMeasurement       = "MissedBlock"
 	ReceivedBlockMeasurement     = "ReceivedBlock"
 	MissedAttestationMeasurement = "MissedAttestation"
@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	UnreadyBlockMeasurement = fmt.Sprintf("UnreadyBlockMeasurement%dms", unreadyBlockDelayMs)
+	UnreadyBlockMeasurement = fmt.Sprintf("UnreadyBlockMeasurement%dms", unreadyBlockDelay/time.Millisecond)
 )
 
 type (
@@ -123,7 +123,7 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 }
 
 func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.Slot, block phase0.Root) {
-	time.Sleep(time.Millisecond * unreadyBlockDelayMs)
+	time.Sleep(unreadyBlockDelay)
 	blockRoot, err := a.fetchAttestationBlockRoot(ctx, slot)
 	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
@@ -170,7 +170,7 @@ func (a *AttestationMetric) AggregateResults() string {
 	return fmt.Sprintf(
 		"missed_attestations=%.0f, unready_blocks_%d_ms=%.0f, missed_blocks=%.0f \n fresh_attestations=%.0f received_blocks=%.0f, correctness=%.2f %%",
 		missedAttestations,
-		unreadyBlockDelayMs, unreadyBlocks,
+		unreadyBlockDelay/time.Millisecond, unreadyBlocks,
 		missedBlocks,
 		freshAttestations,
 		receivedBlocks,

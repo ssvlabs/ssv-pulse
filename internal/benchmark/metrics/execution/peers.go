@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -76,11 +77,14 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.url, bytes.NewBuffer(requestBytes))
+	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 		return
 	}
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		p.AddDataPoint(map[string]uint32{
@@ -115,6 +119,14 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 
 	peerCountHex := resp.Result
+	if peerCountHex == "" {
+		p.AddDataPoint(map[string]uint32{
+			PeerCountMeasurement: 0,
+		})
+		logger.WriteError(metric.ExecutionGroup, p.Name, errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported"))
+		return
+	}
+
 	peerCount, err := strconv.ParseInt(peerCountHex[2:], 16, 64)
 	if err != nil {
 		p.AddDataPoint(map[string]uint32{
