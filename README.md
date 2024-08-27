@@ -2,11 +2,39 @@
 
 ![main](https://github.com/ssvlabsinfra/ssv-pulse/actions/workflows/workflow-main.yml/badge.svg?branch=main)
 
-# Metrics Evaluation System
+# How to use
 
-This Go application provides a framework for evaluating the health and severity of various metrics over time. The system is designed to be flexible, allowing different metrics to have their own set of conditions that determine their health status and severity levels.
+## Docker
+```bash
+docker run ghcr.io/ssvlabsinfra/ssv-pulse:latest benchmark --consensus-addr=REPLACE_WITH_ADDR --execution-addr=REPLACE_WITH_ADDR --ssv-addr=REPLACE_WITH_ADDR
+```
 
-## Overview
+# Description
+
+This application is a CLI tool for evaluating the health and severity of various SSV client-related metrics over time. The system is designed to be flexible, allowing different metrics to have their own set of conditions that determine their health status and severity levels.
+
+SSV Pulse consists of two major parts: Benchmark and Analyzer.
+
+**Benchmark** runs over a certain period of time and collects various metrics. These metrics are mainly categorized into Infrastructure (CPU/Memory), SSV Client, Consensus Client, and Execution Client metrics. All metrics are enabled by default, although they can be disabled by setting specific flags or overriding values in the `config.yaml` file.
+
+**Analyzer** works with log files. It is currently under development.
+
+## Metrics Overview
+
+### Available Metrics
+
+- SSV Client
+    - Peers
+- Infrastructure
+    - CPU
+	- Memory
+- Execution Client
+	- Peers
+- Consensus Client
+	- Attestations
+	- Client Version
+	- Latency
+	- Peers
 
 ### Metric
 
@@ -39,8 +67,6 @@ The health status of a metric is determined by evaluating all of its data points
 
 - **Healthy**: The metric meets all conditions with a severity of `None` or no conditions are triggered.
 - **Unhealthy**: At least one condition is triggered with a severity greater than `None`.
-
-## How It Works
 
 ### Metric Evaluation
 
