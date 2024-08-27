@@ -1,7 +1,7 @@
-EXEC_DIR=cmd/benchmark
+EXEC_DIR=cmd/pulse
 BINARY_DIR=${EXEC_DIR}/bin
-BINARY_NAME=benchmark
-DOCKER_IMAGE_NANE=benchmark
+BINARY_NAME=pulse
+DOCKER_IMAGE_NANE=pulse
 CONFIG_DIR=./configs
 CONFIG_FILE=config.yaml
 

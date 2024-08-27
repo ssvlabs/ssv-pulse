@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabs/ssv-benchmark/configs"
-	"github.com/ssvlabs/ssv-benchmark/internal/benchmark/report"
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/lifecycle"
+	"github.com/ssvlabsinfra/ssv-pulse/configs"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/report"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/lifecycle"
 )
 
 const (

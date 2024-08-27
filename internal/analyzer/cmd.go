@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabs/ssv-benchmark/configs"
+	"github.com/ssvlabsinfra/ssv-pulse/configs"
 )
 
 const filePathFlag = "log-file-path"

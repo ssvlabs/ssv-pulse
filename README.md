@@ -1,6 +1,6 @@
-# SSV benchmark
+# SSV Pulse
 
-![main](https://github.com/ssvlabs/ssv-benchmark/actions/workflows/workflow-main.yml/badge.svg?branch=main)
+![main](https://github.com/ssvlabsinfra/ssv-pulse/actions/workflows/workflow-main.yml/badge.svg?branch=main)
 
 # Metrics Evaluation System
 
@@ -52,4 +52,4 @@ When evaluating a metric, the system:
 4. Assigns the highest severity level from the triggered conditions.
 
 ## Architecture
-[Architecture](https://github.com/ssvlabs/ssv-benchmark/blob/main/docs/architecture.png)
+[Architecture](https://github.com/ssvlabsinfra/ssv-pulse/blob/main/docs/architecture.png)
