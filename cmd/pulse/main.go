@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/utils/loki"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -52,7 +53,7 @@ func main() {
 	rootCmd.AddCommand(analyzer.CMD)
 	rootCmd.AddCommand(benchmark.CMD)
 	rootCmd.AddCommand(cmd.Version)
-
+	rootCmd.AddCommand(loki.CMD)
 	if err := rootCmd.Execute(); err != nil {
 		slog.With("err", err.Error()).Error("failed to execute root command")
 		panic(err.Error())
