@@ -14,7 +14,8 @@ const filePathFlag = "log-file-path"
 
 func init() {
 	cmd.AddPersistentStringFlag(CMD, "logFilePath", "", "Path to ssv node log file to analyze", true)
-	cmd.AddPersistentStringSliceFlag(CMD, "cluster", []string{"1,2,3,4"}, "Cluster to analyze", true)
+	cmd.AddPersistentStringSliceFlag(CMD, "operators", []string{}, "Operators to analyze", false)
+	cmd.AddPersistentBoolFlag(CMD, "cluster", false, "Are operators forming the cluster?", false)
 }
 
 var CMD = &cobra.Command{
@@ -35,14 +36,12 @@ var CMD = &cobra.Command{
 		if err := viper.BindPFlag("cluster", cmd.PersistentFlags().Lookup("cluster")); err != nil {
 			return err
 		}
-		cluster := viper.GetStringSlice("cluster")
-		if strings.Contains(logFilePath, "../") {
-			return fmt.Errorf("❕ flag should not contain traversal")
+		cluster := viper.GetBool("cluster")
+		if err := viper.BindPFlag("operators", cmd.PersistentFlags().Lookup("operators")); err != nil {
+			return err
 		}
-		if len(cluster) == 0 {
-			return fmt.Errorf("❕ operator IDs at cluster flag can not be empty")
-		}
-		analyzer, err := New(logFilePath, cluster)
+		operators := viper.GetStringSlice("operators")
+		analyzer, err := New(logFilePath, operators, cluster)
 		if err != nil {
 			return err
 		}

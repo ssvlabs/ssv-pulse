@@ -15,8 +15,9 @@ import (
 )
 
 type LogAnalyzer struct {
-	logFile *os.File
-	cluster []uint64
+	logFile   *os.File
+	operators []uint64
+	cluster   bool
 }
 
 // LogEntry represents a single log entry
@@ -61,18 +62,19 @@ type ProposeSignerStats struct {
 // Scores for ranks
 var rankScores = []int{5, 4, 3, 2, 1, 0}
 
-func New(logFilePath string, cluster []string) (*LogAnalyzer, error) {
+func New(logFilePath string, operators []string, cluster bool) (*LogAnalyzer, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %v", err)
 	}
-	ids, err := utils.StingSliceToUintArray(cluster)
+	ids, err := utils.StingSliceToUintArray(operators)
 	if err != nil {
 		return nil, err
 	}
 	return &LogAnalyzer{
-		logFile: file,
-		cluster: ids,
+		logFile:   file,
+		operators: ids,
+		cluster:   cluster,
 	}, nil
 }
 
@@ -80,16 +82,14 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 	defer r.logFile.Close()
 
 	scanner := bufio.NewScanner(r.logFile)
-	dutySignerTimes := make(map[string]map[int]time.Time)
-	signerStats := make(map[int]SignerStats)
+	commitSignerTimes := make(map[string]map[int]time.Time)
 	var attestationTimeCount uint64
 	var attestationTimeTotal uint64
 	var attestationTimeAverage uint64
 	attestationDelayCount := 0
 
 	// Calculate propose-prepare times
-	proposeStats := make(map[int]ProposeSignerStats)
-	prepareSignerTimes := make(map[string]map[int]time.Duration)
+	prepareSignerTimes := make(map[string]map[int]time.Time)
 	leaderProposeTime := make(map[string]time.Time)
 	for scanner.Scan() {
 		var entry LogEntry
@@ -125,36 +125,16 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 		}
 
 		if strings.Contains(entry.Message, "got prepare message") && entry.Round == 1 {
-			dutyID := entry.DutyID
-			if leaderProposeTime, exist := leaderProposeTime[dutyID]; exist {
-				// Check if signer among provided at CI
-				for _, signer := range entry.PrepareSigners {
-					for _, ID := range r.cluster {
-						if uint64(signer) == ID {
-							if _, exists := prepareSignerTimes[dutyID]; !exists {
-								prepareSignerTimes[dutyID] = make(map[int]time.Duration)
-							}
-							// Record the earliest time for each signer
-							if _, exists := prepareSignerTimes[dutyID][signer]; !exists || entry.Timestamp.After(leaderProposeTime) {
-								prepareSignerTimes[dutyID][signer] = entry.Timestamp.Sub(leaderProposeTime)
-							}
-						}
-					}
-				}
+			// Check if signer among provided at CI
+			for _, signer := range entry.PrepareSigners {
+				writeTimeStamps(entry, prepareSignerTimes, entry.DutyID, signer)
 			}
 		}
 
 		// Consider only logs with round 1
-		if entry.Message == "📬 got commit message" && entry.Round == 1 {
-			dutyID := entry.DutyID
-			if _, exists := dutySignerTimes[dutyID]; !exists {
-				dutySignerTimes[dutyID] = make(map[int]time.Time)
-			}
+		if strings.Contains(entry.Message, "got commit message") && entry.Round == 1 {
 			for _, signer := range entry.CommitSigners {
-				// Record the earliest time for each signer
-				if existingTime, exists := dutySignerTimes[dutyID][signer]; !exists || entry.Timestamp.Before(existingTime) {
-					dutySignerTimes[dutyID][signer] = entry.Timestamp
-				}
+				writeTimeStamps(entry, commitSignerTimes, entry.DutyID, signer)
 			}
 		}
 	}
@@ -162,22 +142,83 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("error reading log file: %v", err)
 	}
+	// Calculate commit scores and delays
+	commitStats := r.calcCommitTimes(commitSignerTimes)
+	// Calculate propose delays
+	proposeStats := r.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
+	// Output scores and delays per signer
+	fmt.Printf("attestation data time average: %dms\n", attestationTimeAverage)
+	fmt.Printf("attestation data time > 1 sec: %d/%d\n", attestationDelayCount, attestationTimeCount)
+	if r.cluster && len(commitStats) == 0 || len(proposeStats) == 0 {
+		fmt.Printf("Cluster was not found in logs, try without cluster flag... \n")
+	}
+	for _, stats := range commitStats {
+		fmt.Printf("ID: %d \n", stats.Signer)
+		fmt.Printf("Score: %d\n", stats.Score)
+		fmt.Printf("Total Delay: %d seconds\n", int(stats.Delay.Seconds()))
+		fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[stats.Signer].AverageDelay)
+		fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[stats.Signer].HighestDelay.Milliseconds())
+		fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[stats.Signer].MoreSecondDelay, proposeStats[stats.Signer].Count)
+	}
 
-	// Calculate scores and delays
-	for _, signers := range dutySignerTimes {
-		performances := []SignerPerformance{}
+	return nil
+}
+
+func writeTimeStamps(entry LogEntry, signerTimes map[string]map[int]time.Time, dutyID string, signer int) {
+	if _, exists := signerTimes[dutyID]; !exists {
+		signerTimes[dutyID] = make(map[int]time.Time)
+	}
+	// Record the earliest time for each signer
+	if existingTime, exists := signerTimes[dutyID][signer]; !exists || entry.Timestamp.Before(existingTime) {
+		signerTimes[dutyID][signer] = entry.Timestamp
+	}
+}
+
+func isCluster(operators []uint64, signers map[int]time.Time) bool {
+	if len(operators) != 4 || len(operators) != 7 || len(operators) != 10 || len(operators) != 13 {
+		return false
+	}
+	if len(operators) != len(signers) {
+		return false
+	}
+	for _, id := range operators {
+		if _, exist := signers[int(id)]; !exist {
+			return false
+		}
+	}
+	return true
+}
+
+func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.Time) []SignerStats {
+	signerStats := make(map[int]SignerStats)
+	for _, signers := range commitSignerTimes {
+		if r.cluster && len(r.operators) != 0 {
+			if !isCluster(r.operators, signers) {
+				continue
+			}
+		}
+		var performances []SignerPerformance
 		for signer, earliestTime := range signers {
+			if len(r.operators) != 0 {
+				var ok bool
+				for _, ID := range r.operators {
+					if signer == int(ID) {
+						ok = true
+					}
+				}
+				if !ok {
+					continue
+				}
+			}
 			performances = append(performances, SignerPerformance{
 				Signer:   signer,
 				Earliest: earliestTime,
 			})
 		}
-
 		// Sort by earliest time, the earlier the better
 		sort.Slice(performances, func(i, j int) bool {
 			return performances[i].Earliest.Before(performances[j].Earliest)
 		})
-
 		// Assign scores and calculate delays
 		if len(performances) > 0 {
 			firstTime := performances[0].Earliest
@@ -192,68 +233,71 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 			}
 		}
 	}
-
-	// Calculate propose time delays
-	for _, ID := range r.cluster {
-		var prepareMessageCount int
-		var prepareMessageCountMoreSecond int
-		var averageTimePrepareMessage int64
-		var totalTimePrepareMessage time.Duration
-		var highestTimePrepareMessage time.Duration
-		for _, signers := range prepareSignerTimes {
-			for signer, delay := range signers {
-				if signer == int(ID) {
-					prepareMessageCount = prepareMessageCount + 1
-					totalTimePrepareMessage = totalTimePrepareMessage + delay
-					if highestTimePrepareMessage < delay {
-						highestTimePrepareMessage = delay
-					}
-					if delay > time.Second {
-						prepareMessageCountMoreSecond = prepareMessageCountMoreSecond + 1
-					}
-				}
-
-			}
-		}
-		if prepareMessageCount == 0 {
-			continue
-		}
-		averageTimePrepareMessage = totalTimePrepareMessage.Milliseconds() / int64(prepareMessageCount)
-		proposeStats[int(ID)] = ProposeSignerStats{
-			Signer:          int(ID),
-			Count:           prepareMessageCount,
-			AverageDelay:    averageTimePrepareMessage,
-			HighestDelay:    highestTimePrepareMessage,
-			MoreSecondDelay: prepareMessageCountMoreSecond,
-		}
-	}
-
 	// Collect stats into a slice for sorting
 	sortedSigners := make([]SignerStats, 0, len(signerStats))
 	for _, stats := range signerStats {
 		sortedSigners = append(sortedSigners, stats)
 	}
-
 	// Sort signers by score in descending order
 	sort.Slice(sortedSigners, func(i, j int) bool {
 		return sortedSigners[i].Score > sortedSigners[j].Score
 	})
+	return sortedSigners
+}
 
-	// Output scores and delays per signer
-	fmt.Printf("attestation data time average: %dms\n", attestationTimeAverage)
-	fmt.Printf("attestation data time > 1 sec: %d/%d\n", attestationDelayCount, attestationTimeCount)
+func (r *LogAnalyzer) calcPrepareTimes(leaderProposeTime map[string]time.Time, prepareSignerTimes map[string]map[int]time.Time) map[int]ProposeSignerStats {
+	proposeStats := make(map[int]ProposeSignerStats)
 
-	for _, ID := range r.cluster {
-		fmt.Printf("ID: %d \n", ID)
-		for _, stats := range sortedSigners {
-			if stats.Signer == int(ID) {
-				fmt.Printf("Score: %d\n", stats.Score)
-				fmt.Printf("Total Delay: %d seconds\n", int(stats.Delay.Seconds()))
+	var prepareMessageCount int
+	var prepareMessageCountMoreSecond int
+	var averageTimePrepareMessage int64
+	var totalTimePrepareMessage time.Duration
+	var highestTimePrepareMessage time.Duration
+
+	for dutyID, signers := range prepareSignerTimes {
+		leaderProposeMessageTime, exist := leaderProposeTime[dutyID]
+		if !exist {
+			continue
+		}
+		if r.cluster && len(r.operators) != 0 {
+			if !isCluster(r.operators, signers) {
+				continue
 			}
 		}
-		fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].AverageDelay)
-		fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].HighestDelay.Milliseconds())
-		fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[int(ID)].MoreSecondDelay, proposeStats[int(ID)].Count)
+		for signer, prepareMessageTimeStamp := range signers {
+			if len(r.operators) != 0 {
+				var ok bool
+				for _, ID := range r.operators {
+					if signer == int(ID) {
+						ok = true
+					}
+				}
+				if !ok {
+					continue
+				}
+			}
+			if prepareMessageTimeStamp.Before(leaderProposeMessageTime) {
+				log.Println("error: got prepare message before leader propose message")
+				break
+			}
+			delay := prepareMessageTimeStamp.Sub(leaderProposeMessageTime)
+			prepareMessageCount = prepareMessageCount + 1
+			totalTimePrepareMessage = totalTimePrepareMessage + delay
+			if highestTimePrepareMessage < delay {
+				highestTimePrepareMessage = delay
+			}
+			if delay > time.Second {
+				prepareMessageCountMoreSecond = prepareMessageCountMoreSecond + 1
+			}
+			averageTimePrepareMessage = totalTimePrepareMessage.Milliseconds() / int64(prepareMessageCount)
+			proposeStats[signer] = ProposeSignerStats{
+				Signer:          signer,
+				Count:           prepareMessageCount,
+				AverageDelay:    averageTimePrepareMessage,
+				HighestDelay:    highestTimePrepareMessage,
+				MoreSecondDelay: prepareMessageCountMoreSecond,
+			}
+		}
 	}
-	return nil
+	return proposeStats
 }
