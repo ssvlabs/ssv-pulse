@@ -2,8 +2,9 @@ package main
 
 import (
 	"errors"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/utils/loki"
 	"log/slog"
+
+	"github.com/ssvlabsinfra/ssv-pulse/internal/loki"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
