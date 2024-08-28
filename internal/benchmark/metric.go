@@ -76,6 +76,17 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			}))
 	}
 
+	if config.Benchmark.SSV.Metrics.Connections.Enabled {
+		enabledMetrics[metric.SSVGroup] = append(enabledMetrics[metric.SSVGroup], ssv.NewConnectionsMetric(
+			configs.Values.Benchmark.SSV.Address,
+			"Connections",
+			time.Second*10,
+			[]metric.HealthCondition[uint32]{
+				{Name: ssv.InboundConnectionsMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				{Name: ssv.OutboundConnectionsMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+			}))
+	}
+
 	if config.Benchmark.Infrastructure.Metrics.CPU.Enabled {
 		enabledMetrics[metric.InfrastructureGroup] = append(enabledMetrics[metric.InfrastructureGroup],
 			infrastructure.NewCPUMetric("CPU", time.Second*5, []metric.HealthCondition[float64]{}),

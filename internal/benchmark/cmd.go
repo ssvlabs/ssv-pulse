@@ -26,14 +26,15 @@ const (
 	executionAddrFlag        = "execution-addr"
 	executionMetricPeersFlag = "execution-metric-peers-enabled"
 
-	ssvAddrFlag        = "ssv-addr"
-	ssvMetricPeersFlag = "ssv-metric-peers-enabled"
+	ssvAddrFlag              = "ssv-addr"
+	ssvMetricPeersFlag       = "ssv-metric-peers-enabled"
+	ssvMetricConnectionsFlag = "ssv-metric-connections-enabled"
 
 	infraMetricCPUFlag    = "infra-metric-cpu-enabled"
 	infraMetricMemoryFlag = "infra-metric-memory-enabled"
 
 	networkFlag              = "network"
-	defaultExecutionDuration = time.Second * 60 * 5
+	defaultExecutionDuration = time.Minute * 15
 )
 
 func init() {
@@ -78,6 +79,7 @@ func addFlags(cobraCMD *cobra.Command) {
 
 	cobraCMD.Flags().String(ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000")
 	cobraCMD.Flags().Bool(ssvMetricPeersFlag, true, "Enable SSV peers metric")
+	cobraCMD.Flags().Bool(ssvMetricConnectionsFlag, true, "Enable SSV connections metric")
 
 	cobraCMD.Flags().Bool(infraMetricCPUFlag, true, "Enable infrastructure CPU metric")
 	cobraCMD.Flags().Bool(infraMetricMemoryFlag, true, "Enable infrastructure memory metric")
@@ -117,6 +119,9 @@ func bindFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.ssv.metrics.peers.enabled", cmd.Flags().Lookup(ssvMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.ssv.metrics.connections.enabled", cmd.Flags().Lookup(ssvMetricConnectionsFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.infrastructure.metrics.cpu.enabled", cmd.Flags().Lookup(infraMetricCPUFlag)); err != nil {

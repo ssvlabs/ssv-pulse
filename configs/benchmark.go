@@ -22,8 +22,9 @@ type ExecutionMetrics struct {
 	Peers Metric `mapstructure:"peers"`
 }
 
-type SsvMetrics struct {
-	Peers Metric `mapstructure:"peers"`
+type SSVMetrics struct {
+	Peers       Metric `mapstructure:"peers"`
+	Connections Metric `mapstructure:"connections"`
 }
 
 type InfrastructureMetrics struct {
@@ -43,7 +44,7 @@ type Execution struct {
 
 type SSV struct {
 	Address string     `mapstructure:"address"`
-	Metrics SsvMetrics `mapstructure:"metrics"`
+	Metrics SSVMetrics `mapstructure:"metrics"`
 }
 
 type Infrastructure struct {
@@ -75,7 +76,7 @@ func (b Benchmark) Validate() (bool, error) {
 		}
 	}
 
-	if b.SSV.Metrics.Peers.Enabled {
+	if b.SSV.Metrics.Peers.Enabled || b.SSV.Metrics.Connections.Enabled {
 		if err := validateURL(b.SSV.Address); err != nil {
 			return false, errors.Join(err, errors.New("SSV client address was not a valid URL"))
 		}
