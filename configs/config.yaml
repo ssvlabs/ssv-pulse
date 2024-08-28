@@ -1,8 +1,8 @@
 benchmark:
   duration: 15m
-  network: "mainnet"
+  network: mainnet
   consensus:
-    address: ""
+    address: 
     metrics: 
       client:
         enabled: true
@@ -14,15 +14,17 @@ benchmark:
         enabled: true
 
   execution:
-    address: ""
+    address: 
     metrics: 
       peers:
         enabled: true
 
   ssv:
-    address: ""
+    address: 
     metrics: 
       peers:
+        enabled: true
+      connections:
         enabled: true
   
   infrastructure:
@@ -33,4 +35,4 @@ benchmark:
         enabled: true
 
 analyzer:
-  log-file-path: ""
+  log-file-path: 
