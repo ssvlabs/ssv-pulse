@@ -25,6 +25,7 @@ SSV Pulse consists of two major parts: Benchmark and Analyzer.
 
 - SSV Client
     - Peers
+	- Connections
 - Infrastructure
     - CPU
 	- Memory
