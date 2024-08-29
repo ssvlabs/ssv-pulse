@@ -12,16 +12,13 @@ import (
 const terminationDelay = time.Second * 5
 
 func ListenForApplicationShutDown(ctx context.Context, shutdownFunc func(), signalChannel chan os.Signal) {
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT)
 
 	select {
 	case sig := <-signalChannel:
-		switch sig {
-		case os.Interrupt, syscall.SIGTERM:
-			slog.Warn("shutdown signal received")
-			shutdownFunc()
-			time.Sleep(terminationDelay)
-		}
+		slog.With("sig", sig.String()).Warn("shutdown signal received")
+		shutdownFunc()
+		time.Sleep(terminationDelay)
 	case <-ctx.Done():
 		slog.Warn("context deadline exceeded or canceled")
 		shutdownFunc()
