@@ -40,7 +40,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			"Peers",
 			time.Second*10,
 			[]metric.HealthCondition[uint32]{
-				{Name: consensus.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				{Name: consensus.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
 				{Name: consensus.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				{Name: consensus.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
 			}))
@@ -61,7 +61,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			"Peers",
 			time.Second*10,
 			[]metric.HealthCondition[uint32]{
-				{Name: execution.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				{Name: execution.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
 				{Name: execution.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				{Name: execution.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
 			}))
@@ -73,7 +73,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			"Peers",
 			time.Second*10,
 			[]metric.HealthCondition[uint32]{
-				{Name: ssv.PeerCountMeasurement, Threshold: 0, Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+				{Name: ssv.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
 				{Name: ssv.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 				{Name: ssv.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
 			}))
