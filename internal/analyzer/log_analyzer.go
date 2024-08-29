@@ -59,6 +59,15 @@ type ProposeSignerStats struct {
 	MoreSecondDelay int
 }
 
+type Result struct {
+	ID                     uint64
+	Score                  uint64
+	TotalDelay             time.Duration
+	AttestationTimeAverage time.Duration
+	AttestationDelayCount  int
+	AttestationTotalCount  uint64
+}
+
 // Scores for ranks
 var rankScores = []int{5, 4, 3, 2, 1, 0}
 
@@ -78,7 +87,7 @@ func New(logFilePath string, operators []string, cluster bool) (*LogAnalyzer, er
 	}, nil
 }
 
-func (r *LogAnalyzer) AnalyzeConsensus() error {
+func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 	defer r.logFile.Close()
 
 	scanner := bufio.NewScanner(r.logFile)
@@ -96,8 +105,11 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			log.Printf("failed to parse log entry: %v", err)
-			continue
+			log.Printf("error decoding: %v", err)
+			if e, ok := err.(*json.SyntaxError); ok {
+				log.Printf("syntax error at byte offset %d", e.Offset)
+			}
+			return nil, err
 		}
 
 		// Check attestation_data_time
@@ -126,16 +138,12 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 
 		if strings.Contains(entry.Message, "got prepare message") && entry.Round == 1 {
 			// Check if signer among provided at CI
-			for _, signer := range entry.PrepareSigners {
-				writeTimeStamps(entry, prepareSignerTimes, entry.DutyID, signer)
-			}
+			writeTimeStamps(entry, prepareSignerTimes, entry.DutyID, entry.PrepareSigners[0])
 		}
 
 		// Consider only logs with round 1
 		if strings.Contains(entry.Message, "got commit message") && entry.Round == 1 {
-			for _, signer := range entry.CommitSigners {
-				writeTimeStamps(entry, commitSignerTimes, entry.DutyID, signer)
-			}
+			writeTimeStamps(entry, commitSignerTimes, entry.DutyID, entry.CommitSigners[0])
 		}
 	}
 
@@ -149,19 +157,25 @@ func (r *LogAnalyzer) AnalyzeConsensus() error {
 	// Output scores and delays per signer
 	fmt.Printf("attestation data time average: %dms\n", attestationTimeAverage)
 	fmt.Printf("attestation data time > 1 sec: %d/%d\n", attestationDelayCount, attestationTimeCount)
-	if r.cluster && len(commitStats) == 0 || len(proposeStats) == 0 {
-		fmt.Printf("Cluster was not found in logs, try without cluster flag... \n")
-	}
-	for _, stats := range commitStats {
-		fmt.Printf("ID: %d \n", stats.Signer)
-		fmt.Printf("Score: %d\n", stats.Score)
-		fmt.Printf("Total Delay: %d seconds\n", int(stats.Delay.Seconds()))
-		fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[stats.Signer].AverageDelay)
-		fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[stats.Signer].HighestDelay.Milliseconds())
-		fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[stats.Signer].MoreSecondDelay, proposeStats[stats.Signer].Count)
+	// collect all IDs
+	IDs := collectIDs(commitStats, proposeStats)
+	for _, ID := range IDs {
+		fmt.Printf("ID: %d \n", ID)
+		for _, commitStat := range commitStats {
+			if commitStat.Signer == int(ID) {
+				fmt.Printf("ID: %d \n", commitStat.Signer)
+				fmt.Printf("Score: %d\n", commitStat.Score)
+				fmt.Printf("Total Delay: %d seconds\n", int(commitStat.Delay.Seconds()))
+			}
+		}
+		if _, ok := proposeStats[int(ID)]; ok {
+			fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].AverageDelay)
+			fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].HighestDelay.Milliseconds())
+			fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[int(ID)].MoreSecondDelay, proposeStats[int(ID)].Count)
+		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func writeTimeStamps(entry LogEntry, signerTimes map[string]map[int]time.Time, dutyID string, signer int) {
@@ -175,14 +189,18 @@ func writeTimeStamps(entry LogEntry, signerTimes map[string]map[int]time.Time, d
 }
 
 func isCluster(operators []uint64, signers map[int]time.Time) bool {
-	if len(operators) != 4 || len(operators) != 7 || len(operators) != 10 || len(operators) != 13 {
+
+	if len(operators) < 4 || len(operators) > 13 || len(operators)%2 != 1 {
 		return false
 	}
+
 	if len(operators) != len(signers) {
 		return false
 	}
+
 	for _, id := range operators {
-		if _, exist := signers[int(id)]; !exist {
+		_, exist := signers[int(id)]
+		if !exist {
 			return false
 		}
 	}
@@ -248,11 +266,11 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 func (r *LogAnalyzer) calcPrepareTimes(leaderProposeTime map[string]time.Time, prepareSignerTimes map[string]map[int]time.Time) map[int]ProposeSignerStats {
 	proposeStats := make(map[int]ProposeSignerStats)
 
-	var prepareMessageCount int
-	var prepareMessageCountMoreSecond int
-	var averageTimePrepareMessage int64
-	var totalTimePrepareMessage time.Duration
-	var highestTimePrepareMessage time.Duration
+	prepareMessageCount := make(map[int]int, 0)
+	prepareMessageCountMoreSecond := make(map[int]int, 0)
+	averageTimePrepareMessage := make(map[int]int64, 0)
+	totalTimePrepareMessage := make(map[int]time.Duration, 0)
+	highestTimePrepareMessage := make(map[int]time.Duration, 0)
 
 	for dutyID, signers := range prepareSignerTimes {
 		leaderProposeMessageTime, exist := leaderProposeTime[dutyID]
@@ -281,23 +299,45 @@ func (r *LogAnalyzer) calcPrepareTimes(leaderProposeTime map[string]time.Time, p
 				break
 			}
 			delay := prepareMessageTimeStamp.Sub(leaderProposeMessageTime)
-			prepareMessageCount = prepareMessageCount + 1
-			totalTimePrepareMessage = totalTimePrepareMessage + delay
-			if highestTimePrepareMessage < delay {
-				highestTimePrepareMessage = delay
+			prepareMessageCount[signer] = prepareMessageCount[signer] + 1
+			totalTimePrepareMessage[signer] = totalTimePrepareMessage[signer] + delay
+			if highestTimePrepareMessage[signer] < delay {
+				highestTimePrepareMessage[signer] = delay
 			}
 			if delay > time.Second {
-				prepareMessageCountMoreSecond = prepareMessageCountMoreSecond + 1
+				prepareMessageCountMoreSecond[signer] = prepareMessageCountMoreSecond[signer] + 1
 			}
-			averageTimePrepareMessage = totalTimePrepareMessage.Milliseconds() / int64(prepareMessageCount)
+			averageTimePrepareMessage[signer] = totalTimePrepareMessage[signer].Milliseconds() / int64(prepareMessageCount[signer])
 			proposeStats[signer] = ProposeSignerStats{
 				Signer:          signer,
-				Count:           prepareMessageCount,
-				AverageDelay:    averageTimePrepareMessage,
-				HighestDelay:    highestTimePrepareMessage,
-				MoreSecondDelay: prepareMessageCountMoreSecond,
+				Count:           prepareMessageCount[signer],
+				AverageDelay:    averageTimePrepareMessage[signer],
+				HighestDelay:    highestTimePrepareMessage[signer],
+				MoreSecondDelay: prepareMessageCountMoreSecond[signer],
 			}
 		}
 	}
 	return proposeStats
+}
+
+func collectIDs(commitStats []SignerStats, proposeStats map[int]ProposeSignerStats) []uint64 {
+	var IDs []uint64
+	tmpIDs := make(map[uint64]bool, 0)
+	for _, commitStat := range commitStats {
+		if _, exist := tmpIDs[uint64(commitStat.Signer)]; !exist {
+			tmpIDs[uint64(commitStat.Signer)] = true
+		}
+	}
+	for _, proposeStat := range proposeStats {
+		if _, exist := tmpIDs[uint64(proposeStat.Signer)]; !exist {
+			tmpIDs[uint64(proposeStat.Signer)] = true
+		}
+	}
+	for ID, _ := range tmpIDs {
+		IDs = append(IDs, ID)
+	}
+	sort.Slice(IDs, func(i, j int) bool {
+		return IDs[i] < IDs[j]
+	})
+	return IDs
 }

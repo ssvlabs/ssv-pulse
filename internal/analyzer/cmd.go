@@ -45,7 +45,8 @@ var CMD = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err = analyzer.AnalyzeConsensus(); err != nil {
+		_, err = analyzer.AnalyzeConsensus()
+		if err != nil {
 			return err
 		}
 		return nil
