@@ -25,6 +25,7 @@ const (
 	ReceivedBlockMeasurement     = "ReceivedBlock"
 	MissedAttestationMeasurement = "MissedAttestation"
 	FreshAttestationMeasurement  = "FreshAttestation"
+	CorrectnessMeasurement       = "Correctness"
 )
 
 var (
@@ -158,7 +159,7 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 }
 
 func (a *AttestationMetric) AggregateResults() string {
-	var missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks float64
+	var missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
 
 	for _, point := range a.DataPoints {
 		missedAttestations += point.Values[MissedAttestationMeasurement]
@@ -166,6 +167,7 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
+		correctness += freshAttestations / receivedBlocks * 100
 	}
 
 	return fmt.Sprintf(
@@ -175,7 +177,7 @@ func (a *AttestationMetric) AggregateResults() string {
 		missedBlocks,
 		freshAttestations,
 		receivedBlocks,
-		freshAttestations/receivedBlocks*100)
+		correctness)
 }
 
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {

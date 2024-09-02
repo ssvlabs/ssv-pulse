@@ -51,7 +51,10 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			configs.Values.Benchmark.Consensus.Address,
 			"Attestation",
 			network.GenesisTime[network.Name(config.Benchmark.Network)],
-			[]metric.HealthCondition[float64]{},
+			[]metric.HealthCondition[float64]{
+				{Name: consensus.CorrectnessMeasurement, Threshold: 97, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
+				{Name: consensus.CorrectnessMeasurement, Threshold: 98.5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+			},
 		))
 	}
 
