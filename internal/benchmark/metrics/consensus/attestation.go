@@ -167,8 +167,9 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
-		correctness += freshAttestations / receivedBlocks * 100
 	}
+
+	correctness = freshAttestations / receivedBlocks * 100
 
 	return fmt.Sprintf(
 		"missed_attestations=%.0f, unready_blocks_%d_ms=%.0f, missed_blocks=%.0f \n fresh_attestations=%.0f received_blocks=%.0f, correctness=%.2f %%",
@@ -182,6 +183,23 @@ func (a *AttestationMetric) AggregateResults() string {
 
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
+
+	var freshAttestations, receivedBlocks float64
+
+	for _, point := range a.DataPoints {
+		freshAttestations += point.Values[FreshAttestationMeasurement]
+		receivedBlocks += point.Values[ReceivedBlockMeasurement]
+	}
+
+	correctness := freshAttestations / receivedBlocks * 100
+
+	a.AddDataPoint(map[string]float64{
+		CorrectnessMeasurement: correctness,
+	})
+
+	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
+		CorrectnessMeasurement: correctness,
+	})
 
 	if !ok {
 		a.AddDataPoint(map[string]float64{
