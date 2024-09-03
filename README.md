@@ -6,7 +6,7 @@
 
 ## Docker
 ```bash
-docker run ghcr.io/ssvlabsinfra/ssv-pulse:latest benchmark --consensus-addr=REPLACE_WITH_ADDR --execution-addr=REPLACE_WITH_ADDR --ssv-addr=REPLACE_WITH_ADDR
+docker run ghcr.io/ssvlabs/ssv-pulse:latest benchmark --consensus-addr=REPLACE_WITH_ADDR --execution-addr=REPLACE_WITH_ADDR --ssv-addr=REPLACE_WITH_ADDR
 ```
 
 # Description
