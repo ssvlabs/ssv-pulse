@@ -108,10 +108,13 @@ func (p *PeerMetric) AggregateResults() string {
 	for _, point := range p.DataPoints {
 		values = append(values, point.Values[PeerCountMeasurement])
 	}
+
+	percentiles := metric.CalculatePercentiles(values, 0, 10, 50, 90, 100)
+
 	return metric.FormatPercentiles(
-		metric.CalculatePercentile(values, 0),
-		metric.CalculatePercentile(values, 10),
-		metric.CalculatePercentile(values, 50),
-		metric.CalculatePercentile(values, 90),
-		metric.CalculatePercentile(values, 100))
+		percentiles[0],
+		percentiles[10],
+		percentiles[50],
+		percentiles[90],
+		percentiles[100])
 }

@@ -30,7 +30,7 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			"Latency",
 			time.Second*3,
 			[]metric.HealthCondition[time.Duration]{
-				{Name: consensus.DurationMeasurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
+				{Name: consensus.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
 			}))
 	}
 

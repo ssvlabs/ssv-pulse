@@ -11,13 +11,18 @@ import (
 )
 
 const (
-	DurationMeasurement = "Duration"
+	DurationMinMeasurement = "DurationMin"
+	DurationP10Measurement = "DurationP10"
+	DurationP50Measurement = "DurationP50"
+	DurationP90Measurement = "DurationP90"
+	DurationMaxMeasurement = "DurationMax"
 )
 
 type LatencyMetric struct {
 	metric.Base[time.Duration]
-	url      string
-	interval time.Duration
+	url       string
+	interval  time.Duration
+	durations []time.Duration
 }
 
 func NewLatencyMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
@@ -52,11 +57,13 @@ func (l *LatencyMetric) measure(ctx context.Context) {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, l.url, nil)
 	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, l.Name, err)
 		return
 	}
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, l.Name, err)
@@ -68,22 +75,35 @@ func (l *LatencyMetric) measure(ctx context.Context) {
 
 	latency = end.Sub(start)
 
+	l.durations = append(l.durations, latency)
+
+	percentiles := metric.CalculatePercentiles(l.durations, 0, 10, 50, 90, 100)
+
 	l.AddDataPoint(map[string]time.Duration{
-		DurationMeasurement: latency,
+		DurationMinMeasurement: percentiles[0],
+		DurationP10Measurement: percentiles[10],
+		DurationP50Measurement: percentiles[50],
+		DurationP90Measurement: percentiles[90],
+		DurationMaxMeasurement: percentiles[100],
 	})
 
-	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{DurationMeasurement: latency})
+	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{
+		DurationMinMeasurement: percentiles[0],
+		DurationP10Measurement: percentiles[10],
+		DurationP50Measurement: percentiles[50],
+		DurationP90Measurement: percentiles[90],
+		DurationMaxMeasurement: percentiles[100],
+	})
 }
 
 func (l *LatencyMetric) AggregateResults() string {
-	var values []time.Duration
-	for _, point := range l.DataPoints {
-		values = append(values, point.Values[DurationMeasurement])
-	}
-	return metric.FormatPercentiles(
-		metric.CalculatePercentile(values, 0),
-		metric.CalculatePercentile(values, 10),
-		metric.CalculatePercentile(values, 50),
-		metric.CalculatePercentile(values, 90),
-		metric.CalculatePercentile(values, 100))
+	var min, p10, p50, p90, max time.Duration
+
+	min = l.DataPoints[len(l.DataPoints)-1].Values[DurationMinMeasurement]
+	p10 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP10Measurement]
+	p50 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP50Measurement]
+	p90 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP90Measurement]
+	max = l.DataPoints[len(l.DataPoints)-1].Values[DurationMaxMeasurement]
+
+	return metric.FormatPercentiles(min, p10, p50, p90, max)
 }

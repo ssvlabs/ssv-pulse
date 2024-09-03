@@ -81,10 +81,10 @@ func (m *MemoryMetric) AggregateResults() string {
 	}
 
 	return fmt.Sprintf("total_P50=%.2fMB, used_P50=%.2fMB, cached_P50=%.2fMB, free_P50=%.2fMB",
-		metric.CalculatePercentile(values[TotalMemoryMeasurement], 50),
-		metric.CalculatePercentile(values[UsedMemoryMeasurement], 50),
-		metric.CalculatePercentile(values[CachedMemoryMeasurement], 50),
-		metric.CalculatePercentile(values[FreeMemoryMeasurement], 50))
+		metric.CalculatePercentiles(values[TotalMemoryMeasurement], 50)[50],
+		metric.CalculatePercentiles(values[UsedMemoryMeasurement], 50)[50],
+		metric.CalculatePercentiles(values[CachedMemoryMeasurement], 50)[50],
+		metric.CalculatePercentiles(values[FreeMemoryMeasurement], 50)[50])
 }
 
 func toMegabytes(bytes uint64) float64 {
