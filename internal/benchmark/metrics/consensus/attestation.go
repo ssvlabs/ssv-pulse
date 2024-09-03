@@ -159,7 +159,10 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 }
 
 func (a *AttestationMetric) AggregateResults() string {
-	var missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
+	var (
+		latestCorrectnessMeasurement                                                                    time.Time
+		missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
+	)
 
 	for _, point := range a.DataPoints {
 		missedAttestations += point.Values[MissedAttestationMeasurement]
@@ -167,9 +170,15 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
-	}
 
-	correctness = freshAttestations / receivedBlocks * 100
+		val, ok := point.Values[CorrectnessMeasurement]
+		if ok {
+			if latestCorrectnessMeasurement.Before(point.Timestamp) {
+				correctness = val
+				latestCorrectnessMeasurement = point.Timestamp
+			}
+		}
+	}
 
 	return fmt.Sprintf(
 		"missed_attestations=%.0f, unready_blocks_%d_ms=%.0f, missed_blocks=%.0f \n fresh_attestations=%.0f received_blocks=%.0f, correctness=%.2f %%",
@@ -184,6 +193,50 @@ func (a *AttestationMetric) AggregateResults() string {
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
 
+	if !ok {
+		a.AddDataPoint(map[string]float64{
+			MissedBlockMeasurement: 1,
+		})
+
+		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
+			MissedBlockMeasurement: 1,
+		})
+		return
+	}
+
+	attestationBlockRoot, ok := a.attestationBlockRoots.Load(slot)
+	if !ok {
+		a.AddDataPoint(map[string]float64{
+			MissedAttestationMeasurement: 1,
+			ReceivedBlockMeasurement:     1,
+		})
+
+		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
+			MissedAttestationMeasurement: 1,
+			ReceivedBlockMeasurement:     1,
+		})
+
+		a.calculateCorrectness()
+
+		return
+	}
+
+	if attestationBlockRoot == eventBlockRoot.(SlotData).RootBlock {
+		a.AddDataPoint(map[string]float64{
+			FreshAttestationMeasurement: 1,
+			ReceivedBlockMeasurement:    1,
+		})
+
+		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
+			FreshAttestationMeasurement: 1,
+			ReceivedBlockMeasurement:    1,
+		})
+	}
+
+	a.calculateCorrectness()
+}
+
+func (a *AttestationMetric) calculateCorrectness() {
 	var freshAttestations, receivedBlocks float64
 
 	for _, point := range a.DataPoints {
@@ -200,46 +253,6 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		CorrectnessMeasurement: correctness,
 	})
-
-	if !ok {
-		a.AddDataPoint(map[string]float64{
-			MissedBlockMeasurement: 1,
-		})
-
-		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
-			MissedBlockMeasurement: 1,
-		})
-		return
-	}
-
-	a.AddDataPoint(map[string]float64{
-		ReceivedBlockMeasurement: 1,
-	})
-	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
-		ReceivedBlockMeasurement: 1,
-	})
-
-	attestationBlockRoot, ok := a.attestationBlockRoots.Load(slot)
-	if !ok {
-		a.AddDataPoint(map[string]float64{
-			MissedAttestationMeasurement: 1,
-		})
-
-		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
-			MissedAttestationMeasurement: 1,
-		})
-		return
-	}
-
-	if attestationBlockRoot == eventBlockRoot.(SlotData).RootBlock {
-		a.AddDataPoint(map[string]float64{
-			FreshAttestationMeasurement: 1,
-		})
-
-		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
-			FreshAttestationMeasurement: 1,
-		})
-	}
 }
 
 func slotTime(genesisTime time.Time, slot phase0.Slot) time.Time {
