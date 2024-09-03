@@ -121,9 +121,13 @@ func (p *ConnectionsMetric) AggregateResults() string {
 		measurements[OutboundConnectionsMeasurement] = append(measurements[OutboundConnectionsMeasurement], point.Values[OutboundConnectionsMeasurement])
 	}
 
+	inboundPercentiles := metric.CalculatePercentiles(measurements[InboundConnectionsMeasurement], 0, 50)
+	outboundPercentiles := metric.CalculatePercentiles(measurements[OutboundConnectionsMeasurement], 0, 50)
+
 	return fmt.Sprintf("inbound_min=%d, inbound_P50=%d, outbound_min=%d, outbound_P50=%d",
-		metric.CalculatePercentile(measurements[InboundConnectionsMeasurement], 0),
-		metric.CalculatePercentile(measurements[InboundConnectionsMeasurement], 50),
-		metric.CalculatePercentile(measurements[OutboundConnectionsMeasurement], 0),
-		metric.CalculatePercentile(measurements[OutboundConnectionsMeasurement], 50))
+		inboundPercentiles[0],
+		inboundPercentiles[50],
+		outboundPercentiles[0],
+		outboundPercentiles[50],
+	)
 }

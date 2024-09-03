@@ -11,19 +11,31 @@ type (
 	}
 )
 
-func CalculatePercentile[T Metricable](values []T, percentile float64) T {
+func CalculatePercentiles[T Metricable](values []T, percentiles ...float64) map[float64]T {
+	result := make(map[float64]T)
+
+	if len(percentiles) == 0 {
+		return result
+	}
+
 	if len(values) == 0 {
 		var zero T
-		return zero
+		for _, p := range percentiles {
+			result[p] = zero
+		}
+		return result
 	}
 
 	sort.Slice(values, func(i, j int) bool {
 		return values[i] < values[j]
 	})
 
-	index := int(float64(len(values)-1) * percentile / 100.0)
+	for _, percentile := range percentiles {
+		index := int(float64(len(values)-1) * percentile / 100.0)
+		result[percentile] = values[index]
+	}
 
-	return values[index]
+	return result
 }
 
 func FormatPercentiles[T stringable](min, p10, p50, p90, max T) string {

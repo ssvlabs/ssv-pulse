@@ -80,6 +80,6 @@ func (c *CPUMetric) AggregateResults() string {
 	}
 
 	return fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v",
-		metric.CalculatePercentile(values[UserCPUMeasurement], 50),
-		metric.CalculatePercentile(values[SystemCPUMeasurement], 50), c.total)
+		metric.CalculatePercentiles(values[UserCPUMeasurement], 50)[50],
+		metric.CalculatePercentiles(values[SystemCPUMeasurement], 50)[50], c.total)
 }
