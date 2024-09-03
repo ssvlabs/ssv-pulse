@@ -67,11 +67,13 @@ func (p *ConnectionsMetric) measure(ctx context.Context) {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		p.AddDataPoint(map[string]uint32{
-			InboundConnectionsMeasurement:  0,
-			OutboundConnectionsMeasurement: 0,
-		})
-		logger.WriteError(metric.SSVGroup, p.Name, err)
+		if err != ctx.Err() {
+			p.AddDataPoint(map[string]uint32{
+				InboundConnectionsMeasurement:  0,
+				OutboundConnectionsMeasurement: 0,
+			})
+			logger.WriteError(metric.SSVGroup, p.Name, err)
+		}
 		return
 	}
 	defer res.Body.Close()
