@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
 	"github.com/ssvlabs/ssv-benchmark/internal/utils"
 )
 
@@ -154,27 +156,36 @@ func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 	commitStats := r.calcCommitTimes(commitSignerTimes)
 	// Calculate propose delays
 	proposeStats := r.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
-	// Output scores and delays per signer
-	fmt.Printf("attestation data time average: %dms\n", attestationTimeAverage)
-	fmt.Printf("attestation data time > 1 sec: %d/%d\n", attestationDelayCount, attestationTimeCount)
 	// collect all IDs
 	IDs := collectIDs(commitStats, proposeStats)
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Operator", "Beacon Time: avg", "Beacon Time: > 1sec", "Score", "Commit: Total Delay", "Prepare: avg", "Prepare: highest", "Prepare: > 1sec"})
 	for _, ID := range IDs {
 		fmt.Printf("ID: %d \n", ID)
+		score := 0
+		totalDelay := 0
 		for _, commitStat := range commitStats {
 			if commitStat.Signer == int(ID) {
-				fmt.Printf("ID: %d \n", commitStat.Signer)
-				fmt.Printf("Score: %d\n", commitStat.Score)
-				fmt.Printf("Total Delay: %d seconds\n", int(commitStat.Delay.Seconds()))
+				score = commitStat.Score
+				totalDelay = int(commitStat.Delay.Seconds())
 			}
 		}
-		if _, ok := proposeStats[int(ID)]; ok {
-			fmt.Printf("Average time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].AverageDelay)
-			fmt.Printf("Highest time to receive prepare message when leader (ms): %d\n", proposeStats[int(ID)].HighestDelay.Milliseconds())
-			fmt.Printf("Time to receive prepare message when leader > 1 sec: %d/%d\n\n", proposeStats[int(ID)].MoreSecondDelay, proposeStats[int(ID)].Count)
-		}
+		t.AppendRows([]table.Row{
+			{
+				ID,
+				attestationTimeAverage,
+				strconv.Itoa(attestationDelayCount) + "/" + strconv.Itoa(int(attestationTimeCount)),
+				score,
+				totalDelay,
+				proposeStats[int(ID)].AverageDelay,
+				proposeStats[int(ID)].HighestDelay.Milliseconds(),
+				strconv.Itoa(proposeStats[int(ID)].MoreSecondDelay) + "/" + strconv.Itoa(proposeStats[int(ID)].Count),
+			},
+		})
+		t.AppendSeparator()
 	}
-
+	t.Render()
 	return nil, nil
 }
 
