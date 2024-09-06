@@ -4,6 +4,7 @@ BINARY_NAME=pulse
 DOCKER_IMAGE_NANE=pulse
 CONFIG_DIR=./configs
 CONFIG_FILE=config.yaml
+PORT=8080
 
 .PHONY: build
 build:
@@ -22,6 +23,10 @@ run-analyzer: build
 .PHONY: docker-build
 docker-build:
 	docker build -t ${DOCKER_IMAGE_NANE} -f build/Dockerfile .
+
+.PHONY: docker-run-benchmark
+docker-run-benchmark:
+	docker run -p ${PORT}:${PORT} ${DOCKER_IMAGE_NANE} benchmark --port=${PORT}
 ##########
 
 .PHONY: clean
