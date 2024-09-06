@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mackerelio/go-osstat/memory"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
 )
@@ -55,18 +56,27 @@ func (m *MemoryMetric) measure() {
 		return
 	}
 
+	m.writeMetric(memory.Cached, memory.Used, memory.Free, memory.Total)
+}
+
+func (m *MemoryMetric) writeMetric(cached, used, free, total uint64) {
 	m.AddDataPoint(map[string]uint64{
-		CachedMemoryMeasurement: memory.Cached,
-		UsedMemoryMeasurement:   memory.Used,
-		FreeMemoryMeasurement:   memory.Free,
-		TotalMemoryMeasurement:  memory.Total,
+		CachedMemoryMeasurement: cached,
+		UsedMemoryMeasurement:   used,
+		FreeMemoryMeasurement:   free,
+		TotalMemoryMeasurement:  total,
 	})
 
+	memoryUsageMetric.With(prometheus.Labels{memoryUsageTypeLabel: "cached"}).Set(float64(cached))
+	memoryUsageMetric.With(prometheus.Labels{memoryUsageTypeLabel: "used"}).Set(float64(used))
+	memoryUsageMetric.With(prometheus.Labels{memoryUsageTypeLabel: "free"}).Set(float64(free))
+	memoryUsageMetric.With(prometheus.Labels{memoryUsageTypeLabel: "total"}).Set(float64(total))
+
 	logger.WriteMetric(metric.InfrastructureGroup, m.Name, map[string]any{
-		TotalMemoryMeasurement:  toMegabytes(memory.Total),
-		UsedMemoryMeasurement:   toMegabytes(memory.Used),
-		CachedMemoryMeasurement: toMegabytes(memory.Cached),
-		FreeMemoryMeasurement:   toMegabytes(memory.Free),
+		TotalMemoryMeasurement:  toMegabytes(total),
+		UsedMemoryMeasurement:   toMegabytes(used),
+		CachedMemoryMeasurement: toMegabytes(cached),
+		FreeMemoryMeasurement:   toMegabytes(free),
 	})
 }
 

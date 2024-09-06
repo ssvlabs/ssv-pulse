@@ -65,14 +65,14 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		p.addDataPoint(0)
+		p.writeMetric(0)
 		logger.WriteError(metric.SSVGroup, p.Name, err)
 		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		p.addDataPoint(0)
+		p.writeMetric(0)
 
 		var errorResponse any
 		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
@@ -85,12 +85,21 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		p.addDataPoint(0)
+		p.writeMetric(0)
 		logger.WriteError(metric.SSVGroup, p.Name, err)
 		return
 	}
 
-	p.addDataPoint(resp.Advanced.Peers)
+	p.writeMetric(resp.Advanced.Peers)
+}
+
+func (p *PeerMetric) writeMetric(value uint32) {
+	p.AddDataPoint(map[string]uint32{
+		PeerCountMeasurement: value,
+	})
+	peerCountMetric.Set(float64(value))
+
+	logger.WriteMetric(metric.SSVGroup, p.Name, map[string]any{PeerCountMeasurement: value})
 }
 
 func (p *PeerMetric) AggregateResults() string {
@@ -107,13 +116,4 @@ func (p *PeerMetric) AggregateResults() string {
 		percentiles[50],
 		percentiles[90],
 		percentiles[100])
-}
-
-func (p *PeerMetric) addDataPoint(value uint32) {
-	p.AddDataPoint(map[string]uint32{
-		PeerCountMeasurement: value,
-	})
-	peerCountMetric.Set(float64(value))
-
-	logger.WriteMetric(metric.SSVGroup, p.Name, map[string]any{PeerCountMeasurement: value})
 }
