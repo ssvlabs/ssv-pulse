@@ -87,18 +87,14 @@ func (p *PeerMetric) measure(ctx context.Context) {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 
 		var errorResponse any
 		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
@@ -111,36 +107,36 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 		return
 	}
 
 	peerCountHex := resp.Result
 	if peerCountHex == "" {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ExecutionGroup, p.Name, errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported"))
 		return
 	}
 
 	peerCount, err := strconv.ParseInt(peerCountHex[2:], 16, 64)
 	if err != nil {
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
 		return
 	}
 
+	p.writeMetric(peerCount)
+}
+
+func (p *PeerMetric) writeMetric(value int64) {
 	p.AddDataPoint(map[string]uint32{
-		PeerCountMeasurement: uint32(peerCount),
+		PeerCountMeasurement: uint32(value),
 	})
 
-	logger.WriteMetric(metric.ExecutionGroup, p.Name, map[string]any{PeerCountMeasurement: peerCount})
+	peerCountMetric.Set(float64(value))
+
+	logger.WriteMetric(metric.ExecutionGroup, p.Name, map[string]any{PeerCountMeasurement: value})
 }
 
 func (p *PeerMetric) AggregateResults() string {
