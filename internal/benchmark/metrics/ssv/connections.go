@@ -69,7 +69,7 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if err != ctx.Err() {
-			c.addDataPoint(0, 0)
+			c.writeMetric(0, 0)
 
 			logger.WriteError(metric.SSVGroup, c.Name, err)
 		}
@@ -78,7 +78,7 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		c.addDataPoint(0, 0)
+		c.writeMetric(0, 0)
 
 		var errorResponse any
 		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
@@ -91,13 +91,27 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		c.addDataPoint(0, 0)
+		c.writeMetric(0, 0)
 
 		logger.WriteError(metric.SSVGroup, c.Name, err)
 		return
 	}
 
-	c.addDataPoint(resp.Advanced.Inbound, resp.Advanced.Outbound)
+	c.writeMetric(resp.Advanced.Inbound, resp.Advanced.Outbound)
+}
+
+func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
+	c.AddDataPoint(map[string]uint32{
+		InboundConnectionsMeasurement:  inbound,
+		OutboundConnectionsMeasurement: outbound,
+	})
+
+	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "inbound"}).Set(float64(inbound))
+	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "outbound"}).Set(float64(outbound))
+
+	logger.WriteMetric(metric.SSVGroup, c.Name, map[string]any{
+		InboundConnectionsMeasurement:  inbound,
+		OutboundConnectionsMeasurement: outbound})
 }
 
 func (p *ConnectionsMetric) AggregateResults() string {
@@ -117,18 +131,4 @@ func (p *ConnectionsMetric) AggregateResults() string {
 		outboundPercentiles[0],
 		outboundPercentiles[50],
 	)
-}
-
-func (c *ConnectionsMetric) addDataPoint(inbound, outbound uint32) {
-	c.AddDataPoint(map[string]uint32{
-		InboundConnectionsMeasurement:  inbound,
-		OutboundConnectionsMeasurement: outbound,
-	})
-
-	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "inbound"}).Set(float64(inbound))
-	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "outbound"}).Set(float64(outbound))
-
-	logger.WriteMetric(metric.SSVGroup, c.Name, map[string]any{
-		InboundConnectionsMeasurement:  inbound,
-		OutboundConnectionsMeasurement: outbound})
 }

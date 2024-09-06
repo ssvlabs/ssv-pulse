@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
 )
@@ -60,10 +61,17 @@ func (c *CPUMetric) measure() {
 	c.prevSystem = cpu.System
 	c.total = cpu.Total
 
+	c.writeMetric(systemPercent, userPercent)
+}
+
+func (c *CPUMetric) writeMetric(systemPercent, userPercent float64) {
 	c.AddDataPoint(map[string]float64{
 		SystemCPUMeasurement: systemPercent,
 		UserCPUMeasurement:   userPercent,
 	})
+
+	cpuUsageMetric.With(prometheus.Labels{cpuUsageTypeLabel: "system"}).Set(float64(systemPercent))
+	cpuUsageMetric.With(prometheus.Labels{cpuUsageTypeLabel: "user"}).Set(float64(userPercent))
 
 	logger.WriteMetric(metric.InfrastructureGroup, c.Name, map[string]any{
 		SystemCPUMeasurement: systemPercent,
