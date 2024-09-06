@@ -51,11 +51,16 @@ type Infrastructure struct {
 	Metrics InfrastructureMetrics `mapstructure:"metrics"`
 }
 
+type Server struct {
+	Port uint16 `mapstructure:"port"`
+}
+
 type Benchmark struct {
 	Consensus      Consensus      `mapstructure:"consensus"`
 	Execution      Execution      `mapstructure:"execution"`
 	SSV            SSV            `mapstructure:"ssv"`
 	Infrastructure Infrastructure `mapstructure:"infrastructure"`
+	Server         Server         `mapstructure:"server"`
 	Duration       time.Duration  `mapstructure:"duration"`
 	Network        string         `mapstructure:"network"`
 }

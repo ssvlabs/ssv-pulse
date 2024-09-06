@@ -12,10 +12,16 @@ import (
 	"github.com/ssvlabsinfra/ssv-pulse/configs"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/report"
 	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/lifecycle"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/server/host"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/server/route"
 )
 
 const (
-	durationFlag = "duration"
+	durationFlag             = "duration"
+	defaultExecutionDuration = time.Minute * 15
+
+	serverPortFlag    = "port"
+	defaultServerPort = 8080
 
 	consensusAddrFlag              = "consensus-addr"
 	consensusMetricClientFlag      = "consensus-metric-client-enabled"
@@ -33,8 +39,7 @@ const (
 	infraMetricCPUFlag    = "infra-metric-cpu-enabled"
 	infraMetricMemoryFlag = "infra-metric-memory-enabled"
 
-	networkFlag              = "network"
-	defaultExecutionDuration = time.Minute * 15
+	networkFlag = "network"
 )
 
 func init() {
@@ -59,6 +64,14 @@ var CMD = &cobra.Command{
 
 		go benchmarkService.Start(ctx)
 
+		slog.With("port", configs.Values.Benchmark.Server.Port).Info("running web host")
+		host := host.New(configs.Values.Benchmark.Server.Port,
+			route.
+				NewRouter().
+				WithMetrics().
+				Router())
+		host.Run()
+
 		lifecycle.ListenForApplicationShutDown(ctx, func() {
 			cancel()
 			slog.Warn("terminating the application")
@@ -68,6 +81,7 @@ var CMD = &cobra.Command{
 
 func addFlags(cobraCMD *cobra.Command) {
 	cobraCMD.Flags().Duration(durationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'")
+	cobraCMD.Flags().Uint16(serverPortFlag, defaultServerPort, "Web server port with metrics endpoint exposed, e.g. '8080'")
 	cobraCMD.Flags().String(consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052")
 	cobraCMD.Flags().Bool(consensusMetricClientFlag, true, "Enable consensus client metric")
 	cobraCMD.Flags().Bool(consensusMetricLatencyFlag, true, "Enable consensus latency metric")
@@ -89,6 +103,9 @@ func addFlags(cobraCMD *cobra.Command) {
 
 func bindFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("benchmark.duration", cmd.Flags().Lookup(durationFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.server.port", cmd.Flags().Lookup(serverPortFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.consensus.address", cmd.Flags().Lookup(consensusAddrFlag)); err != nil {
