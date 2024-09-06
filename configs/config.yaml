@@ -1,6 +1,9 @@
 benchmark:
   duration: 15m
   network: mainnet
+  server:
+    port: 8080
+
   consensus:
     address: 
     metrics: 
