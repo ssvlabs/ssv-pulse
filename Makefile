@@ -27,6 +27,14 @@ docker-build:
 .PHONY: docker-run-benchmark
 docker-run-benchmark:
 	docker run -p ${PORT}:${PORT} ${DOCKER_IMAGE_NANE} benchmark --port=${PORT}
+
+.PHONY: docker-compose-up
+docker-compose-up:
+	docker-compose -f ./build/docker-compose.yml up -d
+
+.PHONY: docker-compose-down
+docker-compose-down:
+	docker-compose -f ./build/docker-compose.yml down
 ##########
 
 .PHONY: clean
