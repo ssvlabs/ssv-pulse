@@ -53,7 +53,15 @@ var CMD = &cobra.Command{
 	Use:   "benchmark",
 	Short: "Run benchmarks of ssv node",
 	Run: func(cobraCMD *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), configs.Values.Benchmark.Duration)
+		var (
+			ctx    context.Context
+			cancel context.CancelFunc
+		)
+		if configs.Values.Benchmark.Duration == 0 {
+			ctx, cancel = context.WithCancel(context.Background())
+		} else {
+			ctx, cancel = context.WithTimeout(context.Background(), configs.Values.Benchmark.Duration)
+		}
 
 		isValid, err := configs.Values.Benchmark.Validate()
 		if !isValid {
