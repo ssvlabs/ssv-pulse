@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'ssv-pulse-scraper'
+    static_configs:
+      - targets: ['ssv-pulse:8080']
