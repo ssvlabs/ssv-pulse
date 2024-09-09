@@ -198,6 +198,8 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			MissedBlockMeasurement: 1,
 		})
 
+		missedBlocksMetric.Inc()
+
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedBlockMeasurement: 1,
 		})
@@ -210,6 +212,9 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			MissedAttestationMeasurement: 1,
 			ReceivedBlockMeasurement:     1,
 		})
+
+		missedAttestationsMetric.Inc()
+		receivedBlocksMetric.Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedAttestationMeasurement: 1,
@@ -226,6 +231,9 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			FreshAttestationMeasurement: 1,
 			ReceivedBlockMeasurement:    1,
 		})
+
+		freshAttestationsMetric.Inc()
+		receivedBlocksMetric.Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			FreshAttestationMeasurement: 1,
@@ -249,6 +257,8 @@ func (a *AttestationMetric) calculateCorrectness() {
 	a.AddDataPoint(map[string]float64{
 		CorrectnessMeasurement: correctness,
 	})
+
+	correctnessMetric.Set(correctness)
 
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		CorrectnessMeasurement: correctness,
