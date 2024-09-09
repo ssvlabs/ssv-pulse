@@ -106,9 +106,15 @@ func (p *PeerMetric) measure(ctx context.Context) {
 		return
 	}
 
+	p.writeMetric(peerNr)
+}
+
+func (p *PeerMetric) writeMetric(peerNr int) {
 	p.AddDataPoint(map[string]uint32{
 		PeerCountMeasurement: uint32(peerNr),
 	})
+
+	peerCountMetric.Set(float64(peerNr))
 
 	logger.WriteMetric(metric.ConsensusGroup, p.Name, map[string]any{PeerCountMeasurement: peerNr})
 }

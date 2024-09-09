@@ -77,6 +77,10 @@ func (l *LatencyMetric) measure(ctx context.Context) {
 
 	l.durations = append(l.durations, latency)
 
+	l.writeMetric(latency)
+}
+
+func (l *LatencyMetric) writeMetric(latency time.Duration) {
 	percentiles := metric.CalculatePercentiles(l.durations, 0, 10, 50, 90, 100)
 
 	l.AddDataPoint(map[string]time.Duration{
@@ -86,6 +90,8 @@ func (l *LatencyMetric) measure(ctx context.Context) {
 		DurationP90Measurement: percentiles[90],
 		DurationMaxMeasurement: percentiles[100],
 	})
+
+	latencyMetric.Observe(latency.Seconds())
 
 	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{
 		DurationMinMeasurement: percentiles[0],
