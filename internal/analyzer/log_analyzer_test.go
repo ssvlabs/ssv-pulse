@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/platform/cmd"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/cmd"
 )
 
 func TestProposeAnalyze(t *testing.T) {

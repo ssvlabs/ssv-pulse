@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ssvlabsinfra/ssv-pulse/configs"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/cmd"
 )
 
 const filePathFlag = "log-file-path"

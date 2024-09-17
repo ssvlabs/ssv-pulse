@@ -13,7 +13,7 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 
-	"github.com/ssvlabs/ssv-benchmark/internal/utils"
+	"github.com/ssvlabsinfra/ssv-pulse/internal/utils"
 )
 
 type LogAnalyzer struct {
