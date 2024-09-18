@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ssvlabsinfra/ssv-pulse/configs"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/report"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/lifecycle"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/server/host"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/server/route"
+	"github.com/ssvlabs/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark/report"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/lifecycle"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/server/host"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/server/route"
 )
 
 const (
@@ -155,5 +155,6 @@ func bindFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("benchmark.infrastructure.metrics.memory.enabled", cmd.Flags().Lookup(infraMetricMemoryFlag)); err != nil {
 		return err
 	}
+
 	return nil
 }

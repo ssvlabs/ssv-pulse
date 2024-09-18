@@ -8,8 +8,8 @@ import (
 
 	"github.com/mackerelio/go-osstat/memory"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
 
 const (

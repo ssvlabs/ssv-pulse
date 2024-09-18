@@ -3,13 +3,13 @@ package benchmark
 import (
 	"time"
 
-	"github.com/ssvlabsinfra/ssv-pulse/configs"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/metrics/consensus"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/metrics/execution"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/metrics/infrastructure"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark/metrics/ssv"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/network"
+	"github.com/ssvlabs/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark/metrics/consensus"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark/metrics/execution"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark/metrics/infrastructure"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark/metrics/ssv"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/network"
 )
 
 func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService {

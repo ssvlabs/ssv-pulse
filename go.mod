@@ -1,4 +1,4 @@
-module github.com/ssvlabsinfra/ssv-pulse
+module github.com/ssvlabs/ssv-pulse
 
 go 1.23.1
 

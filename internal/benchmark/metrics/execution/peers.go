@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
 
 const (

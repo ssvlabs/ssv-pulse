@@ -4,15 +4,15 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/ssvlabsinfra/ssv-pulse/internal/loki"
+	"github.com/ssvlabs/ssv-pulse/internal/loki"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ssvlabsinfra/ssv-pulse/configs"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/analyzer"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/benchmark"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/cmd"
-	_ "github.com/ssvlabsinfra/ssv-pulse/internal/platform/logger"
+	"github.com/ssvlabs/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer"
+	"github.com/ssvlabs/ssv-pulse/internal/benchmark"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/cmd"
+	_ "github.com/ssvlabs/ssv-pulse/internal/platform/logger"
 )
 
 var (

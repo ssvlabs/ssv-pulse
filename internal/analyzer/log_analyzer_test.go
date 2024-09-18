@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ssvlabsinfra/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/configs"
 )
 
 func TestProposeAnalyze(t *testing.T) {

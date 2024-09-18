@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/aquasecurity/table"
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/metric"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
 
 var headers = []string{"Group Name", "Metric Name", "Value", "Health", "Severity"}
