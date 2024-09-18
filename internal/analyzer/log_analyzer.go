@@ -33,11 +33,11 @@ type LogEntry struct {
 	DutyID          string    `json:"duty_id"`
 	Height          int       `json:"height"`
 	Round           int       `json:"round"`
-	CommitSigners   []int     `json:"commit-signers"`
+	CommitSigners   []int     `json:"commit_signers"`
 	Root            string    `json:"root"`
 	AttestationTime string    `json:"attestation_data_time"`
 	Leader          int       `json:"leader"`
-	PrepareSigners  []int     `json:"prepare-signers"`
+	PrepareSigners  []int     `json:"prepare_signers"`
 }
 
 // SignerStats keeps track of signer's score and total delay
@@ -102,6 +102,7 @@ func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 	// Calculate propose-prepare times
 	prepareSignerTimes := make(map[string]map[int]time.Time)
 	leaderProposeTime := make(map[string]time.Time)
+
 	for scanner.Scan() {
 		var entry LogEntry
 		line := scanner.Text()
@@ -200,7 +201,6 @@ func writeTimeStamps(entry LogEntry, signerTimes map[string]map[int]time.Time, d
 }
 
 func isCluster(operators []uint64, signers map[int]time.Time) bool {
-
 	if len(operators) < 4 || len(operators) > 13 || len(operators)%2 != 1 {
 		return false
 	}
@@ -248,6 +248,7 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 		sort.Slice(performances, func(i, j int) bool {
 			return performances[i].Earliest.Before(performances[j].Earliest)
 		})
+
 		// Assign scores and calculate delays
 		if len(performances) > 0 {
 			firstTime := performances[0].Earliest
