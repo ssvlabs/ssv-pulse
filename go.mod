@@ -5,7 +5,6 @@ go 1.23.1
 require (
 	github.com/aquasecurity/table v1.8.0
 	github.com/grafana/loki-client-go v0.0.0-20230116142646-e7494d0ef70c
-	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/prometheus/client_golang v1.20.3
 	github.com/prometheus/common v0.59.1

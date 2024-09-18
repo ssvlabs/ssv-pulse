@@ -4,14 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/ssvlabs/ssv-pulse/internal/utils"
 )
@@ -62,12 +60,16 @@ type ProposeSignerStats struct {
 }
 
 type Result struct {
-	ID                     uint64
-	Score                  uint64
-	TotalDelay             time.Duration
-	AttestationTimeAverage time.Duration
-	AttestationDelayCount  int
-	AttestationTotalCount  uint64
+	ID                         uint64
+	Score                      uint64
+	TotalDelay                 time.Duration
+	AttestationTimeAverage     time.Duration
+	AttestationTimeMoreThanSec string
+	AttestationDelayCount      int
+	AttestationTotalCount      uint64
+	PrepareDelayAvg            int64
+	PrepareHighestDelay        time.Duration
+	PrepareMoreThanSec         string
 }
 
 // Scores for ranks
@@ -89,9 +91,9 @@ func New(logFilePath string, operators []string, cluster bool) (*LogAnalyzer, er
 	}, nil
 }
 
-func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
+func (r *LogAnalyzer) AnalyzeConsensus() ([]Result, error) {
 	defer r.logFile.Close()
-
+	var result []Result
 	scanner := bufio.NewScanner(r.logFile)
 	commitSignerTimes := make(map[string]map[int]time.Time)
 	var attestationTimeCount uint64
@@ -108,9 +110,9 @@ func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			log.Printf("error decoding: %v", err)
+			slog.With("err", err).Error("error decoding")
 			if e, ok := err.(*json.SyntaxError); ok {
-				log.Printf("syntax error at byte offset %d", e.Offset)
+				slog.With("offset", e.Offset).Error("syntax error at byte offset")
 			}
 			return nil, err
 		}
@@ -151,19 +153,18 @@ func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatalf("error reading log file: %v", err)
+		slog.With("err", err).Error("error reading log file")
+		return nil, err
 	}
+
 	// Calculate commit scores and delays
 	commitStats := r.calcCommitTimes(commitSignerTimes)
 	// Calculate propose delays
 	proposeStats := r.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
 	// collect all IDs
 	IDs := collectIDs(commitStats, proposeStats)
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Operator", "Beacon Time: avg", "Beacon Time: > 1sec", "Score", "Commit: Total Delay", "Prepare: avg", "Prepare: highest", "Prepare: > 1sec"})
+
 	for _, ID := range IDs {
-		fmt.Printf("ID: %d \n", ID)
 		score := 0
 		totalDelay := 0
 		for _, commitStat := range commitStats {
@@ -172,22 +173,22 @@ func (r *LogAnalyzer) AnalyzeConsensus() (*Result, error) {
 				totalDelay = int(commitStat.Delay.Seconds())
 			}
 		}
-		t.AppendRows([]table.Row{
-			{
-				ID,
-				attestationTimeAverage,
-				strconv.Itoa(attestationDelayCount) + "/" + strconv.Itoa(int(attestationTimeCount)),
-				score,
-				totalDelay,
-				proposeStats[int(ID)].AverageDelay,
-				proposeStats[int(ID)].HighestDelay.Milliseconds(),
-				strconv.Itoa(proposeStats[int(ID)].MoreSecondDelay) + "/" + strconv.Itoa(proposeStats[int(ID)].Count),
-			},
+
+		result = append(result, Result{
+			ID:                         ID,
+			AttestationTimeAverage:     time.Duration(attestationTimeAverage),
+			AttestationTimeMoreThanSec: strconv.Itoa(attestationDelayCount) + "/" + strconv.Itoa(int(attestationTimeCount)),
+			Score:                      uint64(score),
+			TotalDelay:                 time.Duration(totalDelay),
+			AttestationDelayCount:      attestationDelayCount,
+			AttestationTotalCount:      attestationTimeCount,
+			PrepareDelayAvg:            proposeStats[int(ID)].AverageDelay,
+			PrepareHighestDelay:        proposeStats[int(ID)].HighestDelay,
+			PrepareMoreThanSec:         strconv.Itoa(proposeStats[int(ID)].MoreSecondDelay) + "/" + strconv.Itoa(proposeStats[int(ID)].Count),
 		})
-		t.AppendSeparator()
 	}
-	t.Render()
-	return nil, nil
+
+	return result, nil
 }
 
 func writeTimeStamps(entry LogEntry, signerTimes map[string]map[int]time.Time, dutyID string, signer int) {
@@ -307,7 +308,7 @@ func (r *LogAnalyzer) calcPrepareTimes(leaderProposeTime map[string]time.Time, p
 				}
 			}
 			if prepareMessageTimeStamp.Before(leaderProposeMessageTime) {
-				log.Println("error: got prepare message before leader propose message")
+				slog.Error("error: got prepare message before leader propose message")
 				break
 			}
 			delay := prepareMessageTimeStamp.Sub(leaderProposeMessageTime)
