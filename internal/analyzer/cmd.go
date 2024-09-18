@@ -1,10 +1,13 @@
 package analyzer
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/ssvlabs/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
 )
 
 const (
@@ -35,10 +38,27 @@ var CMD = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		_, err = analyzer.AnalyzeConsensus()
+		reportService := report.New()
+
+		result, err := analyzer.AnalyzeConsensus()
 		if err != nil {
 			return err
 		}
+		for _, r := range result {
+			reportService.AddRecord(report.Record{
+				OperatorID:            r.ID,
+				BeaconTimeAvg:         uint64(r.AttestationTimeAverage),
+				BeaconTimeMoreThanSec: r.AttestationTimeMoreThanSec,
+				Score:                 r.Score,
+				CommitDelayTotal:      r.TotalDelay,
+				PrepareDelayAvg:       time.Duration(r.PrepareDelayAvg),
+				PrepareHighestDelay:   r.PrepareHighestDelay,
+				PrepareMoreThanSec:    r.PrepareMoreThanSec,
+			})
+		}
+
+		reportService.Render()
+
 		return nil
 	},
 }
