@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ssvlabsinfra/ssv-pulse/internal/platform/network"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/network"
 )
 
 type Metric struct {
