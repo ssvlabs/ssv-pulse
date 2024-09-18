@@ -17,7 +17,7 @@ run-benchmark: build
 
 .PHONY: run-analyzer
 run-analyzer: build
-	@cd ${BINARY_DIR} && ./${BINARY_NAME} log-analyzer
+	@cd ${BINARY_DIR} && ./${BINARY_NAME} analyzer
 
 ########## DOCKER
 .PHONY: docker-build
