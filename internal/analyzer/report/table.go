@@ -12,7 +12,7 @@ var headers = []string{"Operator", "Beacon Time: avg", "Beacon Time: > 1sec", "S
 
 type Record struct {
 	OperatorID            uint64
-	BeaconTimeAvg         uint64
+	BeaconTimeAvg         time.Duration
 	BeaconTimeMoreThanSec string
 	Score                 uint64
 	CommitDelayTotal      time.Duration
