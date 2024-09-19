@@ -47,7 +47,7 @@ var CMD = &cobra.Command{
 		for _, r := range result {
 			reportService.AddRecord(report.Record{
 				OperatorID:            r.ID,
-				BeaconTimeAvg:         uint64(r.AttestationTimeAverage),
+				BeaconTimeAvg:         r.AttestationTimeAverage,
 				BeaconTimeMoreThanSec: r.AttestationTimeMoreThanSec,
 				Score:                 r.Score,
 				CommitDelayTotal:      r.TotalDelay,
