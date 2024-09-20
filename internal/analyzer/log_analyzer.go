@@ -110,7 +110,7 @@ func (r *LogAnalyzer) AnalyzeConsensus() ([]Result, error) {
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			slog.With("err", err).Error("error decoding")
+			slog.With("err", err, "line", line).Error("error decoding")
 			if e, ok := err.(*json.SyntaxError); ok {
 				slog.With("offset", e.Offset).Error("syntax error at byte offset")
 			}
