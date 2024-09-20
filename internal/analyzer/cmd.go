@@ -1,7 +1,7 @@
 package analyzer
 
 import (
-	"time"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -46,14 +46,14 @@ var CMD = &cobra.Command{
 		}
 		for _, r := range result {
 			reportService.AddRecord(report.Record{
-				OperatorID:            r.ID,
+				OperatorID:            r.OperatorID,
 				BeaconTimeAvg:         r.AttestationTimeAverage,
-				BeaconTimeMoreThanSec: r.AttestationTimeMoreThanSec,
-				Score:                 r.Score,
-				CommitDelayTotal:      r.TotalDelay,
-				PrepareDelayAvg:       time.Duration(r.PrepareDelayAvg),
+				BeaconTimeMoreThanSec: strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10),
+				Score:                 r.CommitSignerScore,
+				CommitDelayTotal:      r.CommitTotalDelay,
+				PrepareDelayAvg:       r.PrepareDelayAvg,
 				PrepareHighestDelay:   r.PrepareHighestDelay,
-				PrepareMoreThanSec:    r.PrepareMoreThanSec,
+				PrepareMoreThanSec:    strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
 			})
 		}
 
