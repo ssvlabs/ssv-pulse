@@ -15,20 +15,22 @@ import (
 
 // LogEntry represents a single log entry
 type LogEntry struct {
-	Level           string    `json:"L"`
-	Timestamp       time.Time `json:"T"`
-	Component       string    `json:"N"`
-	Message         string    `json:"M"`
-	Pubkey          string    `json:"pubkey"`
-	Role            string    `json:"role"`
-	DutyID          string    `json:"duty_id"`
-	Height          int       `json:"height"`
-	Round           int       `json:"round"`
-	CommitSigners   []int     `json:"commit_signers"`
-	Root            string    `json:"root"`
-	AttestationTime string    `json:"attestation_data_time"`
-	Leader          int       `json:"leader"`
-	PrepareSigners  []int     `json:"prepare_signers"`
+	Level     string    `json:"L"`
+	Timestamp time.Time `json:"T"`
+	Component string    `json:"N"`
+	// Some logs have some `n` field as a number (peers) and there's no case sensitive support in json.Unmarshal
+	N               int32  `json:"n"`
+	Message         string `json:"M"`
+	Pubkey          string `json:"pubkey"`
+	Role            string `json:"role"`
+	DutyID          string `json:"duty_id"`
+	Height          int    `json:"height"`
+	Round           int    `json:"round"`
+	CommitSigners   []int  `json:"commit_signers"`
+	Root            string `json:"root"`
+	AttestationTime string `json:"attestation_data_time"`
+	Leader          int    `json:"leader"`
+	PrepareSigners  []int  `json:"prepare_signers"`
 }
 
 // SignerStats keeps track of signer's score and total delay
