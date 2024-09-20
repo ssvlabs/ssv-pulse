@@ -7,18 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/utils"
 )
-
-type LogAnalyzer struct {
-	logFile   *os.File
-	operators []uint64
-	cluster   bool
-}
 
 // LogEntry represents a single log entry
 type LogEntry struct {
@@ -47,27 +40,36 @@ type SignerStats struct {
 
 type ProposeSignerStats struct {
 	Signer          int
-	Count           int
+	Count           uint16
 	AverageDelay    time.Duration
 	HighestDelay    time.Duration
-	MoreSecondDelay int
+	MoreSecondDelay uint16
 }
 
 type Result struct {
-	ID                         uint64
-	Score                      uint64
-	TotalDelay                 time.Duration
-	AttestationTimeAverage     time.Duration
-	AttestationTimeMoreThanSec string
-	AttestationDelayCount      int
-	AttestationTotalCount      uint64
-	PrepareDelayAvg            time.Duration
-	PrepareHighestDelay        time.Duration
-	PrepareMoreThanSec         string
+	OperatorID uint64
+
+	CommitSignerScore uint64
+	CommitTotalDelay  time.Duration
+
+	AttestationTimeAverage time.Duration
+	AttestationTimeCount,
+	AttestationDelayCount uint16
+
+	PrepareDelayAvg,
+	PrepareHighestDelay time.Duration
+	PrepareDelayCount,
+	PrepareCount uint16
 }
 
 // Scores for ranks
 var rankScores = []int{5, 4, 3, 2, 1, 0}
+
+type LogAnalyzer struct {
+	logFile   *os.File
+	operators []uint64
+	cluster   bool
+}
 
 func New(logFilePath string, operators []string, cluster bool) (*LogAnalyzer, error) {
 	file, err := os.Open(logFilePath)
@@ -78,6 +80,7 @@ func New(logFilePath string, operators []string, cluster bool) (*LogAnalyzer, er
 	if err != nil {
 		return nil, err
 	}
+
 	return &LogAnalyzer{
 		logFile:   file,
 		operators: ids,
@@ -91,11 +94,11 @@ func (r *LogAnalyzer) AnalyzeConsensus() ([]Result, error) {
 
 	scanner := bufio.NewScanner(r.logFile)
 	commitSignerTimes := make(map[string]map[int]time.Time)
+
 	var (
 		attestationTimeCount,
-		attestationTimeTotalMS,
-		attestationTimeAverageMS uint64
-		attestationDelayCount int
+		attestationDelayCount uint16
+		attestationTimeTotal time.Duration
 	)
 
 	// Calculate propose-prepare times
@@ -115,22 +118,14 @@ func (r *LogAnalyzer) AnalyzeConsensus() ([]Result, error) {
 		}
 
 		if strings.Contains(entry.Message, "starting QBFT instance") {
-			var attestationTimeMS float64
-			attestationTimeMS, err = strconv.ParseFloat(strings.Replace(entry.AttestationTime, "ms", "", 2), 64)
-			// try parse mircosec
+			isDelayed, attestationTime, err := fetchAttestationTime(entry.AttestationTime)
 			if err != nil {
-				attestationTimeMS, _ = strconv.ParseFloat(strings.Replace(entry.AttestationTime, "µs", "", 2), 64)
-				attestationTimeMS = attestationTimeMS / float64(time.Millisecond.Microseconds())
+				return nil, err
 			}
-
-			if attestationTimeMS != 0 {
-				attestationTimeCount += 1
-				attestationTimeTotalMS += uint64(attestationTimeMS)
-				attestationTimeAverageMS = attestationTimeTotalMS / attestationTimeCount
-
-				if uint64(attestationTimeMS) > uint64(time.Second.Milliseconds()) {
-					attestationDelayCount++
-				}
+			attestationTimeCount++
+			attestationTimeTotal += attestationTime
+			if isDelayed {
+				attestationDelayCount++
 			}
 		}
 
@@ -162,28 +157,31 @@ func (r *LogAnalyzer) AnalyzeConsensus() ([]Result, error) {
 
 	for _, ID := range IDs {
 		var (
-			score      int
-			totalDelay time.Duration
+			commitSignerScore int
+			commitTotalDelay  time.Duration
 		)
 
 		for _, commitStat := range commitStats {
 			if commitStat.Signer == int(ID) {
-				score = commitStat.Score
-				totalDelay = commitStat.Delay
+				commitSignerScore = commitStat.Score
+				commitTotalDelay = commitStat.Delay
 			}
 		}
 
 		result = append(result, Result{
-			ID:                         ID,
-			AttestationTimeAverage:     time.Duration(attestationTimeAverageMS) * time.Millisecond,
-			AttestationTimeMoreThanSec: strconv.Itoa(attestationDelayCount) + "/" + strconv.Itoa(int(attestationTimeCount)),
-			Score:                      uint64(score),
-			TotalDelay:                 totalDelay,
-			AttestationDelayCount:      attestationDelayCount,
-			AttestationTotalCount:      attestationTimeCount,
-			PrepareDelayAvg:            proposeStats[int(ID)].AverageDelay,
-			PrepareHighestDelay:        proposeStats[int(ID)].HighestDelay,
-			PrepareMoreThanSec:         strconv.Itoa(proposeStats[int(ID)].MoreSecondDelay) + "/" + strconv.Itoa(proposeStats[int(ID)].Count),
+			OperatorID: ID,
+
+			AttestationTimeAverage: attestationTimeTotal / time.Duration(attestationTimeCount),
+			AttestationTimeCount:   attestationTimeCount,
+			AttestationDelayCount:  attestationDelayCount,
+
+			CommitSignerScore: uint64(commitSignerScore),
+			CommitTotalDelay:  commitTotalDelay,
+
+			PrepareDelayAvg:     proposeStats[int(ID)].AverageDelay,
+			PrepareHighestDelay: proposeStats[int(ID)].HighestDelay,
+			PrepareDelayCount:   proposeStats[int(ID)].MoreSecondDelay,
+			PrepareCount:        proposeStats[int(ID)].Count,
 		})
 	}
 
@@ -228,8 +226,8 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 		}
 
 		type signerPerformance struct {
-			Signer   int
-			Earliest time.Time
+			signer   int
+			earliest time.Time
 		}
 
 		var performances []signerPerformance
@@ -237,8 +235,8 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 		for signer, earliestTime := range signers {
 			if len(r.operators) != 0 {
 				var ok bool
-				for _, ID := range r.operators {
-					if signer == int(ID) {
+				for _, operatorID := range r.operators {
+					if signer == int(operatorID) {
 						ok = true
 					}
 				}
@@ -247,25 +245,25 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 				}
 			}
 			performances = append(performances, signerPerformance{
-				Signer:   signer,
-				Earliest: earliestTime,
+				signer:   signer,
+				earliest: earliestTime,
 			})
 		}
 
 		// Sort by earliest time, the earlier the better
 		sort.Slice(performances, func(i, j int) bool {
-			return performances[i].Earliest.Before(performances[j].Earliest)
+			return performances[i].earliest.Before(performances[j].earliest)
 		})
 
 		// Assign scores and calculate delays
 		if len(performances) > 0 {
-			firstTime := performances[0].Earliest
+			firstTime := performances[0].earliest
 			for rank, performance := range performances {
 				if rank < len(rankScores) {
-					signerStats[performance.Signer] = SignerStats{
-						Signer: performance.Signer,
-						Score:  signerStats[performance.Signer].Score + rankScores[rank],
-						Delay:  signerStats[performance.Signer].Delay + performance.Earliest.Sub(firstTime),
+					signerStats[performance.signer] = SignerStats{
+						Signer: performance.signer,
+						Score:  signerStats[performance.signer].Score + rankScores[rank],
+						Delay:  signerStats[performance.signer].Delay + performance.earliest.Sub(firstTime),
 					}
 				}
 			}
@@ -277,18 +275,20 @@ func (r *LogAnalyzer) calcCommitTimes(commitSignerTimes map[string]map[int]time.
 	for _, stats := range signerStats {
 		sortedSigners = append(sortedSigners, stats)
 	}
+
 	// Sort signers by score in descending order
 	sort.Slice(sortedSigners, func(i, j int) bool {
 		return sortedSigners[i].Score > sortedSigners[j].Score
 	})
+
 	return sortedSigners
 }
 
 func (r *LogAnalyzer) calcPrepareTimes(leaderProposeTime map[string]time.Time, prepareSignerTimes map[string]map[int]time.Time) map[int]ProposeSignerStats {
 	proposeStats := make(map[int]ProposeSignerStats)
 
-	prepareMessageCount := make(map[int]int)
-	prepareMessageCountMoreSecond := make(map[int]int)
+	prepareMessageCount := make(map[int]uint16)
+	prepareMessageCountMoreSecond := make(map[int]uint16)
 	averageTimePrepareMessage := make(map[int]time.Duration)
 	totalTimePrepareMessage := make(map[int]time.Duration)
 	highestTimePrepareMessage := make(map[int]time.Duration)
