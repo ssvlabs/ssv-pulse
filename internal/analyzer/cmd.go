@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ssvlabs/ssv-pulse/configs"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
 )
 
@@ -34,26 +37,58 @@ var CMD = &cobra.Command{
 			return err
 		}
 
-		analyzer, err := New(configs.Values.Analyzer.LogFilePath, configs.Values.Analyzer.Operators, configs.Values.Analyzer.Cluster)
+		attestationAnalyzer, err := attestation.New(
+			configs.Values.Analyzer.LogFilePath,
+			configs.Values.Analyzer.Operators,
+			configs.Values.Analyzer.Cluster)
 		if err != nil {
 			return err
 		}
-		reportService := report.New()
 
-		result, err := analyzer.AnalyzeConsensus()
+		commitAnalyzer, err := commit.New(
+			configs.Values.Analyzer.LogFilePath,
+			configs.Values.Analyzer.Operators,
+			configs.Values.Analyzer.Cluster)
 		if err != nil {
 			return err
 		}
+
+		prepareAnalyzer, err := prepare.New(
+			configs.Values.Analyzer.LogFilePath,
+			configs.Values.Analyzer.Operators,
+			configs.Values.Analyzer.Cluster)
+		if err != nil {
+			return err
+		}
+
+		analyzerSvc, err := New(
+			attestationAnalyzer,
+			commitAnalyzer,
+			prepareAnalyzer,
+			configs.Values.Analyzer.Operators,
+			configs.Values.Analyzer.Cluster)
+
+		if err != nil {
+			return err
+		}
+
+		reportService := report.New(configs.Values.Analyzer.WithScores())
+
+		result, err := analyzerSvc.Start()
+		if err != nil {
+			return err
+		}
+
 		for _, r := range result {
 			reportService.AddRecord(report.Record{
-				OperatorID:            r.OperatorID,
-				BeaconTimeAvg:         r.AttestationTimeAverage,
-				BeaconTimeMoreThanSec: strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10),
-				Score:                 r.CommitSignerScore,
-				CommitDelayTotal:      r.CommitTotalDelay,
-				PrepareDelayAvg:       r.PrepareDelayAvg,
-				PrepareHighestDelay:   r.PrepareHighestDelay,
-				PrepareMoreThanSec:    strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
+				OperatorID:                r.OperatorID,
+				BeaconResponseTimeAvg:     r.AttestationTimeAverage,
+				BeaconResponseTimeDelayed: strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10),
+				Score:                     r.CommitSignerScore,
+				CommitDelayTotal:          r.CommitTotalDelay,
+				PrepareDelayAvg:           r.PrepareDelayAvg,
+				PrepareHighestDelay:       r.PrepareHighestDelay,
+				PrepareMoreThanSec:        strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
 			})
 		}
 
