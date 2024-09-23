@@ -7,7 +7,7 @@ import (
 
 type Analyzer struct {
 	LogFilePath string   `mapstructure:"log-file-path"`
-	Operators   []string `mapstructure:"operators"`
+	Operators   []uint32 `mapstructure:"operators"`
 	Cluster     bool     `mapstructure:"cluster"`
 }
 
@@ -19,5 +19,13 @@ func (a Analyzer) Validate() (bool, error) {
 		return false, errors.New("❕ flag should not contain traversal")
 	}
 
+	if a.Cluster && len(a.Operators) == 0 {
+		return false, errors.New("if cluster is set to 'true', the list of operators cannot be empty")
+	}
+
 	return true, nil
+}
+
+func (a Analyzer) WithScores() bool {
+	return len(a.Operators) != 0 && a.Cluster
 }
