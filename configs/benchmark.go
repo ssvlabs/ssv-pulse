@@ -65,26 +65,32 @@ type Benchmark struct {
 	Network        string         `mapstructure:"network"`
 }
 
-func (b Benchmark) Validate() (bool, error) {
+func (b *Benchmark) Validate() (bool, error) {
 	if b.Consensus.Metrics.Peers.Enabled ||
 		b.Consensus.Metrics.Attestation.Enabled ||
 		b.Consensus.Metrics.Client.Enabled ||
 		b.Consensus.Metrics.Latency.Enabled {
-		if err := validateURL(b.Consensus.Address); err != nil {
+		url, err := sanitizeURL(b.Consensus.Address)
+		if err != nil {
 			return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
 		}
+		b.Consensus.Address = url
 	}
 
 	if b.Execution.Metrics.Peers.Enabled {
-		if err := validateURL(b.Execution.Address); err != nil {
+		url, err := sanitizeURL(b.Execution.Address)
+		if err != nil {
 			return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
 		}
+		b.Execution.Address = url
 	}
 
 	if b.SSV.Metrics.Peers.Enabled || b.SSV.Metrics.Connections.Enabled {
-		if err := validateURL(b.SSV.Address); err != nil {
+		url, err := sanitizeURL(b.SSV.Address)
+		if err != nil {
 			return false, errors.Join(err, errors.New("SSV client address was not a valid URL"))
 		}
+		b.SSV.Address = url
 	}
 
 	network := network.Name(b.Network)
