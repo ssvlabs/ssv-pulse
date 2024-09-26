@@ -2,6 +2,7 @@ package configs
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 )
 
@@ -12,19 +13,22 @@ type Config struct {
 	Analyzer  Analyzer  `mapstructure:"analyzer"`
 }
 
-func validateURL(str string) error {
+func sanitizeURL(str string) (string, error) {
 	parsedURL, err := url.Parse(str)
 	if err != nil {
-		return err
+		return "", err
 	}
-
+	var validationErr error
 	if parsedURL.Scheme == "" {
-		return errors.New("scheme was empty")
+		validationErr = errors.Join(validationErr, errors.New("scheme was empty"))
 	}
-
 	if parsedURL.Host == "" {
-		return errors.New("host was empty")
+		validationErr = errors.Join(validationErr, errors.New("host was empty"))
 	}
 
-	return nil
+	if validationErr != nil {
+		return "", validationErr
+	}
+
+	return fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host), nil
 }
