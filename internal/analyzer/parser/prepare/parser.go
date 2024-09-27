@@ -25,13 +25,7 @@ type (
 		MoreSecondDelay uint16
 	}
 
-	prepareLogEntry struct {
-		Timestamp      time.Time         `json:"T"`
-		Round          uint8             `json:"round"`
-		DutyID         string            `json:"duty_id"`
-		Message        string            `json:"M"`
-		PrepareSigners []parser.SignerID `json:"prepare_signers"`
-	}
+	
 
 	Service struct {
 		logFile   *os.File

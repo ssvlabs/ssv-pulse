@@ -20,14 +20,6 @@ const (
 var rankScores = []int{5, 4, 3, 2, 1, 0}
 
 type (
-	commitLogEntry struct {
-		Timestamp     time.Time         `json:"T"`
-		Round         uint8             `json:"round"`
-		DutyID        string            `json:"duty_id"`
-		Message       string            `json:"M"`
-		CommitSigners []parser.SignerID `json:"commit_signers"`
-	}
-
 	Stats struct {
 		Score int
 		Delay time.Duration
