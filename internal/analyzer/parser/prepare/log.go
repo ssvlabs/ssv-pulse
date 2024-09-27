@@ -16,18 +16,18 @@ type prepareLogEntry struct {
 }
 
 func (p *prepareLogEntry) UnmarshalJSON(data []byte) error {
-	type Aias prepareLogEntry
+	type Alias prepareLogEntry
 
 	alias := &struct {
 		PrepareSignersDash []parser.SignerID `json:"prepare-signers"`
-		*Aias
+		*Alias
 	}{
-		Aias: (*Aias)(p),
+		Alias: (*Alias)(p),
 	}
 
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
-	}
+	}	
 
 	if alias.PrepareSignersDash != nil {
 		p.PrepareSigners = alias.PrepareSignersDash
