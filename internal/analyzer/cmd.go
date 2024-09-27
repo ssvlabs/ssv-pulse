@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,27 +73,45 @@ var CMD = &cobra.Command{
 			return err
 		}
 
-		reportService := report.New(configs.Values.Analyzer.WithScores())
+		operatorReport := report.NewOperator(configs.Values.Analyzer.WithScores())
+		consensusReport := report.NewConsensus()
 
 		result, err := analyzerSvc.Start()
 		if err != nil {
 			return err
 		}
 
+		var (
+			isSet                              bool
+			consensusResponseTimeAvg           time.Duration
+			consensusClientResponseTimeDelayed string
+		)
+
 		for _, r := range result {
-			reportService.AddRecord(report.Record{
-				OperatorID:                r.OperatorID,
-				BeaconResponseTimeAvg:     r.AttestationTimeAverage,
-				BeaconResponseTimeDelayed: strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10),
-				Score:                     r.CommitSignerScore,
-				CommitDelayTotal:          r.CommitTotalDelay,
-				PrepareDelayAvg:           r.PrepareDelayAvg,
-				PrepareHighestDelay:       r.PrepareHighestDelay,
-				PrepareMoreThanSec:        strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
+			operatorReport.AddRecord(report.OperatorRecord{
+				OperatorID: r.OperatorID,
+
+				Score:               r.CommitSignerScore,
+				CommitDelayTotal:    r.CommitTotalDelay,
+				PrepareDelayAvg:     r.PrepareDelayAvg,
+				PrepareHighestDelay: r.PrepareHighestDelay,
+				PrepareMoreThanSec:  strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
 			})
+
+			if !isSet {
+				consensusResponseTimeAvg = r.AttestationTimeAverage
+				consensusClientResponseTimeDelayed = strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10)
+				isSet = true
+			}
 		}
 
-		reportService.Render()
+		consensusReport.AddRecord(report.ConsensusRecord{
+			ConsensusClientResponseTimeAvg:     consensusResponseTimeAvg,
+			ConsensusClientResponseTimeDelayed: consensusClientResponseTimeDelayed,
+		})
+
+		operatorReport.Render()
+		consensusReport.Render()
 
 		return nil
 	},
