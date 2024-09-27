@@ -90,17 +90,6 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		var performances []signerPerformance
 
 		for signer, earliestTime := range signers {
-			if len(c.operators) != 0 {
-				var ok bool
-				for _, operatorID := range c.operators {
-					if signer == operatorID {
-						ok = true
-					}
-				}
-				if !ok {
-					continue
-				}
-			}
 			performances = append(performances, signerPerformance{
 				signer:   signer,
 				earliest: earliestTime,
@@ -117,10 +106,26 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 			firstTime := performances[0].earliest
 
 			for rank, performance := range performances {
-				if rank < len(rankScores) {
-					stats[performance.signer] = Stats{
-						Score: stats[performance.signer].Score + rankScores[rank],
-						Delay: stats[performance.signer].Delay + performance.earliest.Sub(firstTime),
+				var isOperator bool
+				if len(c.operators) != 0 {
+					for _, operatorID := range c.operators {
+						if performance.signer == operatorID {
+							isOperator = true
+							break
+						}
+					}
+				} else {
+					isOperator = true
+				}
+
+				if isOperator {
+					if rank < len(rankScores) {
+						stats[performance.signer] = Stats{
+							Score: stats[performance.signer].Score + rankScores[rank],
+							// The commit delay of the operator 'Foo' is calculated in this way (per duty):
+							// (commit time of the fastest operator in the duty) - (commit time of the operator 'Foo')
+							Delay: stats[performance.signer].Delay + performance.earliest.Sub(firstTime),
+						}
 					}
 				}
 			}
