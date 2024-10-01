@@ -19,7 +19,8 @@ type ConsensusMetrics struct {
 }
 
 type ExecutionMetrics struct {
-	Peers Metric `mapstructure:"peers"`
+	Peers   Metric `mapstructure:"peers"`
+	Latency Metric `mapstructure:"latency"`
 }
 
 type SSVMetrics struct {

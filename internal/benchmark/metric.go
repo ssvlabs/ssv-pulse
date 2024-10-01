@@ -70,6 +70,16 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			}))
 	}
 
+	if config.Benchmark.Execution.Metrics.Latency.Enabled {
+		enabledMetrics[metric.ExecutionGroup] = append(enabledMetrics[metric.ExecutionGroup], execution.NewLatencyMetric(
+			configs.Values.Benchmark.Execution.Address,
+			"Latency",
+			time.Second*3,
+			[]metric.HealthCondition[time.Duration]{
+				{Name: execution.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
+			}))
+	}
+
 	if config.Benchmark.SSV.Metrics.Peers.Enabled {
 		enabledMetrics[metric.SSVGroup] = append(enabledMetrics[metric.SSVGroup], ssv.NewPeerMetric(
 			configs.Values.Benchmark.SSV.Address,
@@ -106,5 +116,6 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 			}),
 		)
 	}
+
 	return enabledMetrics
 }

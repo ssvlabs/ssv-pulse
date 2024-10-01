@@ -1,4 +1,4 @@
-package consensus
+package execution
 
 import (
 	"context"
@@ -61,7 +61,7 @@ func (l *LatencyMetric) measure() {
 
 	conn, err := net.DialTimeout("tcp", l.url.Host, l.timeout)
 	if err != nil {
-		logger.WriteError(metric.ConsensusGroup, l.Name, err)
+		logger.WriteError(metric.ExecutionGroup, l.Name, err)
 		return
 	}
 	defer conn.Close()
@@ -86,7 +86,7 @@ func (l *LatencyMetric) writeMetric(latency time.Duration) {
 
 	latencyMetric.Observe(latency.Seconds())
 
-	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{
+	logger.WriteMetric(metric.ExecutionGroup, l.Name, map[string]any{
 		DurationMinMeasurement: percentiles[0],
 		DurationP10Measurement: percentiles[10],
 		DurationP50Measurement: percentiles[50],

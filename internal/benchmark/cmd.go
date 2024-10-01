@@ -29,8 +29,9 @@ const (
 	consensusMetricPeersFlag       = "consensus-metric-peers-enabled"
 	consensusMetricAttestationFlag = "consensus-metric-attestation-enabled"
 
-	executionAddrFlag        = "execution-addr"
-	executionMetricPeersFlag = "execution-metric-peers-enabled"
+	executionAddrFlag          = "execution-addr"
+	executionMetricPeersFlag   = "execution-metric-peers-enabled"
+	executionMetricLatencyFlag = "execution-metric-latency-enabled"
 
 	ssvAddrFlag              = "ssv-addr"
 	ssvMetricPeersFlag       = "ssv-metric-peers-enabled"
@@ -98,6 +99,7 @@ func addFlags(cobraCMD *cobra.Command) {
 
 	cobraCMD.Flags().String(executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545")
 	cobraCMD.Flags().Bool(executionMetricPeersFlag, true, "Enable execution peers metric")
+	cobraCMD.Flags().Bool(executionMetricLatencyFlag, true, "Enable execution latency metric")
 
 	cobraCMD.Flags().String(ssvAddrFlag, "", "SSV API address with scheme (HTTP/HTTPS) and port, e.g. http://ssv-node:16000")
 	cobraCMD.Flags().Bool(ssvMetricPeersFlag, true, "Enable SSV peers metric")
@@ -141,6 +143,9 @@ func bindFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.execution.metrics.peers.enabled", cmd.Flags().Lookup(executionMetricPeersFlag)); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("benchmark.execution.metrics.latency.enabled", cmd.Flags().Lookup(executionMetricLatencyFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("benchmark.ssv.metrics.peers.enabled", cmd.Flags().Lookup(ssvMetricPeersFlag)); err != nil {
