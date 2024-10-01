@@ -11,6 +11,14 @@ const (
 )
 
 var (
+	latencyMetric = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:      "latency",
+		Help:      "histogram of latencies for HTTP requests in seconds",
+		Buckets:   prometheus.DefBuckets,
+		Namespace: namespace,
+		Subsystem: subsystem,
+	})
+
 	peerCountMetric = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name:      "peer_count",
