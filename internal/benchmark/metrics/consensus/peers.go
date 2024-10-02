@@ -3,7 +3,9 @@ package consensus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -78,14 +80,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
-
-		var errorResponse any
-		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
-		jsonErrResponse, _ := json.Marshal(errorResponse)
-		logger.WriteError(
-			metric.ConsensusGroup,
-			p.Name,
-			fmt.Errorf("received unsuccessful status code. Code: '%s'. Response: '%s'", res.Status, jsonErrResponse))
+		p.logErrorResponse(res)
 		return
 	}
 
@@ -107,6 +102,44 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 
 	p.writeMetric(peerNr)
+}
+
+func (p *PeerMetric) logErrorResponse(res *http.Response) {
+	var responseString string
+	if res.Header.Get("Content-Type") == "application/json" {
+		var errorResponse any
+		if err := json.NewDecoder(res.Body).Decode(&errorResponse); err != nil {
+			logger.WriteError(
+				metric.ConsensusGroup,
+				p.Name,
+				errors.Join(err, fmt.Errorf("received unsuccessful status code. Code: '%s'. Failed to JSON decode response", res.Status)))
+			return
+		}
+		jsonErrResponse, err := json.Marshal(errorResponse)
+		if err != nil {
+			logger.WriteError(
+				metric.ConsensusGroup,
+				p.Name,
+				errors.Join(err, fmt.Errorf("received unsuccessful status code. Code: '%s'. Failed to marshal response", res.Status)))
+			return
+		}
+		responseString = string(jsonErrResponse)
+	} else {
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			logger.WriteError(
+				metric.ConsensusGroup,
+				p.Name,
+				errors.Join(err, fmt.Errorf("received unsuccessful status code. Code: '%s'. Failed to decode response", res.Status)))
+			return
+		}
+		responseString = string(body)
+	}
+
+	logger.WriteError(
+		metric.ConsensusGroup,
+		p.Name,
+		fmt.Errorf("received unsuccessful status code. Code: '%s'. Response: '%s'", res.Status, responseString))
 }
 
 func (p *PeerMetric) writeMetric(peerNr int) {
