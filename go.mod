@@ -1,6 +1,6 @@
 module github.com/ssvlabs/ssv-pulse
 
-go 1.23.1
+go 1.23.2
 
 require (
 	github.com/aquasecurity/table v1.8.0
