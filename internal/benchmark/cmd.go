@@ -69,7 +69,12 @@ var CMD = &cobra.Command{
 			panic(err.Error())
 		}
 
-		benchmarkService := New(LoadEnabledMetrics(configs.Values), report.New())
+		metrics, err := LoadEnabledMetrics(configs.Values)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		benchmarkService := New(metrics, report.New())
 
 		go benchmarkService.Start(ctx)
 

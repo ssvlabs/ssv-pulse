@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
@@ -21,16 +20,14 @@ const (
 
 type LatencyMetric struct {
 	metric.Base[time.Duration]
-	url               *url.URL
+	host              string
 	interval, timeout time.Duration
 	durations         []time.Duration
 }
 
-func NewLatencyMetric(addr, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
-	url, _ := url.Parse(addr)
-
+func NewLatencyMetric(host, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
 	return &LatencyMetric{
-		url: url,
+		host: host,
 		Base: metric.Base[time.Duration]{
 			HealthConditions: healthCondition,
 			Name:             name,
@@ -59,7 +56,7 @@ func (l *LatencyMetric) measure() {
 	var latency time.Duration
 	start := time.Now()
 
-	conn, err := net.DialTimeout("tcp", l.url.Host, l.timeout)
+	conn, err := net.DialTimeout("tcp", l.host, l.timeout)
 	if err != nil {
 		logger.WriteError(metric.ConsensusGroup, l.Name, err)
 		return
