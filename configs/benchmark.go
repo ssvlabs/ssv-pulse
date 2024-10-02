@@ -2,6 +2,7 @@ package configs
 
 import (
 	"errors"
+	"net/url"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/platform/network"
@@ -38,14 +39,38 @@ type Consensus struct {
 	Metrics ConsensusMetrics `mapstructure:"metrics"`
 }
 
+func (c Consensus) AddrURL() (*url.URL, error) {
+	parsedURL, err := url.Parse(c.Address)
+	if err != nil {
+		return nil, errors.Join(err, errors.New("error parsing Consensus address to URL type"))
+	}
+	return parsedURL, nil
+}
+
 type Execution struct {
 	Address string           `mapstructure:"address"`
 	Metrics ExecutionMetrics `mapstructure:"metrics"`
 }
 
+func (e Execution) AddrURL() (*url.URL, error) {
+	parsedURL, err := url.Parse(e.Address)
+	if err != nil {
+		return nil, errors.Join(err, errors.New("error parsing Execution address to URL type"))
+	}
+	return parsedURL, nil
+}
+
 type SSV struct {
 	Address string     `mapstructure:"address"`
 	Metrics SSVMetrics `mapstructure:"metrics"`
+}
+
+func (s SSV) AddrURL() (*url.URL, error) {
+	parsedURL, err := url.Parse(s.Address)
+	if err != nil {
+		return nil, errors.Join(err, errors.New("error parsing SSV address to URL type"))
+	}
+	return parsedURL, nil
 }
 
 type Infrastructure struct {

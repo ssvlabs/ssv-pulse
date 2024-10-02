@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"errors"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/configs"
@@ -12,7 +13,7 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/platform/network"
 )
 
-func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService {
+func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService, error) {
 	enabledMetrics := make(map[metric.Group][]metricService)
 
 	if config.Benchmark.Consensus.Metrics.Client.Enabled {
@@ -25,8 +26,12 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 	}
 
 	if config.Benchmark.Consensus.Metrics.Latency.Enabled {
+		consensusClientURL, err := config.Benchmark.Consensus.AddrURL()
+		if err != nil {
+			return nil, errors.Join(err, errors.New("failed fetching Consensus client address as URL"))
+		}
 		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewLatencyMetric(
-			configs.Values.Benchmark.Consensus.Address,
+			consensusClientURL.Host,
 			"Latency",
 			time.Second*3,
 			[]metric.HealthCondition[time.Duration]{
@@ -71,8 +76,12 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 	}
 
 	if config.Benchmark.Execution.Metrics.Latency.Enabled {
+		executionClientURL, err := config.Benchmark.Execution.AddrURL()
+		if err != nil {
+			return nil, errors.Join(err, errors.New("failed fetching Execution client address as URL"))
+		}
 		enabledMetrics[metric.ExecutionGroup] = append(enabledMetrics[metric.ExecutionGroup], execution.NewLatencyMetric(
-			configs.Values.Benchmark.Execution.Address,
+			executionClientURL.Host,
 			"Latency",
 			time.Second*3,
 			[]metric.HealthCondition[time.Duration]{
@@ -117,5 +126,5 @@ func LoadEnabledMetrics(config configs.Config) map[metric.Group][]metricService 
 		)
 	}
 
-	return enabledMetrics
+	return enabledMetrics, nil
 }
