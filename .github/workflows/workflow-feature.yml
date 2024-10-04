@@ -52,3 +52,13 @@ jobs:
 
       - name: Test
         run: make test
+          
+  docker-build:
+    uses: ./.github/workflows/docker.yml
+    needs: ["go-lint", "go-build", "go-test"]
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+    with:
+      with-push: false
