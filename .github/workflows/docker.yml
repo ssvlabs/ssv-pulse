@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       with-push:
-        description: "determines if to push docker image to an image registry, otherwise will just build"
+        description: "determines if to push docker image to an image registry. Defaults to 'false'"
         default: false
         type: boolean
         required: false
@@ -13,9 +13,13 @@ on:
         default: "latest"
         type: string
         required: false
+      image-architectures:
+        description: "comma separated list of architectures. Defaults to 'linux/amd64,linux/arm64'"
+        required: false
+        type: string
+        default: linux/amd64,linux/arm64
 
 env:  
-  IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
   IMAGE_REGISTRY: ghcr.io
   DOCKERFILE_PATH: build/Dockerfile
   IMAGE_DESCRIPTION: |
@@ -37,7 +41,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          platforms: ${{ env.IMAGE_ARCHITECTURES }}
+          platforms: ${{ inputs.image-architectures }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -52,7 +56,7 @@ jobs:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
           push: ${{ inputs.with-push }}
-          platforms: ${{ env.IMAGE_ARCHITECTURES }}
+          platforms: ${{ inputs.image-architectures }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:latest

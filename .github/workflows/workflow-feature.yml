@@ -62,3 +62,4 @@ jobs:
       contents: read
     with:
       with-push: false
+      image-architectures: linux/amd64
