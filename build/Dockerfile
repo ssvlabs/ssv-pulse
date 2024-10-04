@@ -1,5 +1,5 @@
 ###############################################
-FROM --platform=$BUILDPLATFORM golang:1.23@sha256:2fe82a3f3e006b4f2a316c6a21f62b66e1330ae211d039bb8d1128e12ed57bf1 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.23@sha256:adee809c2d0009a4199a11a1b2618990b244c6515149fe609e2788ddf164bd10 AS builder
 
 WORKDIR /app
 
