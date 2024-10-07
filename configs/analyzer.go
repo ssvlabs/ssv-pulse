@@ -38,7 +38,7 @@ func (a Analyzer) WithScores() bool {
 }
 
 func isValidClusterSize(operators []uint32) bool {
-	if len(operators) < 4 || len(operators) > 13 || len(operators)%2 != 1 {
+	if len(operators) < 4 || len(operators) > 13 || len(operators)%3 != 1 {
 		return false
 	}
 
