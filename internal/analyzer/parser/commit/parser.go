@@ -64,7 +64,7 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 
 			// Record the earliest time for each signer
 			if existingTime, exists := commitTimes[entry.DutyID][entry.CommitSigners[0]]; !exists || entry.Timestamp.Before(existingTime) {
-				commitTimes[entry.DutyID][entry.CommitSigners[0]] = entry.Timestamp
+				commitTimes[entry.DutyID][entry.CommitSigners[0]] = entry.Timestamp.Time
 			}
 		}
 	}
