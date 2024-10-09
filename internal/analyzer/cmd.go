@@ -10,6 +10,7 @@ import (
 	"github.com/ssvlabs/ssv-pulse/configs"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
@@ -69,14 +70,20 @@ var CMD = &cobra.Command{
 			return err
 		}
 
+		consensusAnalyzer, err := consensus.New(
+			configs.Values.Analyzer.LogFilePath)
+		if err != nil {
+			return err
+		}
+
 		analyzerSvc, err := New(
+			consensusAnalyzer,
 			operatorAnalyzer,
 			attestationAnalyzer,
 			commitAnalyzer,
 			prepareAnalyzer,
 			configs.Values.Analyzer.Operators,
 			configs.Values.Analyzer.Cluster)
-
 		if err != nil {
 			return err
 		}
