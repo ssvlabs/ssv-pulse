@@ -25,8 +25,6 @@ type (
 		MoreSecondDelay uint16
 	}
 
-	
-
 	Service struct {
 		logFile   *os.File
 		operators []uint32
@@ -61,7 +59,7 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 
 		if strings.Contains(entry.Message, leaderProposeMsg) {
-			leaderProposeTime[entry.DutyID] = entry.Timestamp
+			leaderProposeTime[entry.DutyID] = entry.Timestamp.Time
 		}
 
 		if strings.Contains(entry.Message, prepareMsg) && entry.Round == 1 {
@@ -71,7 +69,7 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 
 			// Record the earliest time for each signer
 			if existingTime, exists := prepareSignerTimes[entry.DutyID][entry.PrepareSigners[0]]; !exists || entry.Timestamp.Before(existingTime) {
-				prepareSignerTimes[entry.DutyID][entry.PrepareSigners[0]] = entry.Timestamp
+				prepareSignerTimes[entry.DutyID][entry.PrepareSigners[0]] = entry.Timestamp.Time
 			}
 		}
 	}
@@ -86,7 +84,7 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 }
 
 func (r *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time, prepareSignerTimes map[parser.DutyID]map[parser.SignerID]time.Time) map[parser.SignerID]Stats {
-	proposeStats := make(map[parser.SignerID]Stats)
+	prepareStats := make(map[parser.SignerID]Stats)
 	prepareMessageCount := make(map[parser.SignerID]uint16)
 	prepareMessageCountMoreSecond := make(map[parser.SignerID]uint16)
 	averageTimePrepareMessage := make(map[parser.SignerID]time.Duration)
@@ -131,7 +129,7 @@ func (r *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time
 
 			averageTimePrepareMessage[signer] = time.Duration(totalTimePrepareMessage[signer].Nanoseconds() / int64(prepareMessageCount[signer]))
 
-			proposeStats[signer] = Stats{
+			prepareStats[signer] = Stats{
 				Count:           prepareMessageCount[signer],
 				AverageDelay:    averageTimePrepareMessage[signer],
 				HighestDelay:    highestTimePrepareMessage[signer],
@@ -140,5 +138,5 @@ func (r *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time
 		}
 	}
 
-	return proposeStats
+	return prepareStats
 }

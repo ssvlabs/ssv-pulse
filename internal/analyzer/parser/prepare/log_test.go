@@ -9,9 +9,9 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
-func Test_GivenPrepareLogEntry_WhenMultipleFormats_ThenUnmarshalSucceeds(t *testing.T) {
+func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t *testing.T) {
 	jsonData1 := `{
-		"T": "2024-09-15T14:00:00Z",
+		"T": "2024-09-27T05:48:39.348Z",
 		"round": 1,
 		"duty_id": "1234",
 		"M": "Prepare message",
@@ -19,14 +19,15 @@ func Test_GivenPrepareLogEntry_WhenMultipleFormats_ThenUnmarshalSucceeds(t *test
 	}`
 
 	jsonData2 := `{
-		"T": "2024-09-15T14:00:00Z",
+		"T": "2024-09-27T05:48:39.348Z",
 		"round": 1,
 		"duty_id": "1234",
 		"M": "Prepare message",
 		"prepare-signers": [4, 5, 6]
 	}`
 
-	expectedTime, _ := time.Parse(time.RFC3339, "2024-09-15T14:00:00Z")
+	timestamp := time.Date(2024, 9, 27, 5, 48, 39, 348000000, time.UTC)
+	expectedTime := parser.MultiFormatTime{Time: timestamp}
 
 	tests := []struct {
 		name        string

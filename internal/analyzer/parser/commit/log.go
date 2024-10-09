@@ -2,17 +2,16 @@ package commit
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
 type commitLogEntry struct {
-	Timestamp     time.Time         `json:"T"`
-	Round         uint8             `json:"round"`
-	DutyID        string            `json:"duty_id"`
-	Message       string            `json:"M"`
-	CommitSigners []parser.SignerID `json:"commit_signers"`
+	Timestamp     parser.MultiFormatTime `json:"T"`
+	Round         uint8                  `json:"round"`
+	DutyID        string                 `json:"duty_id"`
+	Message       string                 `json:"M"`
+	CommitSigners []parser.SignerID      `json:"commit_signers"`
 }
 
 func (p *commitLogEntry) UnmarshalJSON(data []byte) error {
