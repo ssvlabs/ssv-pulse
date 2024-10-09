@@ -41,9 +41,7 @@ func New(logFilePath string) (*Service, error) {
 func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := bufio.NewScanner(s.logFile)
-	var (
-		stats Stats
-	)
+	var stats Stats
 
 	for scanner.Scan() {
 		line := scanner.Text()
