@@ -10,6 +10,7 @@ import (
 	"github.com/ssvlabs/ssv-pulse/configs"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
 )
@@ -62,7 +63,14 @@ var CMD = &cobra.Command{
 			return err
 		}
 
+		operatorAnalyzer, err := operator.New(
+			configs.Values.Analyzer.LogFilePath)
+		if err != nil {
+			return err
+		}
+
 		analyzerSvc, err := New(
+			operatorAnalyzer,
 			attestationAnalyzer,
 			commitAnalyzer,
 			prepareAnalyzer,
@@ -87,9 +95,10 @@ var CMD = &cobra.Command{
 			consensusClientResponseTimeDelayed string
 		)
 
-		for _, r := range result {
+		for _, r := range result.OperatorStats {
 			operatorReport.AddRecord(report.OperatorRecord{
-				OperatorID: r.OperatorID,
+				OperatorID:     r.OperatorID,
+				IsLogFileOwner: r.IsLogFileOwner,
 
 				Score:               r.CommitSignerScore,
 				CommitDelayTotal:    r.CommitTotalDelay,

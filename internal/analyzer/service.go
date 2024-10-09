@@ -9,53 +9,66 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 )
 
 type (
-	attestationService interface {
+	operatorAnalyzer interface {
+		Analyze() (operator.Stats, error)
+	}
+	attestationAnalyzer interface {
 		Analyze() (attestation.Stats, error)
 	}
-	commitService interface {
+	commitAnalyzer interface {
 		Analyze() (map[parser.SignerID]commit.Stats, error)
 	}
 
-	prepareService interface {
+	prepareAnalyzer interface {
 		Analyze() (map[parser.SignerID]prepare.Stats, error)
+	}
+
+	OperatorStats struct {
+		OperatorID     uint64
+		IsLogFileOwner bool
+
+		CommitSignerScore uint64
+		CommitTotalDelay  time.Duration
+
+		AttestationTimeAverage time.Duration
+		AttestationTimeCount,
+		AttestationDelayCount uint16
+
+		PrepareDelayAvg,
+		PrepareHighestDelay time.Duration
+		PrepareDelayCount,
+		PrepareCount uint16
+	}
+
+	AnalyzerResult struct {
+		OperatorStats []OperatorStats
 	}
 )
 
-type OperatorResult struct {
-	OperatorID uint64
-
-	CommitSignerScore uint64
-	CommitTotalDelay  time.Duration
-
-	AttestationTimeAverage time.Duration
-	AttestationTimeCount,
-	AttestationDelayCount uint16
-
-	PrepareDelayAvg,
-	PrepareHighestDelay time.Duration
-	PrepareDelayCount,
-	PrepareCount uint16
-}
-
 type Service struct {
-	attestationAnalyzer attestationService
-	commitAnalyzer      commitService
-	prepareAnalyzer     prepareService
+	operatorAnalyzer    operatorAnalyzer
+	attestationAnalyzer attestationAnalyzer
+	commitAnalyzer      commitAnalyzer
+	prepareAnalyzer     prepareAnalyzer
 	operators           []uint32
 	cluster             bool
 }
 
 func New(
-	attestationSvc attestationService,
-	commitSvc commitService,
-	prepareSvc prepareService,
+	operatorAnalyzer operatorAnalyzer,
+	attestationSvc attestationAnalyzer,
+	commitSvc commitAnalyzer,
+	prepareSvc prepareAnalyzer,
 	operators []uint32,
 	cluster bool) (*Service, error) {
+
 	return &Service{
+		operatorAnalyzer:    operatorAnalyzer,
 		attestationAnalyzer: attestationSvc,
 		commitAnalyzer:      commitSvc,
 		prepareAnalyzer:     prepareSvc,
@@ -64,21 +77,22 @@ func New(
 	}, nil
 }
 
-func (r *Service) Start() ([]OperatorResult, error) {
-	commitStats, prepareStats, attestationStats, err := r.runAnalyzers()
+func (r *Service) Start() (AnalyzerResult, error) {
+	var result AnalyzerResult
+	operatorStats, commitStats, prepareStats, attestationStats, err := r.runAnalyzers()
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
 	ids := collectDistinctIDs(commitStats, prepareStats)
 
-	var result []OperatorResult
 	for _, id := range ids {
 		commitSignerScore := commitStats[id].Score
 		commitTotalDelay := commitStats[id].Delay
 
-		result = append(result, OperatorResult{
-			OperatorID: uint64(id),
+		result.OperatorStats = append(result.OperatorStats, OperatorStats{
+			OperatorID:     uint64(id),
+			IsLogFileOwner: uint64(id) == uint64(operatorStats.Owner),
 
 			AttestationTimeAverage: attestationStats.AttestationTimeTotal / time.Duration(len(attestationStats.AttestationDurations)),
 			AttestationTimeCount:   uint16(len(attestationStats.AttestationDurations)),
@@ -97,13 +111,14 @@ func (r *Service) Start() ([]OperatorResult, error) {
 	return result, nil
 }
 
-func (r *Service) runAnalyzers() (map[parser.SignerID]commit.Stats, map[parser.SignerID]prepare.Stats, attestation.Stats, error) {
+func (r *Service) runAnalyzers() (operator.Stats, map[parser.SignerID]commit.Stats, map[parser.SignerID]prepare.Stats, attestation.Stats, error) {
 	var wg sync.WaitGroup
-	errChan := make(chan error, 3)
+	errChan := make(chan error, 4)
 
 	var (
 		commitStats      map[parser.SignerID]commit.Stats
 		prepareStats     map[parser.SignerID]prepare.Stats
+		operatorStats    operator.Stats
 		attestationStats attestation.Stats
 	)
 
@@ -140,15 +155,26 @@ func (r *Service) runAnalyzers() (map[parser.SignerID]commit.Stats, map[parser.S
 		}
 	}()
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		operatorStats, err = r.operatorAnalyzer.Analyze()
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+
 	wg.Wait()
 	close(errChan)
 
 	for e := range errChan {
 		if e != nil {
-			return commitStats, prepareStats, attestationStats, e
+			return operatorStats, commitStats, prepareStats, attestationStats, e
 		}
 	}
-	return commitStats, prepareStats, attestationStats, nil
+	return operatorStats, commitStats, prepareStats, attestationStats, nil
 }
 
 func collectDistinctIDs(commitStats map[parser.SignerID]commit.Stats, proposeStats map[parser.SignerID]prepare.Stats) []parser.SignerID {

@@ -11,6 +11,7 @@ import (
 
 var operatorHeaders = []string{
 	"Operator",
+	"You",
 	"Score",
 	"Commit: Total Delay",
 	"Prepare: avg",
@@ -19,6 +20,7 @@ var operatorHeaders = []string{
 
 type OperatorRecord struct {
 	OperatorID          uint64
+	IsLogFileOwner      bool
 	Score               uint64
 	CommitDelayTotal    time.Duration
 	PrepareDelayAvg     time.Duration
@@ -55,9 +57,15 @@ func NewOperator(withScores bool) *OperatorReport {
 }
 
 func (r *OperatorReport) AddRecord(record OperatorRecord) {
+	var ownerSign string
+	if record.IsLogFileOwner {
+		ownerSign = "⭐️"
+	}
+
 	if !r.withScores {
 		r.t.AddRow(
 			fmt.Sprint(record.OperatorID),
+			ownerSign,
 			record.CommitDelayTotal.String(),
 			record.PrepareDelayAvg.String(),
 			record.PrepareHighestDelay.String(),
@@ -67,6 +75,7 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 	}
 	r.t.AddRow(
 		fmt.Sprint(record.OperatorID),
+		ownerSign,
 		fmt.Sprint(record.Score),
 		record.CommitDelayTotal.String(),
 		record.PrepareDelayAvg.String(),
