@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-var customTimeLayouts = []string{
-	"2006-01-02T15:04:05.000-0700",
-	"2006-01-02T15:04:05.000Z",
-}
-
 type (
 	SignerID        = uint32
 	DutyID          = string
@@ -17,6 +12,11 @@ type (
 		time.Time
 	}
 )
+
+var customTimeLayouts = []string{
+	"2006-01-02T15:04:05.000-0700",
+	"2006-01-02T15:04:05.000Z",
+}
 
 func (m *MultiFormatTime) UnmarshalJSON(b []byte) error {
 	str := string(b)
