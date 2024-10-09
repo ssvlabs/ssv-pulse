@@ -98,7 +98,7 @@ var CMD = &cobra.Command{
 
 		var (
 			isSet                              bool
-			consensusResponseTimeAvg           time.Duration
+			consensusClientResponseTimeAvg     time.Duration
 			consensusClientResponseTimeDelayed string
 		)
 
@@ -112,17 +112,18 @@ var CMD = &cobra.Command{
 				PrepareDelayAvg:     r.PrepareDelayAvg,
 				PrepareHighestDelay: r.PrepareHighestDelay,
 				PrepareMoreThanSec:  strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
+				ConsensusTimeAvg:    r.ConsensusTimeAvg,
 			})
 
 			if !isSet {
-				consensusResponseTimeAvg = r.AttestationTimeAverage
+				consensusClientResponseTimeAvg = r.AttestationTimeAverage
 				consensusClientResponseTimeDelayed = strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10)
 				isSet = true
 			}
 		}
 
 		consensusReport.AddRecord(report.ConsensusRecord{
-			ConsensusClientResponseTimeAvg:     consensusResponseTimeAvg,
+			ConsensusClientResponseTimeAvg:     consensusClientResponseTimeAvg,
 			ConsensusClientResponseTimeDelayed: consensusClientResponseTimeDelayed,
 		})
 

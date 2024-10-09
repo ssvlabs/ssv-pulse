@@ -49,6 +49,8 @@ type (
 		PrepareHighestDelay time.Duration
 		PrepareDelayCount,
 		PrepareCount uint16
+
+		ConsensusTimeAvg time.Duration
 	}
 
 	AnalyzerResult struct {
@@ -103,6 +105,18 @@ func (r *Service) Start() (AnalyzerResult, error) {
 		commitSignerScore := commitStats[operatorID].Score
 		commitTotalDelay := commitStats[operatorID].Delay
 
+		consensusDurations := consensusStats.OperatorConsensusTimes[operatorID]
+		var (
+			consensusDurationsTotal, consensusDurationAvg time.Duration
+			consensusDurationLen                          int = len(consensusDurations)
+		)
+		for _, duration := range consensusDurations {
+			consensusDurationsTotal += duration
+		}
+		if consensusDurationLen > 0 {
+			consensusDurationAvg = consensusDurationsTotal / time.Duration(consensusDurationLen)
+		}
+
 		result.OperatorStats = append(result.OperatorStats, OperatorStats{
 			OperatorID:     uint64(operatorID),
 			IsLogFileOwner: uint64(operatorID) == uint64(operatorStats.Owner),
@@ -118,6 +132,8 @@ func (r *Service) Start() (AnalyzerResult, error) {
 			PrepareHighestDelay: prepareStats[operatorID].HighestDelay,
 			PrepareDelayCount:   prepareStats[operatorID].MoreSecondDelay,
 			PrepareCount:        prepareStats[operatorID].Count,
+
+			ConsensusTimeAvg: consensusDurationAvg,
 		})
 	}
 
