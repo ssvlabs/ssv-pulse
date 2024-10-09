@@ -33,9 +33,7 @@ type (
 	}
 
 	Service struct {
-		logFile   *os.File
-		operators []uint32
-		cluster   bool
+		logFile *os.File
 	}
 )
 
