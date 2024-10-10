@@ -10,6 +10,7 @@ import (
 	"github.com/ssvlabs/ssv-pulse/configs"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
@@ -69,14 +70,20 @@ var CMD = &cobra.Command{
 			return err
 		}
 
+		consensusAnalyzer, err := consensus.New(
+			configs.Values.Analyzer.LogFilePath)
+		if err != nil {
+			return err
+		}
+
 		analyzerSvc, err := New(
+			consensusAnalyzer,
 			operatorAnalyzer,
 			attestationAnalyzer,
 			commitAnalyzer,
 			prepareAnalyzer,
 			configs.Values.Analyzer.Operators,
 			configs.Values.Analyzer.Cluster)
-
 		if err != nil {
 			return err
 		}
@@ -91,13 +98,14 @@ var CMD = &cobra.Command{
 
 		var (
 			isSet                              bool
-			consensusResponseTimeAvg           time.Duration
+			consensusClientResponseTimeAvg     time.Duration
 			consensusClientResponseTimeDelayed string
 		)
 
 		for _, r := range result.OperatorStats {
 			operatorReport.AddRecord(report.OperatorRecord{
 				OperatorID:     r.OperatorID,
+				Clusters:       r.Clusters,
 				IsLogFileOwner: r.IsLogFileOwner,
 
 				Score:               r.CommitSignerScore,
@@ -105,17 +113,20 @@ var CMD = &cobra.Command{
 				PrepareDelayAvg:     r.PrepareDelayAvg,
 				PrepareHighestDelay: r.PrepareHighestDelay,
 				PrepareMoreThanSec:  strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
+				ConsensusTimeAvg:    r.ConsensusTimeAvg,
+				ConsensusSuccessfulAttestationSubmissions: r.ConsensusSuccessfulAttestationSubmissions,
+				ConsensusParticipation:                    r.ConsensusParticipationCount,
 			})
 
 			if !isSet {
-				consensusResponseTimeAvg = r.AttestationTimeAverage
+				consensusClientResponseTimeAvg = r.AttestationTimeAverage
 				consensusClientResponseTimeDelayed = strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10)
 				isSet = true
 			}
 		}
 
 		consensusReport.AddRecord(report.ConsensusRecord{
-			ConsensusClientResponseTimeAvg:     consensusResponseTimeAvg,
+			ConsensusClientResponseTimeAvg:     consensusClientResponseTimeAvg,
 			ConsensusClientResponseTimeDelayed: consensusClientResponseTimeDelayed,
 		})
 

@@ -44,9 +44,9 @@ func New(logFilePath string, operators []uint32, cluster bool) (*Service, error)
 	}, nil
 }
 
-func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
-	defer c.logFile.Close()
-	scanner := bufio.NewScanner(c.logFile)
+func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
+	defer s.logFile.Close()
+	scanner := bufio.NewScanner(s.logFile)
 
 	commitTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
 
@@ -76,8 +76,8 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	stats := make(map[parser.SignerID]Stats)
 
 	for _, signers := range commitTimes {
-		if c.cluster && len(c.operators) != 0 {
-			if !parser.IsCluster(c.operators, signers) {
+		if s.cluster && len(s.operators) != 0 {
+			if !parser.IsCluster(s.operators, signers) {
 				continue
 			}
 		}
@@ -107,8 +107,8 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 
 			for rank, performance := range performances {
 				var isOperator bool
-				if len(c.operators) != 0 {
-					for _, operatorID := range c.operators {
+				if len(s.operators) != 0 {
+					for _, operatorID := range s.operators {
 						if performance.signer == operatorID {
 							isOperator = true
 							break

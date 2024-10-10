@@ -28,3 +28,20 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 	}
 	return partsarr, nil
 }
+
+func CollectDistinct[T comparable](arrays ...[]T) []T {
+	uniqueValues := make(map[T]struct{})
+
+	for _, array := range arrays {
+		for _, value := range array {
+			uniqueValues[value] = struct{}{}
+		}
+	}
+
+	result := make([]T, 0, len(uniqueValues))
+	for value := range uniqueValues {
+		result = append(result, value)
+	}
+
+	return result
+}

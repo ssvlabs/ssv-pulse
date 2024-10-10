@@ -11,21 +11,32 @@ import (
 
 var operatorHeaders = []string{
 	"Operator",
+	"Clusters",
 	"You",
 	"Score",
 	"Commit: Total Delay",
 	"Prepare: avg",
 	"Prepare: highest",
-	"Prepare: > 1sec"}
+	"Prepare: > 1sec",
+	"Consensus: avg",
+	"Consensus: \n operator participation",
+	"Consensus: \n successful attestation submissions",
+}
 
 type OperatorRecord struct {
-	OperatorID          uint64
-	IsLogFileOwner      bool
-	Score               uint64
-	CommitDelayTotal    time.Duration
+	OperatorID       uint32
+	Clusters         [][]uint32
+	IsLogFileOwner   bool
+	Score            uint64
+	CommitDelayTotal time.Duration
+
 	PrepareDelayAvg     time.Duration
 	PrepareHighestDelay time.Duration
 	PrepareMoreThanSec  string
+
+	ConsensusTimeAvg time.Duration
+	ConsensusSuccessfulAttestationSubmissions,
+	ConsensusParticipation uint16
 }
 
 type OperatorReport struct {
@@ -62,25 +73,39 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		ownerSign = "⭐️"
 	}
 
+	var clusterReportItem string
+	if len(record.Clusters) == 0 {
+		clusterReportItem = ""
+	} else {
+		clusterReportItem = fmt.Sprint(record.Clusters)
+	}
 	if !r.withScores {
 		r.t.AddRow(
 			fmt.Sprint(record.OperatorID),
+			clusterReportItem,
 			ownerSign,
 			record.CommitDelayTotal.String(),
 			record.PrepareDelayAvg.String(),
 			record.PrepareHighestDelay.String(),
 			record.PrepareMoreThanSec,
+			record.ConsensusTimeAvg.String(),
+			fmt.Sprint(record.ConsensusParticipation),
+			fmt.Sprint(record.ConsensusSuccessfulAttestationSubmissions),
 		)
 		return
 	}
 	r.t.AddRow(
 		fmt.Sprint(record.OperatorID),
+		clusterReportItem,
 		ownerSign,
 		fmt.Sprint(record.Score),
 		record.CommitDelayTotal.String(),
 		record.PrepareDelayAvg.String(),
 		record.PrepareHighestDelay.String(),
 		record.PrepareMoreThanSec,
+		record.ConsensusTimeAvg.String(),
+		fmt.Sprint(record.ConsensusParticipation),
+		fmt.Sprint(record.ConsensusSuccessfulAttestationSubmissions),
 	)
 }
 
