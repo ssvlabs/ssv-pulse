@@ -51,6 +51,8 @@ type (
 		PrepareCount uint16
 
 		ConsensusTimeAvg time.Duration
+		ConsensusParticipationCount,
+		ConsensusSuccessfulAttestationSubmissions uint16
 	}
 
 	AnalyzerResult struct {
@@ -134,6 +136,8 @@ func (r *Service) Start() (AnalyzerResult, error) {
 			PrepareCount:        prepareStats[operatorID].Count,
 
 			ConsensusTimeAvg: consensusDurationAvg,
+			ConsensusSuccessfulAttestationSubmissions: consensusStats.SuccessfullySubmittedAttestations,
+			ConsensusParticipationCount:               consensusStats.OperatorConsensusParticipation[operatorID],
 		})
 	}
 

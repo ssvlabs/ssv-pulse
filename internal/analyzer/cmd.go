@@ -113,6 +113,8 @@ var CMD = &cobra.Command{
 				PrepareHighestDelay: r.PrepareHighestDelay,
 				PrepareMoreThanSec:  strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
 				ConsensusTimeAvg:    r.ConsensusTimeAvg,
+				ConsensusSuccessfulAttestationSubmissions: r.ConsensusSuccessfulAttestationSubmissions,
+				ConsensusParticipation:                    r.ConsensusParticipationCount,
 			})
 
 			if !isSet {

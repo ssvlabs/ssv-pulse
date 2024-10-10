@@ -29,7 +29,9 @@ type (
 	}
 
 	Stats struct {
-		OperatorConsensusTimes map[parser.SignerID][]time.Duration
+		OperatorConsensusTimes            map[parser.SignerID][]time.Duration
+		OperatorConsensusParticipation    map[parser.SignerID]uint16
+		SuccessfullySubmittedAttestations uint16
 	}
 
 	Service struct {
@@ -53,7 +55,8 @@ func (s *Service) Analyze() (Stats, error) {
 
 	var (
 		stats Stats = Stats{
-			OperatorConsensusTimes: make(map[uint32][]time.Duration),
+			OperatorConsensusTimes:         make(map[uint32][]time.Duration),
+			OperatorConsensusParticipation: make(map[uint32]uint16),
 		}
 		operatorConsensusParticipation = make(map[parser.DutyID]struct {
 			Signers   []parser.SignerID
@@ -71,8 +74,8 @@ func (s *Service) Analyze() (Stats, error) {
 
 		if strings.Contains(entry.Message, partialSignatureLogRecord) {
 			/*
-				since there is no way to verify the round (given log record does not contain roundID filed) in this way we need
-				to make sure we save signers from the earliest round, meaning round 1
+				Since there is no way to verify the round (as the given log record does not contain the roundID field),
+				we need to ensure that we save signers from the earliest round, meaning round 1.
 			*/
 			if consensusRecord, hasRecordForDuty := operatorConsensusParticipation[entry.DutyID]; hasRecordForDuty {
 				if entry.Timestamp.Before(consensusRecord.Timestamp) {
@@ -114,10 +117,12 @@ func (s *Service) Analyze() (Stats, error) {
 		if exist {
 			for _, signerID := range signers.Signers {
 				stats.OperatorConsensusTimes[signerID] = append(stats.OperatorConsensusTimes[signerID], signerConsensusTime)
+				stats.OperatorConsensusParticipation[signerID]++
 			}
 		}
 	}
 
+	stats.SuccessfullySubmittedAttestations = uint16(len(consensusTimes))
 	return stats, nil
 }
 

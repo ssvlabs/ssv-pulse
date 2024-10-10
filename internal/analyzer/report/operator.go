@@ -18,17 +18,23 @@ var operatorHeaders = []string{
 	"Prepare: highest",
 	"Prepare: > 1sec",
 	"Consensus: avg",
+	"Consensus: \n operator participation",
+	"Consensus: \n successful attestation submissions",
 }
 
 type OperatorRecord struct {
-	OperatorID          uint64
-	IsLogFileOwner      bool
-	Score               uint64
-	CommitDelayTotal    time.Duration
+	OperatorID       uint64
+	IsLogFileOwner   bool
+	Score            uint64
+	CommitDelayTotal time.Duration
+
 	PrepareDelayAvg     time.Duration
 	PrepareHighestDelay time.Duration
 	PrepareMoreThanSec  string
-	ConsensusTimeAvg    time.Duration
+
+	ConsensusTimeAvg time.Duration
+	ConsensusSuccessfulAttestationSubmissions,
+	ConsensusParticipation uint16
 }
 
 type OperatorReport struct {
@@ -74,6 +80,8 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 			record.PrepareHighestDelay.String(),
 			record.PrepareMoreThanSec,
 			record.ConsensusTimeAvg.String(),
+			fmt.Sprint(record.ConsensusParticipation),
+			fmt.Sprint(record.ConsensusSuccessfulAttestationSubmissions),
 		)
 		return
 	}
@@ -86,6 +94,8 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		record.PrepareHighestDelay.String(),
 		record.PrepareMoreThanSec,
 		record.ConsensusTimeAvg.String(),
+		fmt.Sprint(record.ConsensusParticipation),
+		fmt.Sprint(record.ConsensusSuccessfulAttestationSubmissions),
 	)
 }
 
