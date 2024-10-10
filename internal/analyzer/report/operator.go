@@ -11,6 +11,7 @@ import (
 
 var operatorHeaders = []string{
 	"Operator",
+	"Clusters",
 	"You",
 	"Score",
 	"Commit: Total Delay",
@@ -23,7 +24,8 @@ var operatorHeaders = []string{
 }
 
 type OperatorRecord struct {
-	OperatorID       uint64
+	OperatorID       uint32
+	Clusters         [][]uint32
 	IsLogFileOwner   bool
 	Score            uint64
 	CommitDelayTotal time.Duration
@@ -71,9 +73,16 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		ownerSign = "⭐️"
 	}
 
+	var clusterReportItem string
+	if len(record.Clusters) == 0 {
+		clusterReportItem = ""
+	} else {
+		clusterReportItem = fmt.Sprint(record.Clusters)
+	}
 	if !r.withScores {
 		r.t.AddRow(
 			fmt.Sprint(record.OperatorID),
+			clusterReportItem,
 			ownerSign,
 			record.CommitDelayTotal.String(),
 			record.PrepareDelayAvg.String(),
@@ -87,6 +96,7 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 	}
 	r.t.AddRow(
 		fmt.Sprint(record.OperatorID),
+		clusterReportItem,
 		ownerSign,
 		fmt.Sprint(record.Score),
 		record.CommitDelayTotal.String(),

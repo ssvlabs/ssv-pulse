@@ -6,23 +6,30 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
+	"github.com/ssvlabs/ssv-pulse/internal/ssv"
 )
 
 const (
-	proposalMsg = "📢 got proposal, broadcasting prepare message"
+	proposalMsg      = "📢 got proposal, broadcasting prepare message"
+	savedInstanceMsg = "💾 saved instance upon decided"
 )
 
 type (
 	logEntry struct {
 		Message        string            `json:"M"`
 		PrepareSigners []parser.SignerID `json:"prepare_signers"`
+		Signers        []parser.SignerID `json:"signers"`
 	}
+
 	Stats struct {
-		Owner parser.SignerID
+		Owner    parser.SignerID
+		Clusters map[parser.SignerID][][]parser.SignerID
 	}
+
 	Service struct {
 		logFile *os.File
 	}
@@ -41,7 +48,12 @@ func New(logFilePath string) (*Service, error) {
 func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := bufio.NewScanner(s.logFile)
-	var stats Stats
+	var (
+		stats Stats = Stats{
+			Clusters: make(map[parser.SignerID][][]uint32),
+		}
+		clusters [][]parser.SignerID
+	)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -56,7 +68,29 @@ func (s *Service) Analyze() (Stats, error) {
 				return stats, errors.New(errMsg)
 			}
 			stats.Owner = entry.PrepareSigners[0]
-			return stats, nil
+		}
+
+		if strings.Contains(entry.Message, savedInstanceMsg) {
+			if ssv.IsValidClusterSize(entry.Signers) {
+				//verify we store only distinct arrays
+				if len(clusters) > 0 {
+					var isUniqueArray bool
+					for _, cluster := range clusters {
+						if len(cluster) == len(entry.Signers) {
+							for _, signerID := range entry.Signers {
+								if !slices.Contains(cluster, signerID) {
+									isUniqueArray = true
+								}
+							}
+						}
+					}
+					if isUniqueArray {
+						clusters = append(clusters, entry.Signers)
+					}
+				} else {
+					clusters = append(clusters, entry.Signers)
+				}
+			}
 		}
 	}
 
@@ -64,6 +98,8 @@ func (s *Service) Analyze() (Stats, error) {
 		slog.With("err", err).Error("error reading log file")
 		return stats, err
 	}
+
+	stats.Clusters[stats.Owner] = clusters
 
 	return stats, nil
 }

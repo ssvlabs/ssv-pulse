@@ -3,6 +3,7 @@ package analyzer
 import (
 	"maps"
 	"slices"
+	"sort"
 	"sync"
 	"time"
 
@@ -35,8 +36,9 @@ type (
 	}
 
 	OperatorStats struct {
-		OperatorID     uint64
+		OperatorID     uint32
 		IsLogFileOwner bool
+		Clusters       [][]uint32
 
 		CommitSignerScore uint64
 		CommitTotalDelay  time.Duration
@@ -120,8 +122,9 @@ func (r *Service) Start() (AnalyzerResult, error) {
 		}
 
 		result.OperatorStats = append(result.OperatorStats, OperatorStats{
-			OperatorID:     uint64(operatorID),
-			IsLogFileOwner: uint64(operatorID) == uint64(operatorStats.Owner),
+			OperatorID:     operatorID,
+			IsLogFileOwner: operatorID == operatorStats.Owner,
+			Clusters:       operatorStats.Clusters[operatorID],
 
 			AttestationTimeAverage: attestationStats.AttestationTimeTotal / time.Duration(len(attestationStats.AttestationDurations)),
 			AttestationTimeCount:   uint16(len(attestationStats.AttestationDurations)),
@@ -140,6 +143,17 @@ func (r *Service) Start() (AnalyzerResult, error) {
 			ConsensusParticipationCount:               consensusStats.OperatorConsensusParticipation[operatorID],
 		})
 	}
+
+	//move log file owner record to index 0
+	sort.Slice(result.OperatorStats, func(i, j int) bool {
+		if result.OperatorStats[i].IsLogFileOwner {
+			return true
+		}
+		if result.OperatorStats[j].IsLogFileOwner {
+			return false
+		}
+		return false
+	})
 
 	return result, nil
 }

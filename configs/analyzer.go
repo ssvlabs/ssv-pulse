@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/ssvlabs/ssv-pulse/internal/ssv"
 )
 
 type Analyzer struct {
@@ -25,7 +27,7 @@ func (a Analyzer) Validate() (bool, error) {
 	}
 
 	if a.Cluster {
-		if !isValidClusterSize(a.Operators) {
+		if !ssv.IsValidClusterSize(a.Operators) {
 			return false, fmt.Errorf("the cluster size: '%d' is not valid'", len(a.Operators))
 		}
 	}
@@ -35,12 +37,4 @@ func (a Analyzer) Validate() (bool, error) {
 
 func (a Analyzer) WithScores() bool {
 	return len(a.Operators) != 0 && a.Cluster
-}
-
-func isValidClusterSize(operators []uint32) bool {
-	if len(operators) < 4 || len(operators) > 13 || len(operators)%3 != 1 {
-		return false
-	}
-
-	return true
 }

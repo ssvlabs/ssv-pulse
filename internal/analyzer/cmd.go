@@ -105,6 +105,7 @@ var CMD = &cobra.Command{
 		for _, r := range result.OperatorStats {
 			operatorReport.AddRecord(report.OperatorRecord{
 				OperatorID:     r.OperatorID,
+				Clusters:       r.Clusters,
 				IsLogFileOwner: r.IsLogFileOwner,
 
 				Score:               r.CommitSignerScore,
