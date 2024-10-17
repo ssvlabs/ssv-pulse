@@ -52,8 +52,10 @@ type OperatorReport struct {
 func NewOperator() *OperatorReport {
 	t := table.New(os.Stdout)
 
-	t.SetHeaders(operatorHeaders...)
+	t.SetHeaders("Validator Performance")
+	t.AddHeaders(operatorHeaders...)
 	t.SetAutoMerge(true)
+	t.SetHeaderColSpans(0, len(operatorHeaders))
 
 	var alignments []table.Alignment
 	for i := 0; i < len(operatorHeaders); i++ {
