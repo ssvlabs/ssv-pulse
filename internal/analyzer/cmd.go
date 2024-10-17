@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ssvlabs/ssv-pulse/configs"
-	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/client"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
@@ -56,15 +56,15 @@ var CMD = &cobra.Command{
 		}
 
 		var (
-			wg                   sync.WaitGroup
-			errChan              = make(chan error, len(files))
-			peerRecordsChan      = make(chan report.PeerRecord)
-			consensusRecordsChan = make(chan report.ConsensusRecord)
-			operatorRecordsChan  = make(chan map[uint32]report.OperatorRecord)
-			doneChan             = make(chan any)
-			consensusReport      = report.NewConsensus()
-			peersReport          = report.NewPeers()
-			operatorReport       = report.NewOperator()
+			wg                  sync.WaitGroup
+			errChan             = make(chan error, len(files))
+			peerRecordsChan     = make(chan report.PeerRecord)
+			clientRecordsChan   = make(chan report.ClientRecord)
+			operatorRecordsChan = make(chan map[uint32]report.OperatorRecord)
+			doneChan            = make(chan any)
+			clientReport        = report.NewClient()
+			peersReport         = report.NewPeers()
+			operatorReport      = report.NewOperator()
 		)
 
 		var totalFileSizeMB float64
@@ -81,7 +81,7 @@ var CMD = &cobra.Command{
 			wg.Add(1)
 			go func(filePath string) {
 				defer wg.Done()
-				analyzeFile(filePath, peerRecordsChan, consensusRecordsChan, operatorRecordsChan, errChan)
+				analyzeFile(filePath, peerRecordsChan, clientRecordsChan, operatorRecordsChan, errChan)
 			}(filepath.Join(fileDirectory, file.Name()))
 		}
 
@@ -89,7 +89,7 @@ var CMD = &cobra.Command{
 			wg.Wait()
 			close(errChan)
 			close(peerRecordsChan)
-			close(consensusRecordsChan)
+			close(clientRecordsChan)
 			close(doneChan)
 		}()
 
@@ -108,9 +108,9 @@ var CMD = &cobra.Command{
 				if isOpen {
 					peersReport.AddRecord(peerRecord)
 				}
-			case consensusRecord, isOpen := <-consensusRecordsChan:
+			case clientRecord, isOpen := <-clientRecordsChan:
 				if isOpen {
-					consensusReport.AddRecord(consensusRecord)
+					clientReport.AddRecord(clientRecord)
 				}
 			case operatorRecord, isOpen := <-operatorRecordsChan:
 				if isOpen {
@@ -215,7 +215,7 @@ var CMD = &cobra.Command{
 					}
 				}
 
-				consensusReport.Render()
+				clientReport.Render()
 				peersReport.Render()
 				operatorReport.Render()
 				return nil
@@ -247,10 +247,10 @@ func bindFlags(cmd *cobra.Command) error {
 func analyzeFile(
 	filePath string,
 	peerRecordChan chan<- report.PeerRecord,
-	consensusRecordChan chan<- report.ConsensusRecord,
+	clientRecordChan chan<- report.ClientRecord,
 	operatorRecordChan chan<- map[uint32]report.OperatorRecord,
 	errorChan chan<- error) {
-	attestationAnalyzer, err := attestation.New(filePath, time.Millisecond*800)
+	clientAnalyzer, err := client.New(filePath, time.Millisecond*800)
 	if err != nil {
 		errorChan <- err
 		return
@@ -289,7 +289,7 @@ func analyzeFile(
 		peersAnalyzer,
 		consensusAnalyzer,
 		operatorAnalyzer,
-		attestationAnalyzer,
+		clientAnalyzer,
 		commitAnalyzer,
 		prepareAnalyzer,
 		configs.Values.Analyzer.Operators,
@@ -319,10 +319,13 @@ func analyzeFile(
 				PeersSSVClientVersions: r.PeerSSVClientVersions,
 				PeerID:                 r.PeerID,
 			}
-			consensusRecordChan <- report.ConsensusRecord{
+			clientRecordChan <- report.ClientRecord{
 				OperatorID:                            r.OperatorID,
 				ConsensusClientResponseTimeAvg:        r.ConsensusClientResponseTimeAvg,
 				ConsensusClientResponseTimeDelayCount: r.ConsensusClientResponseTimeDelayCount,
+				ConsensusClientResponseTimeP10:        r.ConsensusClientResponseTimeP10,
+				ConsensusClientResponseTimeP50:        r.ConsensusClientResponseTimeP50,
+				ConsensusClientResponseTimeP90:        r.ConsensusClientResponseTimeP90,
 			}
 		}
 		operatorRecords = append(operatorRecords, report.OperatorRecord{
