@@ -25,7 +25,7 @@ func (a Analyzer) Validate() (bool, error) {
 	}
 
 	if a.Cluster {
-		if !isValidClusterSize(a.Operators) {
+		if !ssv.IsValidClusterSize(a.Operators) {
 			return false, fmt.Errorf("the cluster size: '%d' is not valid'", len(a.Operators))
 		}
 	}
