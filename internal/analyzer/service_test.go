@@ -15,7 +15,7 @@ import (
 )
 
 func TestProposeAnalyze(t *testing.T) {
-	const testLogFilePath = "./test/propose_test.log"
+	const testLogFilePath = "./test"
 	rootCMD := &cobra.Command{
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			err := viper.Unmarshal(&configs.Values)
@@ -25,21 +25,21 @@ func TestProposeAnalyze(t *testing.T) {
 	rootCMD.AddCommand(CMD)
 
 	t.Run("test propose logs - cluster", func(t *testing.T) {
-		args := []string{command, fmt.Sprintf("--%s", logFilePathFlag), testLogFilePath, fmt.Sprintf("--%s", operatorsFlag), "54,178,225,226,227,228,229", fmt.Sprintf("--%s", clusterFlag)}
+		args := []string{command, fmt.Sprintf("--%s", logFilesDirectoryFlag), testLogFilePath, fmt.Sprintf("--%s", operatorsFlag), "54,178,225,226,227,228,229", fmt.Sprintf("--%s", clusterFlag)}
 		rootCMD.SetArgs(args)
 		err := rootCMD.Execute()
 		require.NoError(t, err)
 		resetFlags(rootCMD)
 	})
 	t.Run("test propose logs - not cluster", func(t *testing.T) {
-		args := []string{command, fmt.Sprintf("--%s", logFilePathFlag), testLogFilePath, fmt.Sprintf("--%s", operatorsFlag), "54,178,225,226,227,228,229"}
+		args := []string{command, fmt.Sprintf("--%s", logFilesDirectoryFlag), testLogFilePath, fmt.Sprintf("--%s", operatorsFlag), "54,178,225,226,227,228,229"}
 		rootCMD.SetArgs(args)
 		err := rootCMD.Execute()
 		require.NoError(t, err)
 		resetFlags(rootCMD)
 	})
 	t.Run("test propose logs - all", func(t *testing.T) {
-		args := []string{command, fmt.Sprintf("--%s", logFilePathFlag), testLogFilePath}
+		args := []string{command, fmt.Sprintf("--%s", logFilesDirectoryFlag), testLogFilePath}
 		rootCMD.SetArgs(args)
 		err := rootCMD.Execute()
 		require.NoError(t, err)

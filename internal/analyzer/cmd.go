@@ -1,7 +1,15 @@
 package analyzer
 
 import (
-	"strconv"
+	"log/slog"
+	"maps"
+	"math"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -10,15 +18,17 @@ import (
 	"github.com/ssvlabs/ssv-pulse/configs"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/peers"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/report"
 )
 
 const (
-	logFilePathFlag = "log-file-path"
-	operatorsFlag   = "operators"
-	clusterFlag     = "cluster"
+	logFilesDirectoryFlag = "log-files-directory"
+	operatorsFlag         = "operators"
+	clusterFlag           = "cluster"
 
 	command = "analyzer"
 )
@@ -39,101 +49,189 @@ var CMD = &cobra.Command{
 			return err
 		}
 
-		attestationAnalyzer, err := attestation.New(
-			configs.Values.Analyzer.LogFilePath,
-			configs.Values.Analyzer.Operators,
-			configs.Values.Analyzer.Cluster)
-		if err != nil {
-			return err
-		}
-
-		commitAnalyzer, err := commit.New(
-			configs.Values.Analyzer.LogFilePath,
-			configs.Values.Analyzer.Operators,
-			configs.Values.Analyzer.Cluster)
-		if err != nil {
-			return err
-		}
-
-		prepareAnalyzer, err := prepare.New(
-			configs.Values.Analyzer.LogFilePath,
-			configs.Values.Analyzer.Operators,
-			configs.Values.Analyzer.Cluster)
-		if err != nil {
-			return err
-		}
-
-		operatorAnalyzer, err := operator.New(
-			configs.Values.Analyzer.LogFilePath)
-		if err != nil {
-			return err
-		}
-
-		analyzerSvc, err := New(
-			operatorAnalyzer,
-			attestationAnalyzer,
-			commitAnalyzer,
-			prepareAnalyzer,
-			configs.Values.Analyzer.Operators,
-			configs.Values.Analyzer.Cluster)
-
-		if err != nil {
-			return err
-		}
-
-		operatorReport := report.NewOperator(configs.Values.Analyzer.WithScores())
-		consensusReport := report.NewConsensus()
-
-		result, err := analyzerSvc.Start()
+		fileDirectory := configs.Values.Analyzer.LogFilesDirectory
+		files, err := os.ReadDir(fileDirectory)
 		if err != nil {
 			return err
 		}
 
 		var (
-			isSet                              bool
-			consensusResponseTimeAvg           time.Duration
-			consensusClientResponseTimeDelayed string
+			wg                   sync.WaitGroup
+			errChan              = make(chan error, len(files))
+			peerRecordsChan      = make(chan report.PeerRecord)
+			consensusRecordsChan = make(chan report.ConsensusRecord)
+			operatorRecordsChan  = make(chan map[uint32]report.OperatorRecord)
+			doneChan             = make(chan any)
+			consensusReport      = report.NewConsensus()
+			peersReport          = report.NewPeers()
+			operatorReport       = report.NewOperator()
 		)
 
-		for _, r := range result.OperatorStats {
-			operatorReport.AddRecord(report.OperatorRecord{
-				OperatorID:     r.OperatorID,
-				IsLogFileOwner: r.IsLogFileOwner,
-
-				Score:               r.CommitSignerScore,
-				CommitDelayTotal:    r.CommitTotalDelay,
-				PrepareDelayAvg:     r.PrepareDelayAvg,
-				PrepareHighestDelay: r.PrepareHighestDelay,
-				PrepareMoreThanSec:  strconv.FormatUint(uint64(r.PrepareDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.PrepareCount), 10),
-			})
-
-			if !isSet {
-				consensusResponseTimeAvg = r.AttestationTimeAverage
-				consensusClientResponseTimeDelayed = strconv.FormatUint(uint64(r.AttestationDelayCount), 10) + "/" + strconv.FormatUint(uint64(r.AttestationTimeCount), 10)
-				isSet = true
+		var totalFileSizeMB float64
+		for _, file := range files {
+			if file.IsDir() {
+				continue
 			}
+			stat, err := os.Stat(path.Join(fileDirectory, file.Name()))
+			if err != nil {
+				slog.With("err", err.Error()).Warn("error fetching the file info, ignoring")
+			}
+			totalFileSizeMB += float64(stat.Size()) / (1024 * 1024)
+
+			wg.Add(1)
+			go func(filePath string) {
+				defer wg.Done()
+				analyzeFile(filePath, peerRecordsChan, consensusRecordsChan, operatorRecordsChan, errChan)
+			}(filepath.Join(fileDirectory, file.Name()))
 		}
 
-		consensusReport.AddRecord(report.ConsensusRecord{
-			ConsensusClientResponseTimeAvg:     consensusResponseTimeAvg,
-			ConsensusClientResponseTimeDelayed: consensusClientResponseTimeDelayed,
-		})
+		go func() {
+			wg.Wait()
+			close(errChan)
+			close(peerRecordsChan)
+			close(consensusRecordsChan)
+			close(doneChan)
+		}()
 
-		operatorReport.Render()
-		consensusReport.Render()
+		progressTicker := time.NewTicker(3 * time.Second)
 
-		return nil
+		fileOperatorRecords := make(map[uint32][]report.OperatorRecord)
+
+		for {
+			select {
+			case <-progressTicker.C:
+				slog.
+					With("count", len(files)).
+					With("filesSizeMB", math.Round(totalFileSizeMB)).
+					Info("⏳⏳⏳ processing file(s)...")
+			case peerRecord, isOpen := <-peerRecordsChan:
+				if isOpen {
+					peersReport.AddRecord(peerRecord)
+				}
+			case consensusRecord, isOpen := <-consensusRecordsChan:
+				if isOpen {
+					consensusReport.AddRecord(consensusRecord)
+				}
+			case operatorRecord, isOpen := <-operatorRecordsChan:
+				if isOpen {
+					keys := maps.Keys(operatorRecord)
+					for key := range keys {
+						fileOperatorRecords[key] = append(fileOperatorRecords[key], operatorRecord[key])
+					}
+				}
+			case err := <-errChan:
+				if err != nil {
+					return err
+				}
+			case <-doneChan:
+				for _, records := range fileOperatorRecords {
+					operatorStats := make(map[uint32]report.OperatorRecord)
+
+					commitAvgTotal := make(map[uint32]time.Duration)
+					commitAvgRecordCount := make(map[uint32]uint32)
+					commitDelayHighest := make(map[uint32]time.Duration)
+					commitDelayed := make(map[uint32]map[time.Duration]uint16)
+
+					prepareAvgTotal := make(map[uint32]time.Duration)
+					prepareAvgRecordCount := make(map[uint32]uint32)
+					prepareDelayHighest := make(map[uint32]time.Duration)
+					prepareDelayed := make(map[uint32]map[time.Duration]uint16)
+
+					consensusAvgTotal := make(map[uint32]time.Duration)
+					consensusAvgRecordCount := make(map[uint32]uint32)
+
+					for _, record := range records {
+						operatorStats[record.OperatorID] = report.OperatorRecord{
+							OperatorID:        record.OperatorID,
+							Clusters:          record.Clusters,
+							IsLogFileOwner:    record.IsLogFileOwner,
+							CommitDelayTotal:  operatorStats[record.OperatorID].CommitDelayTotal + record.CommitDelayTotal,
+							CommitTotalCount:  operatorStats[record.OperatorID].CommitTotalCount + record.CommitTotalCount,
+							PrepareTotalCount: operatorStats[record.OperatorID].PrepareTotalCount + record.PrepareTotalCount,
+						}
+						commitAvgTotal[record.OperatorID] += record.CommitDelayAvg
+						commitAvgRecordCount[record.OperatorID]++
+
+						prepareAvgTotal[record.OperatorID] += record.CommitDelayAvg
+						prepareAvgRecordCount[record.OperatorID]++
+
+						if commitDelayHighest[record.OperatorID] < record.CommitDelayHighest {
+							commitDelayHighest[record.OperatorID] = record.CommitDelayHighest
+						}
+
+						if prepareDelayHighest[record.OperatorID] < record.PrepareDelayHighest {
+							prepareDelayHighest[record.OperatorID] = record.PrepareDelayHighest
+						}
+
+						consensusAvgTotal[record.OperatorID] += record.ConsensusTimeAvg
+						consensusAvgRecordCount[record.OperatorID]++
+
+						for delay, count := range record.CommitDelayed {
+							_, ok := commitDelayed[record.OperatorID][delay]
+							if !ok {
+								commitDelayed[record.OperatorID] = make(map[time.Duration]uint16)
+							}
+							commitDelayed[record.OperatorID][delay] += count
+						}
+
+						for delay, count := range record.PrepareDelayed {
+							_, ok := prepareDelayed[record.OperatorID][delay]
+							if !ok {
+								prepareDelayed[record.OperatorID] = make(map[time.Duration]uint16)
+							}
+							prepareDelayed[record.OperatorID][delay] += count
+						}
+					}
+
+					for operatorID, record := range operatorStats {
+						record.CommitDelayAvg = commitAvgTotal[operatorID] / time.Duration(commitAvgRecordCount[operatorID])
+						record.CommitDelayHighest = commitDelayHighest[operatorID]
+						record.CommitDelayed = commitDelayed[operatorID]
+
+						record.PrepareDelayAvg = prepareAvgTotal[operatorID] / time.Duration(prepareAvgRecordCount[operatorID])
+						record.PrepareDelayHighest = prepareDelayHighest[operatorID]
+						record.PrepareDelayed = prepareDelayed[operatorID]
+
+						record.ConsensusTimeAvg = consensusAvgTotal[operatorID] / time.Duration(consensusAvgRecordCount[operatorID])
+
+						operatorStats[operatorID] = record
+					}
+
+					stats := slices.Collect(maps.Values(operatorStats))
+
+					//move log file owner record to index 0
+					sort.Slice(stats, func(i, j int) bool {
+						if stats[i].IsLogFileOwner {
+							return true
+						}
+						if stats[j].IsLogFileOwner {
+							return false
+						}
+						return false
+					})
+
+					for _, record := range stats {
+						operatorReport.AddRecord(record)
+					}
+				}
+
+				consensusReport.Render()
+				peersReport.Render()
+				operatorReport.Render()
+				return nil
+			}
+		}
 	},
 }
 
 func addFlags(cobraCMD *cobra.Command) {
-	cobraCMD.Flags().String(logFilePathFlag, "", "Path to ssv node log file to analyze")
+	cobraCMD.Flags().String(logFilesDirectoryFlag, "", "Path to ssv node log file to analyze")
 	cobraCMD.Flags().StringSlice(operatorsFlag, []string{}, "Operators to analyze")
 	cobraCMD.Flags().Bool(clusterFlag, false, "Are operators forming the cluster?")
 }
 
 func bindFlags(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("analyzer.log-file-path", cmd.Flags().Lookup(logFilePathFlag)); err != nil {
+	if err := viper.BindPFlag("analyzer.log-files-directory", cmd.Flags().Lookup(logFilesDirectoryFlag)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("analyzer.cluster", cmd.Flags().Lookup(clusterFlag)); err != nil {
@@ -144,4 +242,112 @@ func bindFlags(cmd *cobra.Command) error {
 	}
 
 	return nil
+}
+
+func analyzeFile(
+	filePath string,
+	peerRecordChan chan<- report.PeerRecord,
+	consensusRecordChan chan<- report.ConsensusRecord,
+	operatorRecordChan chan<- map[uint32]report.OperatorRecord,
+	errorChan chan<- error) {
+	attestationAnalyzer, err := attestation.New(filePath, time.Millisecond*800)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	commitAnalyzer, err := commit.New(filePath, time.Millisecond*800)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+	prepareAnalyzer, err := prepare.New(filePath, time.Millisecond*600)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	operatorAnalyzer, err := operator.New(filePath)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	consensusAnalyzer, err := consensus.New(filePath)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	peersAnalyzer, err := peers.New(filePath)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	analyzerSvc, err := New(
+		peersAnalyzer,
+		consensusAnalyzer,
+		operatorAnalyzer,
+		attestationAnalyzer,
+		commitAnalyzer,
+		prepareAnalyzer,
+		configs.Values.Analyzer.Operators,
+		configs.Values.Analyzer.Cluster)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	result, err := analyzerSvc.Start()
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	var (
+		owner           uint32
+		operatorRecords []report.OperatorRecord
+	)
+
+	for _, r := range result.OperatorStats {
+		if r.IsLogFileOwner {
+			owner = r.OperatorID
+			peerRecordChan <- report.PeerRecord{
+				OperatorID:             r.OperatorID,
+				PeerCountAvg:           r.PeersCountAvg,
+				PeersSSVClientVersions: r.PeerSSVClientVersions,
+				PeerID:                 r.PeerID,
+			}
+			consensusRecordChan <- report.ConsensusRecord{
+				OperatorID:                            r.OperatorID,
+				ConsensusClientResponseTimeAvg:        r.ConsensusClientResponseTimeAvg,
+				ConsensusClientResponseTimeDelayCount: r.ConsensusClientResponseTimeDelayCount,
+			}
+		}
+		operatorRecords = append(operatorRecords, report.OperatorRecord{
+			OperatorID:     r.OperatorID,
+			Clusters:       r.Clusters,
+			IsLogFileOwner: r.IsLogFileOwner,
+
+			CommitDelayTotal:   r.CommitTotalDelay,
+			CommitDelayAvg:     r.CommitDelayAvg,
+			CommitDelayHighest: r.CommitDelayHighest,
+			CommitDelayed:      r.CommitDelayCount,
+			CommitTotalCount:   r.CommitCount,
+
+			PrepareDelayAvg:     r.PrepareDelayAvg,
+			PrepareDelayHighest: r.PrepareDelayHighest,
+			PrepareDelayed:      r.PrepareDelayCount,
+			PrepareTotalCount:   r.PrepareCount,
+
+			ConsensusTimeAvg: r.ConsensusTimeAvg,
+		})
+	}
+
+	for _, record := range operatorRecords {
+		operatorRecordChan <- map[uint32]report.OperatorRecord{
+			owner: record,
+		}
+	}
 }
