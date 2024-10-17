@@ -6,10 +6,26 @@ import (
 )
 
 type (
-	SignerID        = uint32
-	DutyID          = string
+	//Signer ID is the same as Operator ID
+	SignerID = uint32
+
+	/*
+		ATTESTER-e79985-s2559525-v1664056
+		AGGREGATOR-e82122-s2627920-v1805391
+		VALIDATOR_REGISTRATION-e82098-s2627136-v1805376
+		e - epoch
+		s - slot
+		v - validator index
+	*/
+	DutyID = string
+
 	MultiFormatTime struct {
 		time.Time
+	}
+
+	Metric[T any] struct {
+		Found bool
+		Value T
 	}
 )
 
