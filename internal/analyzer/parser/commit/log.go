@@ -11,7 +11,7 @@ type commitLogEntry struct {
 	Round         uint8                  `json:"round"`
 	DutyID        string                 `json:"duty_id"`
 	Message       string                 `json:"M"`
-	CommitSigners []parser.SignerID      `json:"commit_signers"`
+	CommitSigners []parser.SignerID      `json:"commit_signers"` //NOTE: This array always contains 1 item
 }
 
 func (p *commitLogEntry) UnmarshalJSON(data []byte) error {
