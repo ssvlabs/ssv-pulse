@@ -24,7 +24,7 @@ type (
 	}
 
 	Stats struct {
-		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
+		ConsensusClientResponseTimeDelayPercent map[time.Duration]float32
 		ConsensusClientResponseTimeAvg,
 		ConsensusClientResponseTimeP10,
 		ConsensusClientResponseTimeP50,
@@ -54,12 +54,13 @@ func (s *Service) Analyze() (Stats, error) {
 
 	var (
 		stats Stats = Stats{
-			ConsensusClientResponseTimeDelayCount: map[time.Duration]uint16{
+			ConsensusClientResponseTimeDelayPercent: map[time.Duration]float32{
 				s.delay: 0,
 			}}
 
 		attestationEndpointResponseTimes   []time.Duration
 		attestationEndpointResponseTimeSum time.Duration
+		attestationEndpointTotalDelayed    = make(map[time.Duration]uint32)
 	)
 
 	for scanner.Scan() {
@@ -79,7 +80,8 @@ func (s *Service) Analyze() (Stats, error) {
 			attestationEndpointResponseTimeSum += responseTime
 
 			if isDelayed {
-				stats.ConsensusClientResponseTimeDelayCount[s.delay]++
+				stats.ConsensusClientResponseTimeDelayPercent[s.delay]++
+				attestationEndpointTotalDelayed[s.delay]++
 			}
 		}
 	}
@@ -95,6 +97,9 @@ func (s *Service) Analyze() (Stats, error) {
 		stats.ConsensusClientResponseTimeP10 = percentiles[10]
 		stats.ConsensusClientResponseTimeP50 = percentiles[50]
 		stats.ConsensusClientResponseTimeP90 = percentiles[90]
+
+		stats.ConsensusClientResponseTimeDelayPercent[s.delay] =
+			float32(attestationEndpointTotalDelayed[s.delay]) / float32(len(attestationEndpointResponseTimes)) * 100
 	}
 
 	return stats, nil
