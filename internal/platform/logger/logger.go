@@ -11,7 +11,6 @@ import (
 func init() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
-	slog.Debug("logger initialized")
 }
 
 func WriteMetric(metricGroup metric.Group, metricName string, nameValue map[string]any) {
