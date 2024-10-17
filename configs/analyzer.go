@@ -4,24 +4,26 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/ssvlabs/ssv-pulse/internal/ssv"
 )
 
 type Analyzer struct {
-	LogFilePath string   `mapstructure:"log-file-path"`
-	Operators   []uint32 `mapstructure:"operators"`
-	Cluster     bool     `mapstructure:"cluster"`
+	LogFilesDirectory string   `mapstructure:"log-files-directory"`
+	Operators         []uint32 `mapstructure:"operators"`
+	Cluster           bool     `mapstructure:"cluster"`
 }
 
 func (a Analyzer) Validate() (bool, error) {
-	if a.LogFilePath == "" {
-		return false, errors.New("log file path was empty")
+	if a.LogFilesDirectory == "" {
+		return false, errors.New("❕ log files directory was empty")
 	}
-	if strings.Contains(a.LogFilePath, "../") {
+	if strings.Contains(a.LogFilesDirectory, "../") {
 		return false, errors.New("❕ flag should not contain traversal")
 	}
 
 	if a.Cluster && len(a.Operators) == 0 {
-		return false, errors.New("if cluster is set to 'true', the list of operators cannot be empty")
+		return false, errors.New("❕ if cluster is set to 'true', the list of operators cannot be empty")
 	}
 
 	if a.Cluster {
@@ -31,16 +33,4 @@ func (a Analyzer) Validate() (bool, error) {
 	}
 
 	return true, nil
-}
-
-func (a Analyzer) WithScores() bool {
-	return len(a.Operators) != 0 && a.Cluster
-}
-
-func isValidClusterSize(operators []uint32) bool {
-	if len(operators) < 4 || len(operators) > 13 || len(operators)%3 != 1 {
-		return false
-	}
-
-	return true
 }

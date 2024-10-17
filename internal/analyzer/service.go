@@ -9,8 +9,11 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/peers"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/prepare"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/array"
 )
 
 type (
@@ -28,21 +31,38 @@ type (
 		Analyze() (map[parser.SignerID]prepare.Stats, error)
 	}
 
+	consensusAnalyzer interface {
+		Analyze() (map[parser.SignerID]consensus.Stats, error)
+	}
+
+	peersAnalyzer interface {
+		Analyze() (peers.Stats, error)
+	}
+
 	OperatorStats struct {
-		OperatorID     uint64
+		OperatorID     uint32
 		IsLogFileOwner bool
+		Clusters       [][]uint32
 
-		CommitSignerScore uint64
-		CommitTotalDelay  time.Duration
+		CommitTotalDelay,
+		CommitDelayAvg,
+		CommitDelayHighest time.Duration
+		CommitDelayCount map[time.Duration]uint16
+		CommitCount      uint16
 
-		AttestationTimeAverage time.Duration
-		AttestationTimeCount,
-		AttestationDelayCount uint16
+		ConsensusClientResponseTimeAvg        time.Duration
+		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
 
 		PrepareDelayAvg,
-		PrepareHighestDelay time.Duration
-		PrepareDelayCount,
-		PrepareCount uint16
+		PrepareDelayHighest time.Duration
+		PrepareDelayCount map[time.Duration]uint16
+		PrepareCount      uint16
+
+		ConsensusTimeAvg time.Duration
+
+		PeersCountAvg         parser.Metric[float64]
+		PeerSSVClientVersions []string
+		PeerID                string
 	}
 
 	AnalyzerResult struct {
@@ -51,6 +71,8 @@ type (
 )
 
 type Service struct {
+	peersAnalyzer       peersAnalyzer
+	consensusAnalyzer   consensusAnalyzer
 	operatorAnalyzer    operatorAnalyzer
 	attestationAnalyzer attestationAnalyzer
 	commitAnalyzer      commitAnalyzer
@@ -60,66 +82,102 @@ type Service struct {
 }
 
 func New(
+	peersAnalyzer peersAnalyzer,
+	consensusAnalyzer consensusAnalyzer,
 	operatorAnalyzer operatorAnalyzer,
-	attestationSvc attestationAnalyzer,
-	commitSvc commitAnalyzer,
-	prepareSvc prepareAnalyzer,
+	attestationAnalyzer attestationAnalyzer,
+	commitAnalyzer commitAnalyzer,
+	prepareAnalyzer prepareAnalyzer,
 	operators []uint32,
 	cluster bool) (*Service, error) {
 
 	return &Service{
+		peersAnalyzer:       peersAnalyzer,
+		consensusAnalyzer:   consensusAnalyzer,
 		operatorAnalyzer:    operatorAnalyzer,
-		attestationAnalyzer: attestationSvc,
-		commitAnalyzer:      commitSvc,
-		prepareAnalyzer:     prepareSvc,
+		attestationAnalyzer: attestationAnalyzer,
+		commitAnalyzer:      commitAnalyzer,
+		prepareAnalyzer:     prepareAnalyzer,
 		operators:           operators,
 		cluster:             cluster,
 	}, nil
 }
 
-func (r *Service) Start() (AnalyzerResult, error) {
+func (s *Service) Start() (AnalyzerResult, error) {
 	var result AnalyzerResult
-	operatorStats, commitStats, prepareStats, attestationStats, err := r.runAnalyzers()
+	peerStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, err := s.runAnalyzers()
 	if err != nil {
 		return result, err
 	}
 
-	ids := collectDistinctIDs(commitStats, prepareStats)
+	operatorIDs := array.CollectDistinct(
+		slices.Collect(maps.Keys(commitStats)),
+		slices.Collect(maps.Keys(prepareStats)),
+		slices.Collect(maps.Keys(consensusStats)),
+	)
 
-	for _, id := range ids {
-		commitSignerScore := commitStats[id].Score
-		commitTotalDelay := commitStats[id].Delay
+	for _, operatorID := range operatorIDs {
+		if s.cluster || len(s.operators) != 0 {
+			isSupportedOperator := slices.Contains(s.operators, operatorID)
+			if !isSupportedOperator {
+				continue
+			}
+		}
 
-		result.OperatorStats = append(result.OperatorStats, OperatorStats{
-			OperatorID:     uint64(id),
-			IsLogFileOwner: uint64(id) == uint64(operatorStats.Owner),
+		isOwner := operatorID == operatorStats.Owner
 
-			AttestationTimeAverage: attestationStats.AttestationTimeTotal / time.Duration(len(attestationStats.AttestationDurations)),
-			AttestationTimeCount:   uint16(len(attestationStats.AttestationDurations)),
-			AttestationDelayCount:  attestationStats.AttestationDelayCount,
+		opStats := OperatorStats{
+			OperatorID:     operatorID,
+			IsLogFileOwner: isOwner,
 
-			CommitSignerScore: uint64(commitSignerScore),
-			CommitTotalDelay:  commitTotalDelay,
+			CommitTotalDelay:   commitStats[operatorID].DelayTotal,
+			CommitDelayAvg:     commitStats[operatorID].DelayAvg,
+			CommitDelayHighest: commitStats[operatorID].DelayHighest,
+			CommitDelayCount:   commitStats[operatorID].Delayed,
+			CommitCount:        commitStats[operatorID].Count,
 
-			PrepareDelayAvg:     prepareStats[id].AverageDelay,
-			PrepareHighestDelay: prepareStats[id].HighestDelay,
-			PrepareDelayCount:   prepareStats[id].MoreSecondDelay,
-			PrepareCount:        prepareStats[id].Count,
-		})
+			PrepareDelayAvg:     prepareStats[operatorID].DelayAvg,
+			PrepareDelayHighest: prepareStats[operatorID].DelayHighest,
+			PrepareDelayCount:   prepareStats[operatorID].Delayed,
+			PrepareCount:        prepareStats[operatorID].Count,
+
+			ConsensusTimeAvg: consensusStats[operatorID].ConsensusTimeAvg,
+		}
+
+		//these metrics are only available for the log file owner
+		if isOwner {
+			opStats.Clusters = operatorStats.Clusters[operatorID]
+			opStats.ConsensusClientResponseTimeAvg = attestationStats.ConsensusClientResponseTimeTotal / time.Duration(len(attestationStats.ConsensusClientResponseDurations))
+			opStats.ConsensusClientResponseTimeDelayCount = attestationStats.ConsensusClientResponseTimeDelayCount
+			opStats.PeersCountAvg = peerStats.PeerCountAvg
+			opStats.PeerSSVClientVersions = peerStats.PeerSSVClientVersions
+			opStats.PeerID = peerStats.PeerID
+		}
+
+		result.OperatorStats = append(result.OperatorStats, opStats)
 	}
 
 	return result, nil
 }
 
-func (r *Service) runAnalyzers() (operator.Stats, map[parser.SignerID]commit.Stats, map[parser.SignerID]prepare.Stats, attestation.Stats, error) {
+func (r *Service) runAnalyzers() (
+	peers.Stats,
+	operator.Stats,
+	map[parser.SignerID]consensus.Stats,
+	map[parser.SignerID]commit.Stats,
+	map[parser.SignerID]prepare.Stats,
+	attestation.Stats,
+	error) {
 	var wg sync.WaitGroup
-	errChan := make(chan error, 4)
+	errChan := make(chan error, 6)
 
 	var (
 		commitStats      map[parser.SignerID]commit.Stats
 		prepareStats     map[parser.SignerID]prepare.Stats
-		operatorStats    operator.Stats
+		consensusStats   map[parser.SignerID]consensus.Stats
 		attestationStats attestation.Stats
+		operatorStats    operator.Stats
+		peersStats       peers.Stats
 	)
 
 	wg.Add(1)
@@ -166,29 +224,36 @@ func (r *Service) runAnalyzers() (operator.Stats, map[parser.SignerID]commit.Sta
 		}
 	}()
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		consensusStats, err = r.consensusAnalyzer.Analyze()
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		peersStats, err = r.peersAnalyzer.Analyze()
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+
 	wg.Wait()
 	close(errChan)
 
 	for e := range errChan {
 		if e != nil {
-			return operatorStats, commitStats, prepareStats, attestationStats, e
-		}
-	}
-	return operatorStats, commitStats, prepareStats, attestationStats, nil
-}
-
-func collectDistinctIDs(commitStats map[parser.SignerID]commit.Stats, proposeStats map[parser.SignerID]prepare.Stats) []parser.SignerID {
-	tmpIDs := make(map[parser.SignerID]bool)
-
-	for singerID := range commitStats {
-		tmpIDs[singerID] = true
-	}
-
-	for signerID := range proposeStats {
-		if _, exist := tmpIDs[signerID]; !exist {
-			tmpIDs[signerID] = true
+			return peersStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, e
 		}
 	}
 
-	return slices.Collect(maps.Keys(tmpIDs))
+	return peersStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, nil
 }
