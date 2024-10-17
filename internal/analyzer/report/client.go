@@ -24,7 +24,7 @@ type ClientRecord struct {
 	ConsensusClientResponseTimeP50,
 	ConsensusClientResponseTimeP90,
 	ConsensusClientResponseTimeAvg time.Duration
-	ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
+	ConsensusClientResponseTimeDelayPercent map[time.Duration]float32
 }
 
 type ClientReport struct {
@@ -57,7 +57,8 @@ func (c *ClientReport) AddRecord(record ClientRecord) {
 
 func (c *ClientReport) Render() {
 	type consensusClientRecordAggregate struct {
-		delayedResponses map[time.Duration]uint16
+		delayedResponsesPercentTotal map[time.Duration]float32
+		delayedResponsesPercentCount map[time.Duration]uint32
 		consensusClientResponseTimeAvgTotal,
 		consensusClientResponseTimeP10Total,
 		consensusClientResponseTimeP50Total,
@@ -70,12 +71,17 @@ func (c *ClientReport) Render() {
 	for _, record := range c.records {
 		aggregate := consensusClientAggregates[record.OperatorID]
 
-		for duration, value := range record.ConsensusClientResponseTimeDelayCount {
-			_, ok := aggregate.delayedResponses[duration]
+		for duration, value := range record.ConsensusClientResponseTimeDelayPercent {
+			_, ok := aggregate.delayedResponsesPercentTotal[duration]
 			if !ok {
-				aggregate.delayedResponses = make(map[time.Duration]uint16)
+				aggregate.delayedResponsesPercentTotal = make(map[time.Duration]float32)
 			}
-			aggregate.delayedResponses[duration] += value
+			_, ok = aggregate.delayedResponsesPercentCount[duration]
+			if !ok {
+				aggregate.delayedResponsesPercentCount = make(map[time.Duration]uint32)
+			}
+			aggregate.delayedResponsesPercentTotal[duration] += value
+			aggregate.delayedResponsesPercentCount[duration]++
 		}
 
 		aggregate.consensusClientResponseTimeAvgTotal += record.ConsensusClientResponseTimeAvg
@@ -89,8 +95,9 @@ func (c *ClientReport) Render() {
 
 	for operatorID, record := range consensusClientAggregates {
 		var delayedResponses []string
-		for duration, value := range record.delayedResponses {
-			delayedResponses = append(delayedResponses, fmt.Sprintf("%s: %d\n", duration.String(), value))
+		for duration, value := range record.delayedResponsesPercentTotal {
+			avgPercent := value / float32(record.delayedResponsesPercentCount[duration])
+			delayedResponses = append(delayedResponses, fmt.Sprintf("%s: %.2f%% \n", duration.String(), avgPercent))
 		}
 		c.t.AddRow(
 			fmt.Sprint(operatorID),

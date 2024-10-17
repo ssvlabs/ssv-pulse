@@ -54,7 +54,7 @@ type (
 		ConsensusClientResponseTimeP10,
 		ConsensusClientResponseTimeP50,
 		ConsensusClientResponseTimeP90 time.Duration
-		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
+		ConsensusClientResponseTimeDelayPercent map[time.Duration]float32
 
 		PrepareDelayAvg,
 		PrepareDelayHighest time.Duration
@@ -152,7 +152,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 			opStats.Clusters = operatorStats.Clusters[operatorID]
 
 			opStats.ConsensusClientResponseTimeAvg = clientStats.ConsensusClientResponseTimeAvg
-			opStats.ConsensusClientResponseTimeDelayCount = clientStats.ConsensusClientResponseTimeDelayCount
+			opStats.ConsensusClientResponseTimeDelayPercent = clientStats.ConsensusClientResponseTimeDelayPercent
 			opStats.ConsensusClientResponseTimeP10 = clientStats.ConsensusClientResponseTimeP10
 			opStats.ConsensusClientResponseTimeP50 = clientStats.ConsensusClientResponseTimeP50
 			opStats.ConsensusClientResponseTimeP90 = clientStats.ConsensusClientResponseTimeP90

@@ -320,12 +320,12 @@ func analyzeFile(
 				PeerID:                 r.PeerID,
 			}
 			clientRecordChan <- report.ClientRecord{
-				OperatorID:                            r.OperatorID,
-				ConsensusClientResponseTimeAvg:        r.ConsensusClientResponseTimeAvg,
-				ConsensusClientResponseTimeDelayCount: r.ConsensusClientResponseTimeDelayCount,
-				ConsensusClientResponseTimeP10:        r.ConsensusClientResponseTimeP10,
-				ConsensusClientResponseTimeP50:        r.ConsensusClientResponseTimeP50,
-				ConsensusClientResponseTimeP90:        r.ConsensusClientResponseTimeP90,
+				OperatorID:                              r.OperatorID,
+				ConsensusClientResponseTimeAvg:          r.ConsensusClientResponseTimeAvg,
+				ConsensusClientResponseTimeDelayPercent: r.ConsensusClientResponseTimeDelayPercent,
+				ConsensusClientResponseTimeP10:          r.ConsensusClientResponseTimeP10,
+				ConsensusClientResponseTimeP50:          r.ConsensusClientResponseTimeP50,
+				ConsensusClientResponseTimeP90:          r.ConsensusClientResponseTimeP90,
 			}
 		}
 		operatorRecords = append(operatorRecords, report.OperatorRecord{
