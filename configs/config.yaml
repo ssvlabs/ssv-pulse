@@ -38,6 +38,6 @@ benchmark:
         enabled: true
 
 analyzer:
-  log-file-path: example-path
+  log-files-directory: example-path
   operators: []
-  cluster: true
+  cluster: false
