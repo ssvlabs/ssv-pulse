@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
-	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/attestation"
+	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/client"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/commit"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/consensus"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser/operator"
@@ -20,8 +20,8 @@ type (
 	operatorAnalyzer interface {
 		Analyze() (operator.Stats, error)
 	}
-	attestationAnalyzer interface {
-		Analyze() (attestation.Stats, error)
+	clientAnalyzer interface {
+		Analyze() (client.Stats, error)
 	}
 	commitAnalyzer interface {
 		Analyze() (map[parser.SignerID]commit.Stats, error)
@@ -50,7 +50,10 @@ type (
 		CommitDelayCount map[time.Duration]uint16
 		CommitCount      uint16
 
-		ConsensusClientResponseTimeAvg        time.Duration
+		ConsensusClientResponseTimeAvg,
+		ConsensusClientResponseTimeP10,
+		ConsensusClientResponseTimeP50,
+		ConsensusClientResponseTimeP90 time.Duration
 		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
 
 		PrepareDelayAvg,
@@ -71,41 +74,41 @@ type (
 )
 
 type Service struct {
-	peersAnalyzer       peersAnalyzer
-	consensusAnalyzer   consensusAnalyzer
-	operatorAnalyzer    operatorAnalyzer
-	attestationAnalyzer attestationAnalyzer
-	commitAnalyzer      commitAnalyzer
-	prepareAnalyzer     prepareAnalyzer
-	operators           []uint32
-	cluster             bool
+	peersAnalyzer     peersAnalyzer
+	consensusAnalyzer consensusAnalyzer
+	operatorAnalyzer  operatorAnalyzer
+	clientAnalyzer    clientAnalyzer
+	commitAnalyzer    commitAnalyzer
+	prepareAnalyzer   prepareAnalyzer
+	operators         []uint32
+	cluster           bool
 }
 
 func New(
 	peersAnalyzer peersAnalyzer,
 	consensusAnalyzer consensusAnalyzer,
 	operatorAnalyzer operatorAnalyzer,
-	attestationAnalyzer attestationAnalyzer,
+	clientAnalyzer clientAnalyzer,
 	commitAnalyzer commitAnalyzer,
 	prepareAnalyzer prepareAnalyzer,
 	operators []uint32,
 	cluster bool) (*Service, error) {
 
 	return &Service{
-		peersAnalyzer:       peersAnalyzer,
-		consensusAnalyzer:   consensusAnalyzer,
-		operatorAnalyzer:    operatorAnalyzer,
-		attestationAnalyzer: attestationAnalyzer,
-		commitAnalyzer:      commitAnalyzer,
-		prepareAnalyzer:     prepareAnalyzer,
-		operators:           operators,
-		cluster:             cluster,
+		peersAnalyzer:     peersAnalyzer,
+		consensusAnalyzer: consensusAnalyzer,
+		operatorAnalyzer:  operatorAnalyzer,
+		clientAnalyzer:    clientAnalyzer,
+		commitAnalyzer:    commitAnalyzer,
+		prepareAnalyzer:   prepareAnalyzer,
+		operators:         operators,
+		cluster:           cluster,
 	}, nil
 }
 
 func (s *Service) Start() (AnalyzerResult, error) {
 	var result AnalyzerResult
-	peerStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, err := s.runAnalyzers()
+	peerStats, operatorStats, consensusStats, commitStats, prepareStats, clientStats, err := s.runAnalyzers()
 	if err != nil {
 		return result, err
 	}
@@ -147,8 +150,13 @@ func (s *Service) Start() (AnalyzerResult, error) {
 		//these metrics are only available for the log file owner
 		if isOwner {
 			opStats.Clusters = operatorStats.Clusters[operatorID]
-			opStats.ConsensusClientResponseTimeAvg = attestationStats.ConsensusClientResponseTimeTotal / time.Duration(len(attestationStats.ConsensusClientResponseDurations))
-			opStats.ConsensusClientResponseTimeDelayCount = attestationStats.ConsensusClientResponseTimeDelayCount
+
+			opStats.ConsensusClientResponseTimeAvg = clientStats.ConsensusClientResponseTimeAvg
+			opStats.ConsensusClientResponseTimeDelayCount = clientStats.ConsensusClientResponseTimeDelayCount
+			opStats.ConsensusClientResponseTimeP10 = clientStats.ConsensusClientResponseTimeP10
+			opStats.ConsensusClientResponseTimeP50 = clientStats.ConsensusClientResponseTimeP50
+			opStats.ConsensusClientResponseTimeP90 = clientStats.ConsensusClientResponseTimeP90
+
 			opStats.PeersCountAvg = peerStats.PeerCountAvg
 			opStats.PeerSSVClientVersions = peerStats.PeerSSVClientVersions
 			opStats.PeerID = peerStats.PeerID
@@ -166,18 +174,18 @@ func (r *Service) runAnalyzers() (
 	map[parser.SignerID]consensus.Stats,
 	map[parser.SignerID]commit.Stats,
 	map[parser.SignerID]prepare.Stats,
-	attestation.Stats,
+	client.Stats,
 	error) {
 	var wg sync.WaitGroup
 	errChan := make(chan error, 6)
 
 	var (
-		commitStats      map[parser.SignerID]commit.Stats
-		prepareStats     map[parser.SignerID]prepare.Stats
-		consensusStats   map[parser.SignerID]consensus.Stats
-		attestationStats attestation.Stats
-		operatorStats    operator.Stats
-		peersStats       peers.Stats
+		commitStats    map[parser.SignerID]commit.Stats
+		prepareStats   map[parser.SignerID]prepare.Stats
+		consensusStats map[parser.SignerID]consensus.Stats
+		clientStats    client.Stats
+		operatorStats  operator.Stats
+		peersStats     peers.Stats
 	)
 
 	wg.Add(1)
@@ -206,7 +214,7 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		attestationStats, err = r.attestationAnalyzer.Analyze()
+		clientStats, err = r.clientAnalyzer.Analyze()
 		if err != nil {
 			errChan <- err
 			return
@@ -251,9 +259,9 @@ func (r *Service) runAnalyzers() (
 
 	for e := range errChan {
 		if e != nil {
-			return peersStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, e
+			return peersStats, operatorStats, consensusStats, commitStats, prepareStats, clientStats, e
 		}
 	}
 
-	return peersStats, operatorStats, consensusStats, commitStats, prepareStats, attestationStats, nil
+	return peersStats, operatorStats, consensusStats, commitStats, prepareStats, clientStats, nil
 }

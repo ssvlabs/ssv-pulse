@@ -1,4 +1,4 @@
-package attestation
+package client
 
 import (
 	"bufio"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
 
 const (
@@ -23,8 +25,10 @@ type (
 
 	Stats struct {
 		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
-		ConsensusClientResponseTimeTotal      time.Duration
-		ConsensusClientResponseDurations      []time.Duration
+		ConsensusClientResponseTimeAvg,
+		ConsensusClientResponseTimeP10,
+		ConsensusClientResponseTimeP50,
+		ConsensusClientResponseTimeP90 time.Duration
 	}
 
 	Service struct {
@@ -48,11 +52,15 @@ func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := bufio.NewScanner(s.logFile)
 
-	var stats Stats = Stats{
-		ConsensusClientResponseTimeDelayCount: map[time.Duration]uint16{
-			s.delay: 0,
-		},
-	}
+	var (
+		stats Stats = Stats{
+			ConsensusClientResponseTimeDelayCount: map[time.Duration]uint16{
+				s.delay: 0,
+			}}
+
+		attestationEndpointResponseTimes   []time.Duration
+		attestationEndpointResponseTimeSum time.Duration
+	)
 
 	for scanner.Scan() {
 		var entry attestationLogEntry
@@ -63,22 +71,30 @@ func (s *Service) Analyze() (Stats, error) {
 		}
 
 		if strings.Contains(entry.Message, attestationMsg) {
-			isDelayed, attestationTime, err := s.fetchAttestationTime(entry.AttestationTime)
-			stats.ConsensusClientResponseDurations = append(stats.ConsensusClientResponseDurations, attestationTime)
+			isDelayed, responseTime, err := s.fetchAttestationTime(entry.AttestationTime)
 			if err != nil {
 				return stats, err
 			}
+			attestationEndpointResponseTimes = append(attestationEndpointResponseTimes, responseTime)
+			attestationEndpointResponseTimeSum += responseTime
 
-			stats.ConsensusClientResponseTimeTotal += attestationTime
 			if isDelayed {
 				stats.ConsensusClientResponseTimeDelayCount[s.delay]++
 			}
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
 		slog.With("err", err).Error("error reading log file")
 		return stats, err
+	}
+
+	if len(attestationEndpointResponseTimes) > 0 {
+		percentiles := metric.CalculatePercentiles(attestationEndpointResponseTimes, 10, 50, 90)
+
+		stats.ConsensusClientResponseTimeAvg = attestationEndpointResponseTimeSum / time.Duration(len(attestationEndpointResponseTimes))
+		stats.ConsensusClientResponseTimeP10 = percentiles[10]
+		stats.ConsensusClientResponseTimeP50 = percentiles[50]
+		stats.ConsensusClientResponseTimeP90 = percentiles[90]
 	}
 
 	return stats, nil
