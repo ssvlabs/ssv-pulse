@@ -225,8 +225,8 @@ var CMD = &cobra.Command{
 }
 
 func addFlags(cobraCMD *cobra.Command) {
-	cobraCMD.Flags().String(logFilesDirectoryFlag, "", "Path to ssv node log file to analyze")
-	cobraCMD.Flags().StringSlice(operatorsFlag, []string{}, "Operators to analyze")
+	cobraCMD.Flags().String(logFilesDirectoryFlag, "", "Path to the directory containing SSV node log files for analysis, e.g. my-file-dir")
+	cobraCMD.Flags().StringSlice(operatorsFlag, []string{}, "Operators to analyze, e.g. 123,321,132,312")
 	cobraCMD.Flags().Bool(clusterFlag, false, "Are operators forming the cluster?")
 }
 

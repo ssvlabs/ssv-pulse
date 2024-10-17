@@ -16,7 +16,7 @@ type Analyzer struct {
 
 func (a Analyzer) Validate() (bool, error) {
 	if a.LogFilesDirectory == "" {
-		return false, errors.New("❕ log files directory was empty")
+		return false, errors.New("❕ log files directory flag was not set")
 	}
 	if strings.Contains(a.LogFilesDirectory, "../") {
 		return false, errors.New("❕ flag should not contain traversal")
