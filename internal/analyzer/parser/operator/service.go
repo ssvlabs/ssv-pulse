@@ -4,25 +4,27 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
+	"github.com/ssvlabs/ssv-pulse/internal/ssv"
 )
 
 const (
-	proposalMsg = "📢 got proposal, broadcasting prepare message"
+	proposalMsg      = "📢 got proposal, broadcasting prepare message"
+	savedInstanceMsg = "💾 saved instance upon decided"
 )
 
 type (
-	logEntry struct {
-		Message        string            `json:"M"`
-		PrepareSigners []parser.SignerID `json:"prepare_signers"`
-	}
 	Stats struct {
-		Owner parser.SignerID
+		Owner    parser.SignerID
+		Clusters map[parser.SignerID][][]parser.SignerID
 	}
+
 	Service struct {
 		logFile *os.File
 	}
@@ -42,7 +44,10 @@ func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := bufio.NewScanner(s.logFile)
 	var (
-		stats Stats
+		stats Stats = Stats{
+			Clusters: make(map[parser.SignerID][][]uint32),
+		}
+		clusters [][]parser.SignerID
 	)
 
 	for scanner.Scan() {
@@ -54,11 +59,35 @@ func (s *Service) Analyze() (Stats, error) {
 
 		if strings.Contains(entry.Message, proposalMsg) {
 			if len(entry.PrepareSigners) != 1 {
-				const errMsg = "the log message contained unexpected number of items. Could not determine the owner correctly"
+				errMsg := fmt.Sprintf(
+					"the log message contained unexpected number of items. Could not determine the owner correctly. File name: %s", s.logFile.Name(),
+				)
 				return stats, errors.New(errMsg)
 			}
 			stats.Owner = entry.PrepareSigners[0]
-			return stats, nil
+		}
+
+		if strings.Contains(entry.Message, savedInstanceMsg) {
+			if ssv.IsValidClusterSize(entry.Signers) {
+				//verify we store only distinct arrays
+				if len(clusters) > 0 {
+					var isUniqueArray bool
+					for _, cluster := range clusters {
+						if len(cluster) == len(entry.Signers) {
+							for _, signerID := range entry.Signers {
+								if !slices.Contains(cluster, signerID) {
+									isUniqueArray = true
+								}
+							}
+						}
+					}
+					if isUniqueArray {
+						clusters = append(clusters, entry.Signers)
+					}
+				} else {
+					clusters = append(clusters, entry.Signers)
+				}
+			}
 		}
 	}
 
@@ -66,6 +95,8 @@ func (s *Service) Analyze() (Stats, error) {
 		slog.With("err", err).Error("error reading log file")
 		return stats, err
 	}
+
+	stats.Clusters[stats.Owner] = clusters
 
 	return stats, nil
 }
