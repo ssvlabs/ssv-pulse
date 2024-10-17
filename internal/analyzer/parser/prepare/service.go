@@ -19,28 +19,26 @@ const (
 
 type (
 	Stats struct {
-		Count           uint16
-		AverageDelay    time.Duration
-		HighestDelay    time.Duration
-		MoreSecondDelay uint16
+		Count        uint16
+		DelayAvg     time.Duration
+		DelayHighest time.Duration
+		Delayed      map[time.Duration]uint16
 	}
 
 	Service struct {
-		logFile   *os.File
-		operators []uint32
-		cluster   bool
+		logFile *os.File
+		delay   time.Duration
 	}
 )
 
-func New(logFilePath string, operators []uint32, cluster bool) (*Service, error) {
+func New(logFilePath string, delay time.Duration) (*Service, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to open log file"))
 	}
 	return &Service{
-		logFile:   file,
-		operators: operators,
-		cluster:   cluster,
+		logFile: file,
+		delay:   delay,
 	}, nil
 }
 
@@ -83,10 +81,10 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	return stats, nil
 }
 
-func (r *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time, prepareSignerTimes map[parser.DutyID]map[parser.SignerID]time.Time) map[parser.SignerID]Stats {
+func (s *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time, prepareSignerTimes map[parser.DutyID]map[parser.SignerID]time.Time) map[parser.SignerID]Stats {
 	prepareStats := make(map[parser.SignerID]Stats)
 	prepareMessageCount := make(map[parser.SignerID]uint16)
-	prepareMessageCountMoreSecond := make(map[parser.SignerID]uint16)
+	prepareDelayedMessageCount := make(map[parser.SignerID]uint16)
 	averageTimePrepareMessage := make(map[parser.SignerID]time.Duration)
 	totalTimePrepareMessage := make(map[parser.SignerID]time.Duration)
 	highestTimePrepareMessage := make(map[parser.SignerID]time.Duration)
@@ -96,44 +94,28 @@ func (r *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time
 		if !exist {
 			continue
 		}
-		if r.cluster && len(r.operators) != 0 {
-			if !parser.IsCluster(r.operators, signers) {
-				continue
-			}
-		}
 		for signer, prepareMessageTimeStamp := range signers {
-			if len(r.operators) != 0 {
-				var ok bool
-				for _, ID := range r.operators {
-					if signer == ID {
-						ok = true
-					}
-				}
-				if !ok {
-					continue
-				}
-			}
 			if prepareMessageTimeStamp.Before(leaderProposeMessageTime) {
 				slog.Error("error: got prepare message before leader propose message")
 				break
 			}
 			delay := prepareMessageTimeStamp.Sub(leaderProposeMessageTime)
-			prepareMessageCount[signer] = prepareMessageCount[signer] + 1
+			prepareMessageCount[signer]++
 			totalTimePrepareMessage[signer] = totalTimePrepareMessage[signer] + delay
 			if highestTimePrepareMessage[signer] < delay {
 				highestTimePrepareMessage[signer] = delay
 			}
-			if delay > time.Second {
-				prepareMessageCountMoreSecond[signer] = prepareMessageCountMoreSecond[signer] + 1
+			if delay > s.delay {
+				prepareDelayedMessageCount[signer]++
 			}
 
 			averageTimePrepareMessage[signer] = time.Duration(totalTimePrepareMessage[signer].Nanoseconds() / int64(prepareMessageCount[signer]))
 
 			prepareStats[signer] = Stats{
-				Count:           prepareMessageCount[signer],
-				AverageDelay:    averageTimePrepareMessage[signer],
-				HighestDelay:    highestTimePrepareMessage[signer],
-				MoreSecondDelay: prepareMessageCountMoreSecond[signer],
+				Count:        prepareMessageCount[signer],
+				DelayAvg:     averageTimePrepareMessage[signer],
+				DelayHighest: highestTimePrepareMessage[signer],
+				Delayed:      map[time.Duration]uint16{s.delay: prepareDelayedMessageCount[signer]},
 			}
 		}
 	}

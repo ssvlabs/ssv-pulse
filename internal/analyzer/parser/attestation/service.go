@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	attestationDelay = time.Second
-	attestationMsg   = "starting QBFT instance"
+	attestationMsg = "starting QBFT instance"
 )
 
 type (
@@ -23,35 +22,37 @@ type (
 	}
 
 	Stats struct {
-		AttestationDelayCount uint16
-		AttestationTimeTotal  time.Duration
-		AttestationDurations  []time.Duration
+		ConsensusClientResponseTimeDelayCount map[time.Duration]uint16
+		ConsensusClientResponseTimeTotal      time.Duration
+		ConsensusClientResponseDurations      []time.Duration
 	}
 
 	Service struct {
-		logFile   *os.File
-		operators []uint32
-		cluster   bool
+		logFile *os.File
+		delay   time.Duration
 	}
 )
 
-func New(logFilePath string, operators []uint32, cluster bool) (*Service, error) {
+func New(logFilePath string, consensusAttestationEndpointDelay time.Duration) (*Service, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to open log file"))
 	}
 	return &Service{
-		logFile:   file,
-		operators: operators,
-		cluster:   cluster,
+		logFile: file,
+		delay:   consensusAttestationEndpointDelay,
 	}, nil
 }
 
-func (r *Service) Analyze() (Stats, error) {
-	defer r.logFile.Close()
-	scanner := bufio.NewScanner(r.logFile)
+func (s *Service) Analyze() (Stats, error) {
+	defer s.logFile.Close()
+	scanner := bufio.NewScanner(s.logFile)
 
-	stats := Stats{}
+	var stats Stats = Stats{
+		ConsensusClientResponseTimeDelayCount: map[time.Duration]uint16{
+			s.delay: 0,
+		},
+	}
 
 	for scanner.Scan() {
 		var entry attestationLogEntry
@@ -62,15 +63,15 @@ func (r *Service) Analyze() (Stats, error) {
 		}
 
 		if strings.Contains(entry.Message, attestationMsg) {
-			isDelayed, attestationTime, err := fetchAttestationTime(entry.AttestationTime)
-			stats.AttestationDurations = append(stats.AttestationDurations, attestationTime)
+			isDelayed, attestationTime, err := s.fetchAttestationTime(entry.AttestationTime)
+			stats.ConsensusClientResponseDurations = append(stats.ConsensusClientResponseDurations, attestationTime)
 			if err != nil {
 				return stats, err
 			}
 
-			stats.AttestationTimeTotal += attestationTime
+			stats.ConsensusClientResponseTimeTotal += attestationTime
 			if isDelayed {
-				stats.AttestationDelayCount++
+				stats.ConsensusClientResponseTimeDelayCount[s.delay]++
 			}
 		}
 	}
@@ -83,7 +84,7 @@ func (r *Service) Analyze() (Stats, error) {
 	return stats, nil
 }
 
-func fetchAttestationTime(attestationTimeLog string) (isDelayed bool, duration time.Duration, err error) {
+func (s *Service) fetchAttestationTime(attestationTimeLog string) (isDelayed bool, duration time.Duration, err error) {
 	var attestationDuration time.Duration
 
 	if strings.Contains(attestationTimeLog, "ms") {
@@ -105,7 +106,7 @@ func fetchAttestationTime(attestationTimeLog string) (isDelayed bool, duration t
 	if attestationDuration != 0 {
 		duration = attestationDuration
 
-		if attestationDuration > attestationDelay {
+		if attestationDuration > s.delay {
 			isDelayed = true
 		}
 	}

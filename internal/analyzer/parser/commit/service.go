@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -14,40 +13,41 @@ import (
 )
 
 const (
-	commitMsg = "got commit message"
+	proposeMsg = "leader broadcasting proposal message"
+	commitMsg  = "got commit message"
 )
-
-var rankScores = []int{5, 4, 3, 2, 1, 0}
 
 type (
 	Stats struct {
-		Score int
-		Delay time.Duration
+		Count uint16
+		DelayAvg,
+		DelayHighest time.Duration
+		Delayed    map[time.Duration]uint16
+		DelayTotal time.Duration
 	}
 
 	Service struct {
-		logFile   *os.File
-		operators []uint32
-		cluster   bool
+		logFile *os.File
+		delay   time.Duration
 	}
 )
 
-func New(logFilePath string, operators []uint32, cluster bool) (*Service, error) {
+func New(logFilePath string, delay time.Duration) (*Service, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to open log file"))
 	}
 	return &Service{
-		logFile:   file,
-		operators: operators,
-		cluster:   cluster,
+		logFile: file,
+		delay:   delay,
 	}, nil
 }
 
-func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
-	defer c.logFile.Close()
-	scanner := bufio.NewScanner(c.logFile)
+func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
+	defer s.logFile.Close()
+	scanner := bufio.NewScanner(s.logFile)
 
+	proposeTime := make(map[parser.DutyID]time.Time)
 	commitTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
 
 	for scanner.Scan() {
@@ -57,12 +57,17 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 			return nil, err
 		}
 
+		if strings.Contains(entry.Message, proposeMsg) {
+			proposeTime[entry.DutyID] = entry.Timestamp.Time
+		}
+
 		if strings.Contains(entry.Message, commitMsg) && entry.Round == 1 {
 			if _, exists := commitTimes[entry.DutyID]; !exists {
 				commitTimes[entry.DutyID] = make(map[parser.SignerID]time.Time)
 			}
 
 			// Record the earliest time for each signer
+			// Can same signer submit commit message more than once per duty?
 			if existingTime, exists := commitTimes[entry.DutyID][entry.CommitSigners[0]]; !exists || entry.Timestamp.Before(existingTime) {
 				commitTimes[entry.DutyID][entry.CommitSigners[0]] = entry.Timestamp.Time
 			}
@@ -73,63 +78,46 @@ func (c *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		return nil, err
 	}
 
+	totalDelay := make(map[parser.SignerID]time.Duration)
+	highestDelay := make(map[parser.SignerID]time.Duration)
+	delayed := make(map[parser.SignerID]map[time.Duration]uint16)
+	count := make(map[parser.SignerID]uint16)
+
 	stats := make(map[parser.SignerID]Stats)
 
-	for _, signers := range commitTimes {
-		if c.cluster && len(c.operators) != 0 {
-			if !parser.IsCluster(c.operators, signers) {
-				continue
+	for dutyID, signers := range commitTimes {
+		dutyProposeTime, exist := proposeTime[dutyID]
+		if !exist {
+			continue
+		}
+
+		for signerID, commitTime := range signers {
+			stats[signerID] = Stats{}
+			totalDelay[signerID] += commitTime.Sub(dutyProposeTime)
+			count[signerID]++
+
+			delay := commitTime.Sub(dutyProposeTime)
+			if delay > highestDelay[signerID] {
+				highestDelay[signerID] = commitTime.Sub(dutyProposeTime)
+			}
+
+			if delayed[signerID] == nil {
+				delayed[signerID] = map[time.Duration]uint16{s.delay: 0}
+			}
+			if delay > s.delay {
+				delayed[signerID][s.delay]++
 			}
 		}
+	}
 
-		type signerPerformance struct {
-			signer   parser.SignerID
-			earliest time.Time
-		}
+	for signerID, signerStats := range stats {
+		signerStats.Count = count[signerID]
+		signerStats.Delayed = delayed[signerID]
+		signerStats.DelayHighest = highestDelay[signerID]
+		signerStats.DelayTotal = totalDelay[signerID]
+		signerStats.DelayAvg = signerStats.DelayTotal / time.Duration(signerStats.Count)
 
-		var performances []signerPerformance
-
-		for signer, earliestTime := range signers {
-			performances = append(performances, signerPerformance{
-				signer:   signer,
-				earliest: earliestTime,
-			})
-		}
-
-		// Sort by earliest time, the earlier the better
-		sort.Slice(performances, func(i, j int) bool {
-			return performances[i].earliest.Before(performances[j].earliest)
-		})
-
-		// Assign scores and calculate delays
-		if len(performances) > 0 {
-			firstTime := performances[0].earliest
-
-			for rank, performance := range performances {
-				var isOperator bool
-				if len(c.operators) != 0 {
-					for _, operatorID := range c.operators {
-						if performance.signer == operatorID {
-							isOperator = true
-							break
-						}
-					}
-				} else {
-					isOperator = true
-				}
-
-				if isOperator {
-					if rank < len(rankScores) {
-						stats[performance.signer] = Stats{
-							Score: stats[performance.signer].Score + rankScores[rank],
-							// The commit delay of the operator 'Foo' is calculated in this way (per duty):
-							// (commit time of the fastest operator in the duty) - (commit time of the operator 'Foo')
-							Delay: stats[performance.signer].Delay + performance.earliest.Sub(firstTime),
-						}
-					}
-				}
-			}
-		}
+		stats[signerID] = signerStats
 	}
 
 	return stats, nil
