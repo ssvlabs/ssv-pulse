@@ -22,8 +22,8 @@ type (
 		Count uint16
 		DelayAvg,
 		DelayHighest time.Duration
-		Delayed    map[time.Duration]uint16
-		DelayTotal time.Duration
+		DelayedPercent map[time.Duration]float32
+		DelayTotal     time.Duration
 	}
 
 	Service struct {
@@ -112,7 +112,12 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 
 	for signerID, signerStats := range stats {
 		signerStats.Count = count[signerID]
-		signerStats.Delayed = delayed[signerID]
+		_, ok := signerStats.DelayedPercent[s.delay]
+		if !ok {
+			signerStats.DelayedPercent = make(map[time.Duration]float32)
+		}
+
+		signerStats.DelayedPercent[s.delay] = float32(delayed[signerID][s.delay]) / float32(count[signerID]) * 100
 		signerStats.DelayHighest = highestDelay[signerID]
 		signerStats.DelayTotal = totalDelay[signerID]
 		signerStats.DelayAvg = signerStats.DelayTotal / time.Duration(signerStats.Count)

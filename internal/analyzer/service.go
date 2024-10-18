@@ -47,8 +47,8 @@ type (
 		CommitTotalDelay,
 		CommitDelayAvg,
 		CommitDelayHighest time.Duration
-		CommitDelayCount map[time.Duration]uint16
-		CommitCount      uint16
+		CommitDelayPercent map[time.Duration]float32
+		CommitCount        uint16
 
 		ConsensusClientResponseTimeAvg,
 		ConsensusClientResponseTimeP10,
@@ -136,7 +136,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 			CommitTotalDelay:   commitStats[operatorID].DelayTotal,
 			CommitDelayAvg:     commitStats[operatorID].DelayAvg,
 			CommitDelayHighest: commitStats[operatorID].DelayHighest,
-			CommitDelayCount:   commitStats[operatorID].Delayed,
+			CommitDelayPercent: commitStats[operatorID].DelayedPercent,
 			CommitCount:        commitStats[operatorID].Count,
 
 			PrepareDelayAvg:     prepareStats[operatorID].DelayAvg,

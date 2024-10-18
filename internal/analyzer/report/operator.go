@@ -34,8 +34,8 @@ type OperatorRecord struct {
 	CommitDelayTotal,
 	CommitDelayAvg,
 	CommitDelayHighest time.Duration
-	CommitDelayed    map[time.Duration]uint16
-	CommitTotalCount uint16
+	CommitDelayPercent map[time.Duration]float32
+	CommitTotalCount   uint16
 
 	PrepareDelayAvg,
 	PrepareDelayHighest time.Duration
@@ -85,8 +85,8 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		delayedPrepare = append(delayedPrepare, fmt.Sprintf("%s: %d\n", duration.String(), value))
 	}
 
-	for duration, value := range record.CommitDelayed {
-		delayedCommit = append(delayedCommit, fmt.Sprintf("%s: %d\n", duration.String(), value))
+	for duration, value := range record.CommitDelayPercent {
+		delayedCommit = append(delayedCommit, fmt.Sprintf("%s: %.2f%% \n", duration.String(), value))
 	}
 
 	r.t.AddRow(
