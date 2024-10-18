@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 var Values Config
@@ -30,5 +31,5 @@ func sanitizeURL(str string) (string, error) {
 		return "", validationErr
 	}
 
-	return fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host), nil
+	return strings.TrimSuffix(fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, parsedURL.EscapedPath()), "/"), nil
 }
