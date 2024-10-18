@@ -10,6 +10,8 @@ The `analyzer` feature allows for evaluating the health of an SSV client by anal
 CLI `flags` or `config.yaml` file.
 
 ## Docker
+Example of a Docker command. It assumes that the log files are stored on the local machine in the `/path/to/local/dir` directory.
+
 ```bash
 docker run -v /path/to/local/dir:/path/in/container ghcr.io/ssvlabs/ssv-pulse:latest analyzer --log-files-directory=/path/in/container
 ```
