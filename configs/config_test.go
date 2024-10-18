@@ -11,9 +11,15 @@ func TestSanitizeURL(t *testing.T) {
 		wantErr                   bool
 	}{
 		{
-			name:    "Valid URL with http",
+			name:    "Remove query parameters",
 			input:   "http://example.com/path?query=123",
-			want:    "http://example.com",
+			want:    "http://example.com/path",
+			wantErr: false,
+		},
+		{
+			name:    "Keep URL path",
+			input:   "http://example.com/path/",
+			want:    "http://example.com/path",
 			wantErr: false,
 		},
 		{
@@ -30,7 +36,7 @@ func TestSanitizeURL(t *testing.T) {
 			errMsg:  "scheme was empty",
 		},
 		{
-			name:    "URL with no scheme",
+			name:    "Remove trailing slash",
 			input:   "http://example.com/",
 			want:    "http://example.com",
 			wantErr: false,
