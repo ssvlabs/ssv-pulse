@@ -130,7 +130,8 @@ var CMD = &cobra.Command{
 					commitAvgTotal := make(map[uint32]time.Duration)
 					commitAvgRecordCount := make(map[uint32]uint32)
 					commitDelayHighest := make(map[uint32]time.Duration)
-					commitDelayed := make(map[uint32]map[time.Duration]uint16)
+					commitDelayedPercentTotal := make(map[uint32]map[time.Duration]float32)
+					commitDelayedRecordCount := make(map[uint32]map[time.Duration]uint16)
 
 					prepareAvgTotal := make(map[uint32]time.Duration)
 					prepareAvgRecordCount := make(map[uint32]uint32)
@@ -166,12 +167,17 @@ var CMD = &cobra.Command{
 						consensusAvgTotal[record.OperatorID] += record.ConsensusTimeAvg
 						consensusAvgRecordCount[record.OperatorID]++
 
-						for delay, count := range record.CommitDelayed {
-							_, ok := commitDelayed[record.OperatorID][delay]
+						for delay, percent := range record.CommitDelayPercent {
+							_, ok := commitDelayedPercentTotal[record.OperatorID][delay]
 							if !ok {
-								commitDelayed[record.OperatorID] = make(map[time.Duration]uint16)
+								commitDelayedPercentTotal[record.OperatorID] = make(map[time.Duration]float32)
 							}
-							commitDelayed[record.OperatorID][delay] += count
+							_, ok = commitDelayedRecordCount[record.OperatorID][delay]
+							if !ok {
+								commitDelayedRecordCount[record.OperatorID] = make(map[time.Duration]uint16)
+							}
+							commitDelayedPercentTotal[record.OperatorID][delay] += percent
+							commitDelayedRecordCount[record.OperatorID][delay]++
 						}
 
 						for delay, count := range record.PrepareDelayed {
@@ -186,7 +192,14 @@ var CMD = &cobra.Command{
 					for operatorID, record := range operatorStats {
 						record.CommitDelayAvg = commitAvgTotal[operatorID] / time.Duration(commitAvgRecordCount[operatorID])
 						record.CommitDelayHighest = commitDelayHighest[operatorID]
-						record.CommitDelayed = commitDelayed[operatorID]
+
+						for delayDuration, percentSum := range commitDelayedPercentTotal[operatorID] {
+							_, ok := record.CommitDelayPercent[delayDuration]
+							if !ok {
+								record.CommitDelayPercent = make(map[time.Duration]float32)
+							}
+							record.CommitDelayPercent[delayDuration] = percentSum / float32(commitDelayedRecordCount[operatorID][delayDuration])
+						}
 
 						record.PrepareDelayAvg = prepareAvgTotal[operatorID] / time.Duration(prepareAvgRecordCount[operatorID])
 						record.PrepareDelayHighest = prepareDelayHighest[operatorID]
@@ -336,7 +349,7 @@ func analyzeFile(
 			CommitDelayTotal:   r.CommitTotalDelay,
 			CommitDelayAvg:     r.CommitDelayAvg,
 			CommitDelayHighest: r.CommitDelayHighest,
-			CommitDelayed:      r.CommitDelayCount,
+			CommitDelayPercent: r.CommitDelayPercent,
 			CommitTotalCount:   r.CommitCount,
 
 			PrepareDelayAvg:     r.PrepareDelayAvg,
