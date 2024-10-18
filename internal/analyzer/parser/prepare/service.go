@@ -19,10 +19,10 @@ const (
 
 type (
 	Stats struct {
-		Count        uint16
-		DelayAvg     time.Duration
-		DelayHighest time.Duration
-		Delayed      map[time.Duration]uint16
+		Count          uint16
+		DelayAvg       time.Duration
+		DelayHighest   time.Duration
+		DelayedPercent map[time.Duration]float32
 	}
 
 	Service struct {
@@ -112,10 +112,10 @@ func (s *Service) calcPrepareTimes(leaderProposeTime map[parser.DutyID]time.Time
 			averageTimePrepareMessage[signer] = time.Duration(totalTimePrepareMessage[signer].Nanoseconds() / int64(prepareMessageCount[signer]))
 
 			prepareStats[signer] = Stats{
-				Count:        prepareMessageCount[signer],
-				DelayAvg:     averageTimePrepareMessage[signer],
-				DelayHighest: highestTimePrepareMessage[signer],
-				Delayed:      map[time.Duration]uint16{s.delay: prepareDelayedMessageCount[signer]},
+				Count:          prepareMessageCount[signer],
+				DelayAvg:       averageTimePrepareMessage[signer],
+				DelayHighest:   highestTimePrepareMessage[signer],
+				DelayedPercent: map[time.Duration]float32{s.delay: float32(prepareDelayedMessageCount[signer]) / float32(prepareMessageCount[signer]) * 100},
 			}
 		}
 	}

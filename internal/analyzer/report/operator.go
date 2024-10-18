@@ -13,7 +13,6 @@ var operatorHeaders = []string{
 	"Operator",
 	"Clusters",
 
-	"Commit: \n total delay",
 	"Commit: \n delay avg",
 	"Commit: \n delay highest",
 	"Commit: \n delayed",
@@ -31,7 +30,6 @@ type OperatorRecord struct {
 	Clusters       [][]uint32
 	IsLogFileOwner bool
 
-	CommitDelayTotal,
 	CommitDelayAvg,
 	CommitDelayHighest time.Duration
 	CommitDelayPercent map[time.Duration]float32
@@ -39,8 +37,8 @@ type OperatorRecord struct {
 
 	PrepareDelayAvg,
 	PrepareDelayHighest time.Duration
-	PrepareDelayed    map[time.Duration]uint16
-	PrepareTotalCount uint16
+	PrepareDelayPercent map[time.Duration]float32
+	PrepareTotalCount   uint16
 
 	ConsensusTimeAvg time.Duration
 }
@@ -81,8 +79,8 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		clusterReportItem = fmt.Sprint(record.Clusters)
 	}
 
-	for duration, value := range record.PrepareDelayed {
-		delayedPrepare = append(delayedPrepare, fmt.Sprintf("%s: %d\n", duration.String(), value))
+	for duration, value := range record.PrepareDelayPercent {
+		delayedPrepare = append(delayedCommit, fmt.Sprintf("%s: %.2f%% \n", duration.String(), value))
 	}
 
 	for duration, value := range record.CommitDelayPercent {
@@ -92,7 +90,6 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 	r.t.AddRow(
 		operatorID,
 		clusterReportItem,
-		record.CommitDelayTotal.String(),
 		record.CommitDelayAvg.String(),
 		record.CommitDelayHighest.String(),
 		strings.Join(delayedCommit, "\n"),
