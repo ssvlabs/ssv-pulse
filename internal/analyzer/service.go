@@ -58,8 +58,8 @@ type (
 
 		PrepareDelayAvg,
 		PrepareDelayHighest time.Duration
-		PrepareDelayCount map[time.Duration]uint16
-		PrepareCount      uint16
+		PrepareDelayPercent map[time.Duration]float32
+		PrepareCount        uint16
 
 		ConsensusTimeAvg time.Duration
 
@@ -141,7 +141,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 
 			PrepareDelayAvg:     prepareStats[operatorID].DelayAvg,
 			PrepareDelayHighest: prepareStats[operatorID].DelayHighest,
-			PrepareDelayCount:   prepareStats[operatorID].Delayed,
+			PrepareDelayPercent: prepareStats[operatorID].DelayedPercent,
 			PrepareCount:        prepareStats[operatorID].Count,
 
 			ConsensusTimeAvg: consensusStats[operatorID].ConsensusTimeAvg,

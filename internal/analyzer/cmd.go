@@ -136,7 +136,8 @@ var CMD = &cobra.Command{
 					prepareAvgTotal := make(map[uint32]time.Duration)
 					prepareAvgRecordCount := make(map[uint32]uint32)
 					prepareDelayHighest := make(map[uint32]time.Duration)
-					prepareDelayed := make(map[uint32]map[time.Duration]uint16)
+					prepareDelayedPercentTotal := make(map[uint32]map[time.Duration]float32)
+					prepareDelayedRecordCount := make(map[uint32]map[time.Duration]uint16)
 
 					consensusAvgTotal := make(map[uint32]time.Duration)
 					consensusAvgRecordCount := make(map[uint32]uint32)
@@ -146,7 +147,6 @@ var CMD = &cobra.Command{
 							OperatorID:        record.OperatorID,
 							Clusters:          record.Clusters,
 							IsLogFileOwner:    record.IsLogFileOwner,
-							CommitDelayTotal:  operatorStats[record.OperatorID].CommitDelayTotal + record.CommitDelayTotal,
 							CommitTotalCount:  operatorStats[record.OperatorID].CommitTotalCount + record.CommitTotalCount,
 							PrepareTotalCount: operatorStats[record.OperatorID].PrepareTotalCount + record.PrepareTotalCount,
 						}
@@ -176,16 +176,22 @@ var CMD = &cobra.Command{
 							if !ok {
 								commitDelayedRecordCount[record.OperatorID] = make(map[time.Duration]uint16)
 							}
+
 							commitDelayedPercentTotal[record.OperatorID][delay] += percent
 							commitDelayedRecordCount[record.OperatorID][delay]++
 						}
 
-						for delay, count := range record.PrepareDelayed {
-							_, ok := prepareDelayed[record.OperatorID][delay]
+						for delay, percent := range record.PrepareDelayPercent {
+							_, ok := prepareDelayedPercentTotal[record.OperatorID][delay]
 							if !ok {
-								prepareDelayed[record.OperatorID] = make(map[time.Duration]uint16)
+								prepareDelayedPercentTotal[record.OperatorID] = make(map[time.Duration]float32)
 							}
-							prepareDelayed[record.OperatorID][delay] += count
+							_, ok = prepareDelayedRecordCount[record.OperatorID][delay]
+							if !ok {
+								prepareDelayedRecordCount[record.OperatorID] = make(map[time.Duration]uint16)
+							}
+							prepareDelayedPercentTotal[record.OperatorID][delay] += percent
+							prepareDelayedRecordCount[record.OperatorID][delay]++
 						}
 					}
 
@@ -203,7 +209,14 @@ var CMD = &cobra.Command{
 
 						record.PrepareDelayAvg = prepareAvgTotal[operatorID] / time.Duration(prepareAvgRecordCount[operatorID])
 						record.PrepareDelayHighest = prepareDelayHighest[operatorID]
-						record.PrepareDelayed = prepareDelayed[operatorID]
+
+						for delayDuration, percentSum := range prepareDelayedPercentTotal[operatorID] {
+							_, ok := record.PrepareDelayPercent[delayDuration]
+							if !ok {
+								record.PrepareDelayPercent = make(map[time.Duration]float32)
+							}
+							record.PrepareDelayPercent[delayDuration] = percentSum / float32(prepareDelayedRecordCount[operatorID][delayDuration])
+						}
 
 						record.ConsensusTimeAvg = consensusAvgTotal[operatorID] / time.Duration(consensusAvgRecordCount[operatorID])
 
@@ -346,7 +359,6 @@ func analyzeFile(
 			Clusters:       r.Clusters,
 			IsLogFileOwner: r.IsLogFileOwner,
 
-			CommitDelayTotal:   r.CommitTotalDelay,
 			CommitDelayAvg:     r.CommitDelayAvg,
 			CommitDelayHighest: r.CommitDelayHighest,
 			CommitDelayPercent: r.CommitDelayPercent,
@@ -354,7 +366,7 @@ func analyzeFile(
 
 			PrepareDelayAvg:     r.PrepareDelayAvg,
 			PrepareDelayHighest: r.PrepareDelayHighest,
-			PrepareDelayed:      r.PrepareDelayCount,
+			PrepareDelayPercent: r.PrepareDelayPercent,
 			PrepareTotalCount:   r.PrepareCount,
 
 			ConsensusTimeAvg: r.ConsensusTimeAvg,
