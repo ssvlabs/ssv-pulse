@@ -3,7 +3,6 @@ package configs
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/ssvlabs/ssv-pulse/internal/ssv"
 )
@@ -17,9 +16,6 @@ type Analyzer struct {
 func (a Analyzer) Validate() (bool, error) {
 	if a.LogFilesDirectory == "" {
 		return false, errors.New("❕ 'log files directory' was not set in configuration")
-	}
-	if strings.Contains(a.LogFilesDirectory, "../") {
-		return false, errors.New("❕ 'log files directory' configuration should not contain traversal")
 	}
 
 	if a.Cluster && len(a.Operators) == 0 {
