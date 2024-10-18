@@ -16,14 +16,14 @@ type Analyzer struct {
 
 func (a Analyzer) Validate() (bool, error) {
 	if a.LogFilesDirectory == "" {
-		return false, errors.New("❕ log files directory flag was not set")
+		return false, errors.New("❕ 'log files directory' was not set in configuration")
 	}
 	if strings.Contains(a.LogFilesDirectory, "../") {
-		return false, errors.New("❕ flag should not contain traversal")
+		return false, errors.New("❕ 'log files directory' configuration should not contain traversal")
 	}
 
 	if a.Cluster && len(a.Operators) == 0 {
-		return false, errors.New("❕ if cluster is set to 'true', the list of operators cannot be empty")
+		return false, errors.New("❕ if cluster is set to 'true', the list of 'operators' configuration cannot be empty")
 	}
 
 	if a.Cluster {
