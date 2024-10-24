@@ -17,6 +17,8 @@ import (
 const (
 	proposalMsg      = "📢 got proposal, broadcasting prepare message"
 	savedInstanceMsg = "💾 saved instance upon decided"
+
+	parserName = "operator"
 )
 
 type (
@@ -92,7 +94,12 @@ func (s *Service) Analyze() (Stats, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.With("err", err).Error("error reading log file")
+		slog.
+			With("err", err).
+			With("parserName", parserName).
+			With("fileName", s.logFile.Name()).
+			Error("error reading log file")
+
 		return stats, err
 	}
 

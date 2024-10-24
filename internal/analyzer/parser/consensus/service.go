@@ -16,6 +16,8 @@ import (
 const (
 	partialSignatureLogRecord      = "🧩 reconstructed partial signatures"
 	attestationSubmissionLogRecord = "✅ successfully submitted attestation"
+
+	parserName = "consensus"
 )
 
 type (
@@ -103,8 +105,11 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		slog.With("err", err).Error("error reading log file")
-		return stats, err
+		slog.
+			With("err", err).
+			With("parserName", parserName).
+			With("fileName", s.logFile.Name()).
+			Error("error reading log file")
 	}
 
 	signerConsensusTimes := make(map[parser.SignerID][]time.Duration)
