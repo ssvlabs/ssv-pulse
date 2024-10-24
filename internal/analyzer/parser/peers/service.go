@@ -65,7 +65,7 @@ func New(logFilePath string) (*Service, error) {
 
 func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
-	scanner := bufio.NewScanner(s.logFile)
+	scanner := parser.NewScanner(s.logFile)
 
 	var (
 		stats                 Stats
@@ -110,13 +110,18 @@ func (s *Service) Analyze() (Stats, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.
-			With("err", err).
+		logger := slog.
 			With("parserName", parserName).
-			With("fileName", s.logFile.Name()).
-			Error("error reading log file")
+			With("fileName", s.logFile.Name())
+		if err == bufio.ErrTooLong {
+			logger.Warn("the log line was too long, continue reading..")
+		} else {
+			logger.
+				With("err", err).
+				Error("error reading log file")
 
-		return stats, err
+			return stats, err
+		}
 	}
 
 	distinctClientVersions := array.CollectDistinct(nodeClientVersions)

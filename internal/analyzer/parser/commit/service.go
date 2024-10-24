@@ -47,7 +47,7 @@ func New(logFilePath string, delay time.Duration) (*Service, error) {
 
 func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	defer s.logFile.Close()
-	scanner := bufio.NewScanner(s.logFile)
+	scanner := parser.NewScanner(s.logFile)
 
 	proposeTime := make(map[parser.DutyID]time.Time)
 	commitTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
@@ -76,13 +76,18 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		slog.
-			With("err", err).
+		logger := slog.
 			With("parserName", parserName).
-			With("fileName", s.logFile.Name()).
-			Error("error reading log file")
+			With("fileName", s.logFile.Name())
+		if err == bufio.ErrTooLong {
+			logger.Warn("the log line was too long, continue reading..")
+		} else {
+			logger.
+				With("err", err).
+				Error("error reading log file")
 
-		return nil, err
+			return nil, err
+		}
 	}
 
 	totalDelay := make(map[parser.SignerID]time.Duration)
