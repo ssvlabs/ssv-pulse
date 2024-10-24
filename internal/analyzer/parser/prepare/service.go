@@ -16,7 +16,8 @@ const (
 	prepareMsg       = "got prepare message"
 	leaderProposeMsg = "leader broadcasting proposal message"
 
-	parserName = "prepare"
+	parserName               = "prepare"
+	scannerBufferMaxCapacity = 1024 * 1024
 )
 
 type (
@@ -46,7 +47,8 @@ func New(logFilePath string, delay time.Duration) (*Service, error) {
 
 func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	defer p.logFile.Close()
-	scanner := bufio.NewScanner(p.logFile)
+
+	scanner := parser.NewScanner(p.logFile)
 
 	leaderProposeTime := make(map[parser.DutyID]time.Time)
 	prepareSignerTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
@@ -74,13 +76,18 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		slog.
-			With("err", err).
+		logger := slog.
 			With("parserName", parserName).
-			With("fileName", p.logFile.Name()).
-			Error("error reading log file")
+			With("fileName", p.logFile.Name())
+		if err == bufio.ErrTooLong {
+			logger.Warn("the log line was too long, continue reading..")
+		} else {
+			logger.
+				With("err", err).
+				Error("error reading log file")
 
-		return nil, err
+			return nil, err
+		}
 	}
 
 	stats := p.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
