@@ -15,6 +15,8 @@ import (
 const (
 	prepareMsg       = "got prepare message"
 	leaderProposeMsg = "leader broadcasting proposal message"
+
+	parserName = "prepare"
 )
 
 type (
@@ -72,7 +74,12 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		slog.With("err", err).Error("error reading log file")
+		slog.
+			With("err", err).
+			With("parserName", parserName).
+			With("fileName", p.logFile.Name()).
+			Error("error reading log file")
+
 		return nil, err
 	}
 
