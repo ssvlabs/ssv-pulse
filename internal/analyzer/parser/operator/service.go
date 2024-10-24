@@ -17,6 +17,8 @@ import (
 const (
 	proposalMsg      = "📢 got proposal, broadcasting prepare message"
 	savedInstanceMsg = "💾 saved instance upon decided"
+
+	parserName = "operator"
 )
 
 type (
@@ -42,7 +44,7 @@ func New(logFilePath string) (*Service, error) {
 
 func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
-	scanner := bufio.NewScanner(s.logFile)
+	scanner := parser.NewScanner(s.logFile)
 	var (
 		stats Stats = Stats{
 			Clusters: make(map[parser.SignerID][][]uint32),
@@ -92,8 +94,18 @@ func (s *Service) Analyze() (Stats, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.With("err", err).Error("error reading log file")
-		return stats, err
+		logger := slog.
+			With("parserName", parserName).
+			With("fileName", s.logFile.Name())
+		if err == bufio.ErrTooLong {
+			logger.Warn("the log line was too long, continue reading..")
+		} else {
+			logger.
+				With("err", err).
+				Error("error reading log file")
+
+			return stats, err
+		}
 	}
 
 	stats.Clusters[stats.Owner] = clusters

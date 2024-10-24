@@ -16,6 +16,8 @@ import (
 const (
 	partialSignatureLogRecord      = "🧩 reconstructed partial signatures"
 	attestationSubmissionLogRecord = "✅ successfully submitted attestation"
+
+	parserName = "consensus"
 )
 
 type (
@@ -49,7 +51,7 @@ func New(logFilePath string) (*Service, error) {
 
 func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	defer s.logFile.Close()
-	scanner := bufio.NewScanner(s.logFile)
+	scanner := parser.NewScanner(s.logFile)
 
 	var (
 		stats                          map[parser.SignerID]Stats = make(map[uint32]Stats)
@@ -103,8 +105,18 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		slog.With("err", err).Error("error reading log file")
-		return stats, err
+		logger := slog.
+			With("parserName", parserName).
+			With("fileName", s.logFile.Name())
+		if err == bufio.ErrTooLong {
+			logger.Warn("the log line was too long, continue reading..")
+		} else {
+			logger.
+				With("err", err).
+				Error("error reading log file")
+
+			return stats, err
+		}
 	}
 
 	signerConsensusTimes := make(map[parser.SignerID][]time.Duration)
