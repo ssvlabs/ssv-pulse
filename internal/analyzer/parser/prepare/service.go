@@ -16,8 +16,7 @@ const (
 	prepareMsg       = "got prepare message"
 	leaderProposeMsg = "leader broadcasting proposal message"
 
-	parserName               = "prepare"
-	scannerBufferMaxCapacity = 1024 * 1024
+	parserName = "prepare"
 )
 
 type (
