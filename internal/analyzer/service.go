@@ -56,6 +56,10 @@ type (
 		ConsensusClientResponseTimeP90 time.Duration
 		ConsensusClientResponseTimeDelayPercent map[time.Duration]float32
 
+		SSVClientCrashesTotal,
+		SSVClientELUnhealthy,
+		SSVClientCLUnhealthy uint16
+
 		PrepareDelayAvg,
 		PrepareDelayHighest time.Duration
 		PrepareDelayPercent map[time.Duration]float32
@@ -156,6 +160,9 @@ func (s *Service) Start() (AnalyzerResult, error) {
 			opStats.ConsensusClientResponseTimeP10 = clientStats.ConsensusClientResponseTimeP10
 			opStats.ConsensusClientResponseTimeP50 = clientStats.ConsensusClientResponseTimeP50
 			opStats.ConsensusClientResponseTimeP90 = clientStats.ConsensusClientResponseTimeP90
+			opStats.SSVClientCrashesTotal = clientStats.SSVClientCrashesTotal
+			opStats.SSVClientCLUnhealthy = clientStats.SSVClientCLUnhealthy
+			opStats.SSVClientELUnhealthy = clientStats.SSVClientELUnhealthy
 
 			opStats.PeersCountAvg = peerStats.PeerCountAvg
 			opStats.PeerSSVClientVersions = peerStats.PeerSSVClientVersions

@@ -3,20 +3,27 @@ package report
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/aquasecurity/table"
 )
 
-var clientHeaders = []string{
-	"Operator",
-	"Consensus Client Response Time: avg",
-	"Consensus Client Response Time: P10",
-	"Consensus Client Response Time: P50",
-	"Consensus Client Response Time: P90",
-	"Consensus Client Response Time: delayed",
-}
+var (
+	consensusClientHeaders = []string{
+		"Operator",
+		"Response Time: \n avg",
+		"Response Time: \n P10",
+		"Response Time: \n P50",
+		"Response Time: \n P90",
+		"Response Time: \n delayed",
+	}
+
+	ssvClientHeaders = []string{
+		"Crashes(reason: unhealthy EL/CL): \n total(EL/CL)",
+	}
+)
 
 type ClientRecord struct {
 	OperatorID uint32
@@ -25,6 +32,10 @@ type ClientRecord struct {
 	ConsensusClientResponseTimeP90,
 	ConsensusClientResponseTimeAvg time.Duration
 	ConsensusClientResponseTimeDelayPercent map[time.Duration]float32
+
+	SSVClientCrashesTotal,
+	SSVClientELUnhealthy,
+	SSVClientCLUnhealthy uint16
 }
 
 type ClientReport struct {
@@ -35,13 +46,14 @@ type ClientReport struct {
 func NewClient() *ClientReport {
 	t := table.New(os.Stdout)
 
-	t.SetHeaders("Consensus Client Performance")
-	t.AddHeaders(clientHeaders...)
+	headers := slices.Concat(consensusClientHeaders, ssvClientHeaders)
+	t.SetHeaders("Consensus Client Performance", "SSV Client Performance")
+	t.AddHeaders(headers...)
 	t.SetAutoMerge(true)
-	t.SetHeaderColSpans(0, len(clientHeaders))
+	t.SetHeaderColSpans(0, len(consensusClientHeaders), len(ssvClientHeaders))
 
 	var alignments []table.Alignment
-	for i := 0; i < len(clientHeaders); i++ {
+	for i := 0; i < len(headers); i++ {
 		alignments = append(alignments, table.AlignCenter)
 	}
 	t.SetAlignment(alignments...)
@@ -63,7 +75,11 @@ func (c *ClientReport) Render() {
 		consensusClientResponseTimeP10Total,
 		consensusClientResponseTimeP50Total,
 		consensusClientResponseTimeP90Total time.Duration
-		consensusClientResponseTimeRecordCount uint16
+		consensusClientResponseTimeRecordCount,
+
+		ssvClientCrashesTotal,
+		SSVClientELUnhealthyTotal,
+		SSVClientCLUnhealthyTotal uint16
 	}
 
 	consensusClientAggregates := make(map[uint32]consensusClientRecordAggregate)
@@ -89,6 +105,9 @@ func (c *ClientReport) Render() {
 		aggregate.consensusClientResponseTimeP50Total += record.ConsensusClientResponseTimeP50
 		aggregate.consensusClientResponseTimeP90Total += record.ConsensusClientResponseTimeP90
 		aggregate.consensusClientResponseTimeRecordCount++
+		aggregate.ssvClientCrashesTotal += record.SSVClientCrashesTotal
+		aggregate.SSVClientCLUnhealthyTotal += record.SSVClientCLUnhealthy
+		aggregate.SSVClientELUnhealthyTotal += record.SSVClientELUnhealthy
 
 		consensusClientAggregates[record.OperatorID] = aggregate
 	}
@@ -106,6 +125,7 @@ func (c *ClientReport) Render() {
 			fmt.Sprint(record.consensusClientResponseTimeP50Total/time.Duration(record.consensusClientResponseTimeRecordCount)),
 			fmt.Sprint(record.consensusClientResponseTimeP90Total/time.Duration(record.consensusClientResponseTimeRecordCount)),
 			strings.Join(delayedResponses, "\n"),
+			fmt.Sprintf("%d(%d/%d)", record.ssvClientCrashesTotal, record.SSVClientELUnhealthyTotal, record.SSVClientCLUnhealthyTotal),
 		)
 	}
 

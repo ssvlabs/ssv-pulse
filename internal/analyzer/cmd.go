@@ -352,6 +352,10 @@ func analyzeFile(
 				ConsensusClientResponseTimeP10:          r.ConsensusClientResponseTimeP10,
 				ConsensusClientResponseTimeP50:          r.ConsensusClientResponseTimeP50,
 				ConsensusClientResponseTimeP90:          r.ConsensusClientResponseTimeP90,
+
+				SSVClientCrashesTotal: r.SSVClientCrashesTotal,
+				SSVClientELUnhealthy:  r.SSVClientELUnhealthy,
+				SSVClientCLUnhealthy:  r.SSVClientCLUnhealthy,
 			}
 		}
 		operatorRecords = append(operatorRecords, report.OperatorRecord{
