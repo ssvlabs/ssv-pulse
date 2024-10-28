@@ -15,15 +15,18 @@ import (
 )
 
 const (
-	attestationMsg = "starting QBFT instance"
+	attestationMsg    = "starting QBFT instance"
+	nodesUnhealthyMsg = "ethereum node(s) are either out of sync or down. Ensure the nodes are healthy to resume."
+	nodeUnhealthyMsg  = "node is not healthy"
 
 	parserName = "client"
 )
 
 type (
-	attestationLogEntry struct {
+	clientLogEntry struct {
 		Message         string `json:"M"`
 		AttestationTime string `json:"attestation_data_time"`
+		Node            string `json:"node"`
 	}
 
 	Stats struct {
@@ -32,6 +35,10 @@ type (
 		ConsensusClientResponseTimeP10,
 		ConsensusClientResponseTimeP50,
 		ConsensusClientResponseTimeP90 time.Duration
+
+		SSVClientCrashesTotal,
+		SSVClientELUnhealthy,
+		SSVClientCLUnhealthy uint16
 	}
 
 	Service struct {
@@ -67,7 +74,7 @@ func (s *Service) Analyze() (Stats, error) {
 	)
 
 	for scanner.Scan() {
-		var entry attestationLogEntry
+		var entry clientLogEntry
 		line := scanner.Text()
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
@@ -87,6 +94,21 @@ func (s *Service) Analyze() (Stats, error) {
 				attestationEndpointTotalDelayed[s.delay]++
 			}
 		}
+
+		if strings.Contains(entry.Message, nodesUnhealthyMsg) {
+			stats.SSVClientCrashesTotal++
+		}
+
+		if strings.Contains(entry.Message, nodeUnhealthyMsg) {
+			if strings.EqualFold(entry.Node, "consensus client") {
+				stats.SSVClientCLUnhealthy++
+			} else if strings.EqualFold(entry.Node, "execution client") {
+				stats.SSVClientELUnhealthy++
+			} else {
+				slog.With("name", entry.Node).Warn("could not determine node name")
+			}
+		}
+
 	}
 	if err := scanner.Err(); err != nil {
 		logger := slog.
