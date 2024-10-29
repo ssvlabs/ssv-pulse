@@ -142,6 +142,9 @@ var CMD = &cobra.Command{
 					consensusAvgTotal := make(map[uint32]time.Duration)
 					consensusAvgRecordCount := make(map[uint32]uint32)
 
+					consensusDuplicateBlockRootSubmissionsPercentTotal := make(map[uint32]float32)
+					consensusDuplicateBlockRootSubmissionsPercentRecordCount := make(map[uint32]uint32)
+
 					for _, record := range records {
 						operatorStats[record.OperatorID] = report.OperatorRecord{
 							OperatorID:        record.OperatorID,
@@ -166,6 +169,9 @@ var CMD = &cobra.Command{
 
 						consensusAvgTotal[record.OperatorID] += record.ConsensusTimeAvg
 						consensusAvgRecordCount[record.OperatorID]++
+
+						consensusDuplicateBlockRootSubmissionsPercentTotal[record.OperatorID] += record.ConsensusDuplicateBlockRootSubmissionsPercent
+						consensusDuplicateBlockRootSubmissionsPercentRecordCount[record.OperatorID]++
 
 						for delay, percent := range record.CommitDelayPercent {
 							_, ok := commitDelayedPercentTotal[record.OperatorID][delay]
@@ -219,6 +225,8 @@ var CMD = &cobra.Command{
 						}
 
 						record.ConsensusTimeAvg = consensusAvgTotal[operatorID] / time.Duration(consensusAvgRecordCount[operatorID])
+						record.ConsensusDuplicateBlockRootSubmissionsPercent =
+							consensusDuplicateBlockRootSubmissionsPercentTotal[operatorID] / float32(consensusDuplicateBlockRootSubmissionsPercentRecordCount[operatorID])
 
 						operatorStats[operatorID] = record
 					}
@@ -374,6 +382,7 @@ func analyzeFile(
 			PrepareTotalCount:   r.PrepareCount,
 
 			ConsensusTimeAvg: r.ConsensusTimeAvg,
+			ConsensusDuplicateBlockRootSubmissionsPercent: r.ConsensusDuplicateBlockRootSubmissionsPercent,
 		})
 	}
 

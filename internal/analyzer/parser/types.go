@@ -17,7 +17,9 @@ type (
 		s - slot
 		v - validator index
 	*/
-	DutyID = string
+	DutyID    = string
+	BlockRoot = string
+	Slot      = uint64
 
 	MultiFormatTime struct {
 		time.Time

@@ -32,7 +32,7 @@ type (
 	}
 
 	consensusAnalyzer interface {
-		Analyze() (map[parser.SignerID]consensus.Stats, error)
+		Analyze() (consensus.Stats, error)
 	}
 
 	peersAnalyzer interface {
@@ -65,7 +65,8 @@ type (
 		PrepareDelayPercent map[time.Duration]float32
 		PrepareCount        uint16
 
-		ConsensusTimeAvg time.Duration
+		ConsensusTimeAvg                              time.Duration
+		ConsensusDuplicateBlockRootSubmissionsPercent float32
 
 		PeersCountAvg         parser.Metric[float64]
 		PeerSSVClientVersions []string
@@ -120,7 +121,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 	operatorIDs := array.CollectDistinct(
 		slices.Collect(maps.Keys(commitStats)),
 		slices.Collect(maps.Keys(prepareStats)),
-		slices.Collect(maps.Keys(consensusStats)),
+		slices.Collect(maps.Keys(consensusStats.OperatorStats)),
 	)
 
 	for _, operatorID := range operatorIDs {
@@ -148,7 +149,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 			PrepareDelayPercent: prepareStats[operatorID].DelayedPercent,
 			PrepareCount:        prepareStats[operatorID].Count,
 
-			ConsensusTimeAvg: consensusStats[operatorID].ConsensusTimeAvg,
+			ConsensusTimeAvg: consensusStats.OperatorStats[operatorID].ConsensusTimeAvg,
 		}
 
 		//these metrics are only available for the log file owner
@@ -167,6 +168,8 @@ func (s *Service) Start() (AnalyzerResult, error) {
 			opStats.PeersCountAvg = peerStats.PeerCountAvg
 			opStats.PeerSSVClientVersions = peerStats.PeerSSVClientVersions
 			opStats.PeerID = peerStats.PeerID
+
+			opStats.ConsensusDuplicateBlockRootSubmissionsPercent = consensusStats.DuplicateBlockRootSubmissionsPercent
 		}
 
 		result.OperatorStats = append(result.OperatorStats, opStats)
@@ -178,7 +181,7 @@ func (s *Service) Start() (AnalyzerResult, error) {
 func (r *Service) runAnalyzers() (
 	peers.Stats,
 	operator.Stats,
-	map[parser.SignerID]consensus.Stats,
+	consensus.Stats,
 	map[parser.SignerID]commit.Stats,
 	map[parser.SignerID]prepare.Stats,
 	client.Stats,
@@ -189,7 +192,7 @@ func (r *Service) runAnalyzers() (
 	var (
 		commitStats    map[parser.SignerID]commit.Stats
 		prepareStats   map[parser.SignerID]prepare.Stats
-		consensusStats map[parser.SignerID]consensus.Stats
+		consensusStats consensus.Stats
 		clientStats    client.Stats
 		operatorStats  operator.Stats
 		peersStats     peers.Stats
