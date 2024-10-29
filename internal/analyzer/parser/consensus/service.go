@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,13 +26,21 @@ type (
 		Timestamp     parser.MultiFormatTime `json:"T"`
 		Message       string                 `json:"M"`
 		DutyID        string                 `json:"duty_id"`
+		Slot          uint64                 `json:"slot"`
 		Round         uint8                  `json:"round"`
 		Signers       []parser.SignerID      `json:"signers"`
 		ConsensusTime string                 `json:"consensus_time"`
+		BlockRoot     string                 `json:"block_root,omitempty"`
+	}
+
+	OperatorStats struct {
+		ConsensusTimeAvg time.Duration
 	}
 
 	Stats struct {
-		ConsensusTimeAvg time.Duration
+		OperatorStats                        map[parser.SignerID]OperatorStats
+		DuplicateBlockRootSubmissions        uint32
+		DuplicateBlockRootSubmissionsPercent float32
 	}
 
 	Service struct {
@@ -49,17 +58,20 @@ func New(logFilePath string) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
+func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := parser.NewScanner(s.logFile)
 
 	var (
-		stats                          map[parser.SignerID]Stats = make(map[uint32]Stats)
-		operatorConsensusParticipation                           = make(map[parser.DutyID]struct {
+		stats Stats = Stats{
+			OperatorStats: make(map[uint32]OperatorStats),
+		}
+		operatorConsensusParticipation = make(map[parser.DutyID]struct {
 			Signers   []parser.SignerID
 			Timestamp time.Time
 		})
 		consensusTimes = make(map[parser.DutyID]time.Duration)
+		blockRootSlots = make(map[parser.BlockRoot][]parser.Slot)
 	)
 
 	for scanner.Scan() {
@@ -96,14 +108,28 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 
 		//only consensus times with round 1 are not diluted
-		if strings.Contains(entry.Message, attestationSubmissionLogRecord) && entry.Round == 1 {
-			consensusDuration, err := stringToDuration(entry.ConsensusTime, time.Second)
-			if err != nil {
-				return stats, err
+		if strings.Contains(entry.Message, attestationSubmissionLogRecord) {
+			if entry.Round == 1 {
+				consensusDuration, err := stringToDuration(entry.ConsensusTime, time.Second)
+				if err != nil {
+					return stats, err
+				}
+				consensusTimes[entry.DutyID] = consensusDuration
 			}
-			consensusTimes[entry.DutyID] = consensusDuration
+
+			if entry.BlockRoot != "" {
+				duties, ok := blockRootSlots[entry.BlockRoot]
+				if !ok {
+					blockRootSlots[entry.BlockRoot] = append(blockRootSlots[entry.BlockRoot], entry.Slot)
+				} else {
+					if !slices.Contains(duties, entry.Slot) {
+						blockRootSlots[entry.BlockRoot] = append(blockRootSlots[entry.BlockRoot], entry.Slot)
+					}
+				}
+			}
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
 		logger := slog.
 			With("parserName", parserName).
@@ -120,7 +146,6 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	}
 
 	signerConsensusTimes := make(map[parser.SignerID][]time.Duration)
-
 	for dutyID, signers := range operatorConsensusParticipation {
 		signerConsensusTime, exist := consensusTimes[dutyID]
 		if exist {
@@ -139,11 +164,19 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 
 		if consensusDurationLen > 0 {
-			stats[signerID] = Stats{
+			stats.OperatorStats[signerID] = OperatorStats{
 				ConsensusTimeAvg: consensusDurationsTotal / time.Duration(consensusDurationLen),
 			}
 		}
 	}
+
+	for _, slots := range blockRootSlots {
+		if len(slots) > 1 {
+			stats.DuplicateBlockRootSubmissions++
+		}
+	}
+
+	stats.DuplicateBlockRootSubmissionsPercent = float32(stats.DuplicateBlockRootSubmissions) / float32(len(blockRootSlots)) * 100
 
 	return stats, nil
 }

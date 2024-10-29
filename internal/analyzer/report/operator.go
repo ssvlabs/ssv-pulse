@@ -23,6 +23,7 @@ var operatorHeaders = []string{
 	"Prepare: \n delayed",
 	"Prepare: \n total count",
 	"Consensus: \n avg",
+	"Consensus: \n duplicate block root submissions",
 }
 
 type OperatorRecord struct {
@@ -40,7 +41,8 @@ type OperatorRecord struct {
 	PrepareDelayPercent map[time.Duration]float32
 	PrepareTotalCount   uint16
 
-	ConsensusTimeAvg time.Duration
+	ConsensusTimeAvg                              time.Duration
+	ConsensusDuplicateBlockRootSubmissionsPercent float32
 }
 
 type OperatorReport struct {
@@ -68,15 +70,17 @@ func NewOperator() *OperatorReport {
 
 func (r *OperatorReport) AddRecord(record OperatorRecord) {
 	var (
-		clusterReportItem string
-		operatorID        string = fmt.Sprint(record.OperatorID)
-		delayedPrepare    []string
-		delayedCommit     []string
+		clusterReportItem                             string
+		operatorID                                    string = fmt.Sprint(record.OperatorID)
+		consensusDuplicateBlockRootSubmissionsPercent string
+		delayedPrepare                                []string
+		delayedCommit                                 []string
 	)
 
 	if record.IsLogFileOwner {
 		operatorID = fmt.Sprintf("%d ⭐️", record.OperatorID)
 		clusterReportItem = fmt.Sprint(record.Clusters)
+		consensusDuplicateBlockRootSubmissionsPercent = fmt.Sprintf("%.2f%%", record.ConsensusDuplicateBlockRootSubmissionsPercent)
 	}
 
 	for duration, value := range record.PrepareDelayPercent {
@@ -99,6 +103,7 @@ func (r *OperatorReport) AddRecord(record OperatorRecord) {
 		strings.Join(delayedPrepare, "\n"),
 		fmt.Sprint(record.PrepareTotalCount),
 		record.ConsensusTimeAvg.String(),
+		consensusDuplicateBlockRootSubmissionsPercent,
 	)
 }
 
