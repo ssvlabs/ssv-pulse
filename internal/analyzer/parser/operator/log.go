@@ -10,6 +10,7 @@ type logEntry struct {
 	Message        string            `json:"M"`
 	PrepareSigners []parser.SignerID `json:"prepare_signers"`
 	Signers        []parser.SignerID `json:"signers"`
+	DutyID         string            `json:"duty_id"`
 }
 
 func (p *logEntry) UnmarshalJSON(data []byte) error {
