@@ -156,7 +156,7 @@ var CMD = &cobra.Command{
 						commitAvgTotal[record.OperatorID] += record.CommitDelayAvg
 						commitAvgRecordCount[record.OperatorID]++
 
-						prepareAvgTotal[record.OperatorID] += record.CommitDelayAvg
+						prepareAvgTotal[record.OperatorID] += record.PrepareDelayAvg
 						prepareAvgRecordCount[record.OperatorID]++
 
 						if commitDelayHighest[record.OperatorID] < record.CommitDelayHighest {
