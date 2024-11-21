@@ -52,7 +52,7 @@ type OperatorReport struct {
 func NewOperator() *OperatorReport {
 	t := table.New(os.Stdout)
 
-	t.SetHeaders("Validator Performance")
+	t.SetHeaders("Consensus Performance")
 	t.AddHeaders(operatorHeaders...)
 	t.SetAutoMerge(true)
 	t.SetHeaderColSpans(0, len(operatorHeaders))
