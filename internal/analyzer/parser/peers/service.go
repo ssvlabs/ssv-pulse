@@ -84,7 +84,7 @@ func (s *Service) Analyze() (Stats, error) {
 				slog.
 					With("err", err).
 					With("line", line).
-					Info("failed to unmarshal line. Skipping")
+					Warn("failed to unmarshal line. Skipping")
 				continue
 			}
 

@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
-	"github.com/ssvlabs/ssv-pulse/internal/ssv"
+	"github.com/ssvlabs/ssv-pulse/internal/platform/array"
 )
 
 const (
@@ -69,26 +70,28 @@ func (s *Service) Analyze() (Stats, error) {
 			stats.Owner = entry.PrepareSigners[0]
 		}
 
-		if strings.Contains(entry.Message, savedInstanceMsg) {
-			if ssv.IsValidClusterSize(entry.Signers) {
-				//verify we store only distinct arrays
-				if len(clusters) > 0 {
-					var isUniqueArray bool
-					for _, cluster := range clusters {
-						if len(cluster) == len(entry.Signers) {
-							for _, signerID := range entry.Signers {
-								if !slices.Contains(cluster, signerID) {
-									isUniqueArray = true
-								}
-							}
-						}
+		if entry.DutyID != "" && strings.HasPrefix(entry.DutyID, "COMMITTEE") {
+			newCluster, err := extractClusterIDs(entry.DutyID)
+			if err != nil {
+				slog.
+					With("entry", entry).
+					Warn("error extracting cluster IDs from the log entry")
+				continue
+			}
+			var isUniqueCluster bool
+			if len(clusters) == 0 {
+				isUniqueCluster = true
+			} else {
+				isUniqueCluster = true
+				for _, cluster := range clusters {
+					if array.SameMembers(newCluster, cluster) {
+						isUniqueCluster = false
+						break
 					}
-					if isUniqueArray {
-						clusters = append(clusters, entry.Signers)
-					}
-				} else {
-					clusters = append(clusters, entry.Signers)
 				}
+			}
+			if isUniqueCluster {
+				clusters = append(clusters, newCluster)
 			}
 		}
 	}
@@ -111,4 +114,24 @@ func (s *Service) Analyze() (Stats, error) {
 	stats.Clusters[stats.Owner] = clusters
 
 	return stats, nil
+}
+
+func extractClusterIDs(input string) ([]parser.SignerID, error) {
+	re := regexp.MustCompile(`COMMITTEE-([\d_]+)-`)
+	matches := re.FindStringSubmatch(input)
+	if len(matches) < 2 {
+		return nil, errors.New("failed to find committee IDs in the string")
+	}
+
+	ids := strings.Split(matches[1], "_")
+	var result []parser.SignerID
+	for _, id := range ids {
+		num, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, parser.SignerID(num))
+	}
+
+	return result, nil
 }

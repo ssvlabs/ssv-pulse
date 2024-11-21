@@ -34,6 +34,7 @@ type (
 var customTimeLayouts = []string{
 	"2006-01-02T15:04:05.000-0700",
 	"2006-01-02T15:04:05.000Z",
+	time.RFC3339Nano,
 }
 
 func (m *MultiFormatTime) UnmarshalJSON(b []byte) error {
@@ -47,7 +48,7 @@ func (m *MultiFormatTime) UnmarshalJSON(b []byte) error {
 			m.Time = t
 			return nil
 		}
-		parseErr = err
+		parseErr = errors.Join(parseErr, err)
 	}
 
 	return errors.Join(parseErr, errors.New("unable to parse time"))
