@@ -20,10 +20,13 @@ const (
 	PeerCountMeasurement = "Count"
 )
 
+var measuringErr = errors.New("UNABLE_TO_MEASURE")
+
 type PeerMetric struct {
 	metric.Base[uint32]
-	url      string
-	interval time.Duration
+	url             string
+	interval        time.Duration
+	measuringErrors map[string]error
 }
 
 func NewPeerMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
@@ -33,7 +36,8 @@ func NewPeerMetric(url, name string, interval time.Duration, healthCondition []m
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
+		interval:        interval,
+		measuringErrors: make(map[string]error),
 	}
 }
 
@@ -109,7 +113,9 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	peerCountHex := resp.Result
 	if peerCountHex == "" {
 		p.writeMetric(0)
-		logger.WriteError(metric.ExecutionGroup, p.Name, errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported"))
+		err := errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported")
+		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		p.measuringErrors[PeerCountMeasurement] = errors.Join(measuringErr, err)
 		return
 	}
 
@@ -172,6 +178,16 @@ func (p *PeerMetric) writeMetric(value int64) {
 }
 
 func (p *PeerMetric) AggregateResults() string {
+	for measurementName, err := range p.measuringErrors {
+		slog.
+			With("metric_name", p.Name).
+			With("measurement_name", measurementName).
+			With("err", err).
+			Warn("error measuring metric")
+
+		return err.Error()
+	}
+
 	var values []uint32
 	for _, point := range p.DataPoints {
 		values = append(values, point.Values[PeerCountMeasurement])
