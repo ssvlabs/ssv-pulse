@@ -96,8 +96,7 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 			time.Second*10,
 			[]metric.HealthCondition[uint32]{
 				{Name: ssv.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
-				{Name: ssv.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
-				{Name: ssv.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
+				{Name: ssv.PeerCountMeasurement, Threshold: 10, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
 			}))
 	}
 
