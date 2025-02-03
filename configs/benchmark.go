@@ -35,16 +35,21 @@ type InfrastructureMetrics struct {
 }
 
 type Consensus struct {
-	Address string           `mapstructure:"address"`
-	Metrics ConsensusMetrics `mapstructure:"metrics"`
+	Addresses []string         `mapstructure:"address"`
+	Metrics   ConsensusMetrics `mapstructure:"metrics"`
 }
 
-func (c Consensus) AddrURL() (*url.URL, error) {
-	parsedURL, err := url.Parse(c.Address)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("error parsing Consensus address to URL type"))
+func (c Consensus) AddrURLs() ([]*url.URL, error) {
+	var parsedURLs []*url.URL
+	for _, address := range c.Addresses {
+		parsedURL, err := url.Parse(address)
+		if err != nil {
+			return nil, errors.Join(err, errors.New("error parsing Consensus address to URL type"))
+		}
+		parsedURLs = append(parsedURLs, parsedURL)
 	}
-	return parsedURL, nil
+
+	return parsedURLs, nil
 }
 
 type Execution struct {
@@ -96,11 +101,16 @@ func (b *Benchmark) Validate() (bool, error) {
 		b.Consensus.Metrics.Attestation.Enabled ||
 		b.Consensus.Metrics.Client.Enabled ||
 		b.Consensus.Metrics.Latency.Enabled {
-		url, err := sanitizeURL(b.Consensus.Address)
-		if err != nil {
-			return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
+		var urls []string
+		for _, addr := range b.Consensus.Addresses {
+			url, err := sanitizeURL(addr)
+			if err != nil {
+				return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
+			}
+			urls = append(urls, url)
 		}
-		b.Consensus.Address = url
+
+		b.Consensus.Addresses = urls
 	}
 
 	if b.Execution.Metrics.Peers.Enabled {
