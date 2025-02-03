@@ -2,6 +2,7 @@ package benchmark
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/configs"
@@ -17,50 +18,62 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 	enabledMetrics := make(map[metric.Group][]metricService)
 
 	if config.Benchmark.Consensus.Metrics.Client.Enabled {
-		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewClientMetric(
-			configs.Values.Benchmark.Consensus.Address,
-			"Client",
-			[]metric.HealthCondition[string]{
-				{Name: consensus.VersionMeasurement, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
-			}))
+		for i, addr := range configs.Values.Benchmark.Consensus.Addresses {
+			enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))] = append(enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))],
+				consensus.NewClientMetric(
+					addr,
+					"Client",
+					[]metric.HealthCondition[string]{
+						{Name: consensus.VersionMeasurement, Threshold: "", Operator: metric.OperatorEqual, Severity: metric.SeverityHigh},
+					}))
+		}
 	}
 
 	if config.Benchmark.Consensus.Metrics.Latency.Enabled {
-		consensusClientURL, err := config.Benchmark.Consensus.AddrURL()
+		consensusClientURLs, err := config.Benchmark.Consensus.AddrURLs()
 		if err != nil {
 			return nil, errors.Join(err, errors.New("failed fetching Consensus client address as URL"))
 		}
-		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewLatencyMetric(
-			consensusClientURL.Host,
-			"Latency",
-			time.Second*3,
-			[]metric.HealthCondition[time.Duration]{
-				{Name: consensus.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
-			}))
+		for i, url := range consensusClientURLs {
+			enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))] = append(enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))],
+				consensus.NewLatencyMetric(
+					url.Host,
+					"Latency",
+					time.Second*3,
+					[]metric.HealthCondition[time.Duration]{
+						{Name: consensus.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
+					}))
+		}
 	}
 
 	if config.Benchmark.Consensus.Metrics.Peers.Enabled {
-		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewPeerMetric(
-			configs.Values.Benchmark.Consensus.Address,
-			"Peers",
-			time.Second*10,
-			[]metric.HealthCondition[uint32]{
-				{Name: consensus.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
-				{Name: consensus.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
-				{Name: consensus.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
-			}))
+		for i, addr := range configs.Values.Benchmark.Consensus.Addresses {
+			enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))] = append(enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))],
+				consensus.NewPeerMetric(
+					addr,
+					"Peers",
+					time.Second*10,
+					[]metric.HealthCondition[uint32]{
+						{Name: consensus.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
+						{Name: consensus.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+						{Name: consensus.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
+					}))
+		}
 	}
 
 	if config.Benchmark.Consensus.Metrics.Attestation.Enabled {
-		enabledMetrics[metric.ConsensusGroup] = append(enabledMetrics[metric.ConsensusGroup], consensus.NewAttestationMetric(
-			configs.Values.Benchmark.Consensus.Address,
-			"Attestation",
-			network.GenesisTime[network.Name(config.Benchmark.Network)],
-			[]metric.HealthCondition[float64]{
-				{Name: consensus.CorrectnessMeasurement, Threshold: 97, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
-				{Name: consensus.CorrectnessMeasurement, Threshold: 98.5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
-			},
-		))
+		for i, addr := range configs.Values.Benchmark.Consensus.Addresses {
+			enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))] = append(enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1))],
+				consensus.NewAttestationMetric(
+					addr,
+					"Attestation",
+					network.GenesisTime[network.Name(config.Benchmark.Network)],
+					[]metric.HealthCondition[float64]{
+						{Name: consensus.CorrectnessMeasurement, Threshold: 97, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
+						{Name: consensus.CorrectnessMeasurement, Threshold: 98.5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+					},
+				))
+		}
 	}
 
 	if config.Benchmark.Execution.Metrics.Peers.Enabled {

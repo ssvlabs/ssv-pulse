@@ -5,7 +5,9 @@ benchmark:
     port: 8080
 
   consensus:
-    address: 
+  # Can be a single address or a collection of addresses. Both formats are supported:
+  # `address: http://127.0.0.1:8080` and `address: [http://127.0.0.1:8080, http://127.0.0.2:8080]`.
+    address: []
     metrics: 
       client:
         enabled: true

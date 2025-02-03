@@ -96,7 +96,7 @@ var CMD = &cobra.Command{
 func addFlags(cobraCMD *cobra.Command) {
 	cobraCMD.Flags().Duration(durationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'")
 	cobraCMD.Flags().Uint16(serverPortFlag, defaultServerPort, "Web server port with metrics endpoint exposed, e.g. '8080'")
-	cobraCMD.Flags().String(consensusAddrFlag, "", "Consensus client address (beacon node API) with scheme (HTTP/HTTPS) and port, e.g. https://lighthouse:5052")
+	cobraCMD.Flags().String(consensusAddrFlag, "", "A comma-separated list of consensus client addresses, including the scheme (HTTP/HTTPS) and port. For example: `https://lighthouse:5052,https://prysm:5052`.")
 	cobraCMD.Flags().Bool(consensusMetricClientFlag, true, "Enable consensus client metric")
 	cobraCMD.Flags().Bool(consensusMetricLatencyFlag, true, "Enable consensus client latency metric")
 	cobraCMD.Flags().Bool(consensusMetricPeersFlag, true, "Enable consensus client peers metric")
