@@ -16,6 +16,8 @@ jobs:
   publish-release:
     name: Publish Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
