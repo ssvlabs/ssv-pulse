@@ -10,7 +10,7 @@ import (
 	client "github.com/attestantio/go-eth2-client"
 	"github.com/attestantio/go-eth2-client/api"
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/attestantio/go-eth2-client/auto"
+	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/rs/zerolog"
 
@@ -47,15 +47,19 @@ type (
 	}
 )
 
-func NewAttestationMetric(url, name string, genesisTime time.Time, healthCondition []metric.HealthCondition[float64]) *AttestationMetric {
-	client, err := auto.New(
+func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondition []metric.HealthCondition[float64]) *AttestationMetric {
+	client, err := http.New(
 		context.TODO(),
-		auto.WithLogLevel(zerolog.DebugLevel),
-		auto.WithAddress(url),
+		http.WithLogLevel(zerolog.DebugLevel),
+		http.WithAddress(addr),
 	)
 	if err != nil {
+		slog.
+			With("addr", addr).
+			Error("failed to instantiate Consensus Client")
 		panic(err.Error())
 	}
+
 	return &AttestationMetric{
 		Base: metric.Base[float64]{
 			HealthConditions: healthCondition,
