@@ -63,7 +63,7 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 
 	if config.Benchmark.Consensus.Metrics.Attestation.Enabled {
 		for i, addr := range configs.Values.Benchmark.Consensus.Addresses {
-			enabledMetrics[metric.Group(metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1)))] = append(enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1))],
+			enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1))] = append(enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ConsensusGroup, i+1))],
 				consensus.NewAttestationMetric(
 					addr,
 					"Attestation",
@@ -77,29 +77,35 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 	}
 
 	if config.Benchmark.Execution.Metrics.Peers.Enabled {
-		enabledMetrics[metric.ExecutionGroup] = append(enabledMetrics[metric.ExecutionGroup], execution.NewPeerMetric(
-			configs.Values.Benchmark.Execution.Address,
-			"Peers",
-			time.Second*10,
-			[]metric.HealthCondition[uint32]{
-				{Name: execution.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
-				{Name: execution.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
-				{Name: execution.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
-			}))
+		for i, addr := range configs.Values.Benchmark.Execution.Addresses {
+			enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ExecutionGroup, i+1))] = append(enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ExecutionGroup, i+1))],
+				execution.NewPeerMetric(
+					addr,
+					"Peers",
+					time.Second*10,
+					[]metric.HealthCondition[uint32]{
+						{Name: execution.PeerCountMeasurement, Threshold: 5, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityHigh},
+						{Name: execution.PeerCountMeasurement, Threshold: 20, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityMedium},
+						{Name: execution.PeerCountMeasurement, Threshold: 40, Operator: metric.OperatorLessThanOrEqual, Severity: metric.SeverityLow},
+					}))
+		}
 	}
 
 	if config.Benchmark.Execution.Metrics.Latency.Enabled {
-		executionClientURL, err := config.Benchmark.Execution.AddrURL()
+		executionClientURLs, err := config.Benchmark.Execution.AddrURLs()
 		if err != nil {
-			return nil, errors.Join(err, errors.New("failed fetching Execution client address as URL"))
+			return nil, errors.Join(err, errors.New("failed fetching Execution client addresses as URLs"))
 		}
-		enabledMetrics[metric.ExecutionGroup] = append(enabledMetrics[metric.ExecutionGroup], execution.NewLatencyMetric(
-			executionClientURL.Host,
-			"Latency",
-			time.Second*3,
-			[]metric.HealthCondition[time.Duration]{
-				{Name: execution.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
-			}))
+		for i, url := range executionClientURLs {
+			enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ExecutionGroup, i+1))] = append(enabledMetrics[metric.Group(fmt.Sprintf("%s-%d", metric.ExecutionGroup, i+1))],
+				execution.NewLatencyMetric(
+					url.Host,
+					"Latency",
+					time.Second*3,
+					[]metric.HealthCondition[time.Duration]{
+						{Name: execution.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
+					}))
+		}
 	}
 
 	if config.Benchmark.SSV.Metrics.Peers.Enabled {

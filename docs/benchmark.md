@@ -2,7 +2,7 @@
 
 ## Description
 
-The `benchmark` feature allows for evaluating the health and severity of various SSV client-related metrics over time by running the application as a daemon. The addresses of the SSV client, Consensus Client(s), and Execution Client need to be supplied. During runtime, the benchmark will communicate with these clients through API endpoints to gather various metrics that help troubleshoot underperforming SSV clients. Additionally, it will provide infrastructure-related metrics, such as CPU and memory usage, from the environment it is running on. The metrics will be provided in an aggregated manner when the application shuts down (the `--duration` flag sets the execution time. The process can also be interrupted manually).
+The `benchmark` feature allows for evaluating the health and severity of various SSV client-related metrics over time by running the application as a daemon. The addresses of the SSV client, Consensus Client(s), and Execution Client(s) need to be supplied. During runtime, the benchmark will communicate with these clients through API endpoints to gather various metrics that help troubleshoot underperforming SSV clients. Additionally, it will provide infrastructure-related metrics, such as CPU and memory usage, from the environment it is running on. The metrics will be provided in an aggregated manner when the application shuts down (the `--duration` flag sets the execution time. The process can also be interrupted manually).
 
 The system is designed to be flexible, allowing different metrics to have their own set of conditions that determine their health status and severity levels.
 
