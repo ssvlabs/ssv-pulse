@@ -96,13 +96,13 @@ var CMD = &cobra.Command{
 func addFlags(cobraCMD *cobra.Command) {
 	cobraCMD.Flags().Duration(durationFlag, defaultExecutionDuration, "Duration for which the application will run to gather metrics, e.g. '5m'")
 	cobraCMD.Flags().Uint16(serverPortFlag, defaultServerPort, "Web server port with metrics endpoint exposed, e.g. '8080'")
-	cobraCMD.Flags().String(consensusAddrFlag, "", "A comma-separated list of consensus client addresses, including the scheme (HTTP/HTTPS) and port. For example: `https://lighthouse:5052,https://prysm:5052`.")
+	cobraCMD.Flags().String(consensusAddrFlag, "", "A comma-separated list of consensus client addresses, including the scheme (HTTP/HTTPS) and port, e.g. `https://lighthouse:5052,https://prysm:5052`.")
 	cobraCMD.Flags().Bool(consensusMetricClientFlag, true, "Enable consensus client metric")
 	cobraCMD.Flags().Bool(consensusMetricLatencyFlag, true, "Enable consensus client latency metric")
 	cobraCMD.Flags().Bool(consensusMetricPeersFlag, true, "Enable consensus client peers metric")
 	cobraCMD.Flags().Bool(consensusMetricAttestationFlag, true, "Enable consensus client attestation metric")
 
-	cobraCMD.Flags().String(executionAddrFlag, "", "Execution client address with scheme (HTTP/HTTPS) and port, e.g. https://geth:8545")
+	cobraCMD.Flags().String(executionAddrFlag, "", "A comma-separated list of execution client addresses, including the scheme (HTTP/HTTPS) and port, e.g. `https://geth:8545,https://reth:8545`.")
 	cobraCMD.Flags().Bool(executionMetricPeersFlag, true, "Enable execution client peers metric")
 	cobraCMD.Flags().Bool(executionMetricLatencyFlag, true, "Enable execution client latency metric")
 

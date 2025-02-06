@@ -53,16 +53,21 @@ func (c Consensus) AddrURLs() ([]*url.URL, error) {
 }
 
 type Execution struct {
-	Address string           `mapstructure:"address"`
-	Metrics ExecutionMetrics `mapstructure:"metrics"`
+	Addresses []string         `mapstructure:"address"`
+	Metrics   ExecutionMetrics `mapstructure:"metrics"`
 }
 
-func (e Execution) AddrURL() (*url.URL, error) {
-	parsedURL, err := url.Parse(e.Address)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("error parsing Execution address to URL type"))
+func (e Execution) AddrURLs() ([]*url.URL, error) {
+	var urls []*url.URL
+	for _, addr := range e.Addresses {
+		parsedURL, err := url.Parse(addr)
+		if err != nil {
+			return nil, errors.Join(err, errors.New("error parsing Execution address to URL type"))
+		}
+		urls = append(urls, parsedURL)
 	}
-	return parsedURL, nil
+
+	return urls, nil
 }
 
 type SSV struct {
@@ -113,12 +118,17 @@ func (b *Benchmark) Validate() (bool, error) {
 		b.Consensus.Addresses = urls
 	}
 
-	if b.Execution.Metrics.Peers.Enabled {
-		url, err := sanitizeURL(b.Execution.Address)
-		if err != nil {
-			return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
+	if b.Execution.Metrics.Peers.Enabled || b.Execution.Metrics.Latency.Enabled {
+		var urls []string
+		for _, addr := range b.Execution.Addresses {
+			url, err := sanitizeURL(addr)
+			if err != nil {
+				return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
+			}
+			urls = append(urls, url)
 		}
-		b.Execution.Address = url
+
+		b.Execution.Addresses = urls
 	}
 
 	if b.SSV.Metrics.Peers.Enabled || b.SSV.Metrics.Connections.Enabled {
