@@ -5,9 +5,11 @@ benchmark:
     port: 8080
 
   consensus:
-  # Can be a single address or a collection of addresses. Both formats are supported:
-  # `address: http://127.0.0.1:8080` and `address: [http://127.0.0.1:8080, http://127.0.0.2:8080]`.
-    address: []
+  # Can be a single address, a collection of addresses, or a multi-address string separated by semicolons (;). Supported formats:
+  # `address: http://127.0.0.1:8080` 
+  # `address: [http://127.0.0.1:8080, http://127.0.0.2:8080]`
+  # `address: http://127.0.0.1:8080;http://127.0.0.2:8080`
+    address: 
     metrics: 
       client:
         enabled: true
@@ -19,16 +21,18 @@ benchmark:
         enabled: true
 
   execution:
-  # Can be a single address or a collection of addresses. Both formats are supported:
-  # `address: http://127.0.0.1:8080` and `address: [http://127.0.0.1:8080, http://127.0.0.2:8080]`.
-    address: []
+  # Can be a single address, a collection of addresses, or a multi-address string separated by semicolons (;). Supported formats:
+  # `address: http://127.0.0.1:8080` 
+  # `address: [http://127.0.0.1:8080, http://127.0.0.2:8080]`
+  # `address: http://127.0.0.1:8080;http://127.0.0.2:8080`
+    address: 
     metrics: 
       peers:
         enabled: true
 
   ssv:
-    address: 
-    metrics: 
+    address:
+    metrics:
       peers:
         enabled: true
       connections:
