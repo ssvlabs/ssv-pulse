@@ -3,6 +3,7 @@ package configs
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/platform/network"
@@ -107,12 +108,16 @@ func (b *Benchmark) Validate() (bool, error) {
 		b.Consensus.Metrics.Client.Enabled ||
 		b.Consensus.Metrics.Latency.Enabled {
 		var urls []string
-		for _, addr := range b.Consensus.Addresses {
-			url, err := sanitizeURL(addr)
-			if err != nil {
-				return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
+		for _, addrString := range b.Consensus.Addresses {
+			//configuration supports both yaml arrays and multi address strings with semicolon as separator
+			addresses := strings.Split(addrString, ";")
+			for _, addr := range addresses {
+				url, err := sanitizeURL(addr)
+				if err != nil {
+					return false, errors.Join(err, errors.New("consensus client address was not a valid URL"))
+				}
+				urls = append(urls, url)
 			}
-			urls = append(urls, url)
 		}
 
 		b.Consensus.Addresses = urls
@@ -120,12 +125,16 @@ func (b *Benchmark) Validate() (bool, error) {
 
 	if b.Execution.Metrics.Peers.Enabled || b.Execution.Metrics.Latency.Enabled {
 		var urls []string
-		for _, addr := range b.Execution.Addresses {
-			url, err := sanitizeURL(addr)
-			if err != nil {
-				return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
+		for _, addrString := range b.Execution.Addresses {
+			//configuration supports both yaml arrays and multi address strings with semicolon as separator
+			addresses := strings.Split(addrString, ";")
+			for _, addr := range addresses {
+				url, err := sanitizeURL(addr)
+				if err != nil {
+					return false, errors.Join(err, errors.New("execution client address was not a valid URL"))
+				}
+				urls = append(urls, url)
 			}
-			urls = append(urls, url)
 		}
 
 		b.Execution.Addresses = urls
