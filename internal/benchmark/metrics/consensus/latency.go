@@ -81,7 +81,7 @@ func (l *LatencyMetric) writeMetric(latency time.Duration) {
 		DurationMaxMeasurement: percentiles[100],
 	})
 
-	latencyMetric.Observe(latency.Seconds())
+	latencyMetric.With(serverAddrLabel(l.host)).Observe(latency.Seconds())
 
 	logger.WriteMetric(metric.ConsensusGroup, l.Name, map[string]any{
 		DurationMinMeasurement: percentiles[0],
