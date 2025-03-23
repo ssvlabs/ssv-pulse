@@ -106,6 +106,7 @@ func (a *AttestationMetric) fetchAttestationData(ctx context.Context, slot phase
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 		return
 	}
+
 	a.attestationBlockRoots.Store(slot, blockRoot)
 }
 
@@ -195,8 +196,9 @@ func (a *AttestationMetric) AggregateResults() string {
 }
 
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
-	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
+	loggerArgs := a.consensusClientLoggerArgs()
 
+	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
 	if !ok {
 		a.AddDataPoint(map[string]float64{
 			MissedBlockMeasurement: 1,
@@ -206,26 +208,33 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedBlockMeasurement: 1,
-		})
+		}, loggerArgs)
 		return
 	}
+
+	a.AddDataPoint(map[string]float64{
+		ReceivedBlockMeasurement: 1,
+	})
+
+	receivedBlocksMetric.Inc()
+
+	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
+		ReceivedBlockMeasurement: 1,
+	}, loggerArgs)
+
+	defer a.calculateCorrectness()
 
 	attestationBlockRoot, ok := a.attestationBlockRoots.Load(slot)
 	if !ok {
 		a.AddDataPoint(map[string]float64{
 			MissedAttestationMeasurement: 1,
-			ReceivedBlockMeasurement:     1,
 		})
 
 		missedAttestationsMetric.Inc()
-		receivedBlocksMetric.Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedAttestationMeasurement: 1,
-			ReceivedBlockMeasurement:     1,
-		})
-
-		a.calculateCorrectness()
+		}, loggerArgs)
 
 		return
 	}
@@ -233,19 +242,14 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	if attestationBlockRoot == eventBlockRoot.(SlotData).RootBlock {
 		a.AddDataPoint(map[string]float64{
 			FreshAttestationMeasurement: 1,
-			ReceivedBlockMeasurement:    1,
 		})
 
 		freshAttestationsMetric.Inc()
-		receivedBlocksMetric.Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			FreshAttestationMeasurement: 1,
-			ReceivedBlockMeasurement:    1,
-		})
+		}, loggerArgs)
 	}
-
-	a.calculateCorrectness()
 }
 
 func (a *AttestationMetric) calculateCorrectness() {
@@ -266,7 +270,7 @@ func (a *AttestationMetric) calculateCorrectness() {
 
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		CorrectnessMeasurement: correctness,
-	})
+	}, a.consensusClientLoggerArgs())
 }
 
 func slotTime(genesisTime time.Time, slot phase0.Slot) time.Time {
@@ -275,4 +279,12 @@ func slotTime(genesisTime time.Time, slot phase0.Slot) time.Time {
 
 func currentSlot(genesisTime time.Time) phase0.Slot {
 	return phase0.Slot(time.Since(genesisTime) / (12 * time.Second))
+}
+
+func (a *AttestationMetric) consensusClientLoggerArgs() map[string]any {
+	return map[string]any{
+		"client_addr":   a.client.Address(),
+		"client_active": a.client.IsActive(),
+		"client_synced": a.client.IsSynced(),
+	}
 }

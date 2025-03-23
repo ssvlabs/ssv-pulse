@@ -13,13 +13,14 @@ func init() {
 	slog.SetDefault(logger)
 }
 
-func WriteMetric(metricGroup metric.Group, metricName string, nameValue map[string]any) {
+func WriteMetric(metricGroup metric.Group, metricName string, nameValue map[string]any, extraArgs ...map[string]any) {
 	logger := slog.Default()
 
 	logger.
 		With("metric_group", strings.ToLower(string(metricGroup))).
 		With("metric_name", strings.ToLower(string(metricName))).
 		With("values", nameValue).
+		With("args", extraArgs).
 		Debug("measured")
 }
 
