@@ -172,7 +172,7 @@ func (p *PeerMetric) writeMetric(value int64) {
 		PeerCountMeasurement: uint32(value),
 	})
 
-	peerCountMetric.Set(float64(value))
+	peerCountMetric.With(serverAddrLabel(p.url)).Set(float64(value))
 
 	logger.WriteMetric(metric.ExecutionGroup, p.Name, map[string]any{PeerCountMeasurement: value})
 }

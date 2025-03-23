@@ -204,7 +204,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			MissedBlockMeasurement: 1,
 		})
 
-		missedBlocksMetric.Inc()
+		missedBlocksMetric.With(serverAddrLabel(a.client.Address())).Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedBlockMeasurement: 1,
@@ -216,7 +216,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 		ReceivedBlockMeasurement: 1,
 	})
 
-	receivedBlocksMetric.Inc()
+	receivedBlocksMetric.With(serverAddrLabel(a.client.Address())).Inc()
 
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		ReceivedBlockMeasurement: 1,
@@ -230,7 +230,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			MissedAttestationMeasurement: 1,
 		})
 
-		missedAttestationsMetric.Inc()
+		missedAttestationsMetric.With(serverAddrLabel(a.client.Address())).Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			MissedAttestationMeasurement: 1,
@@ -244,7 +244,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 			FreshAttestationMeasurement: 1,
 		})
 
-		freshAttestationsMetric.Inc()
+		freshAttestationsMetric.With(serverAddrLabel(a.client.Address())).Inc()
 
 		logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 			FreshAttestationMeasurement: 1,
@@ -266,7 +266,7 @@ func (a *AttestationMetric) calculateCorrectness() {
 		CorrectnessMeasurement: correctness,
 	})
 
-	correctnessMetric.Set(correctness)
+	correctnessMetric.With(serverAddrLabel(a.client.Address())).Set(correctness)
 
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		CorrectnessMeasurement: correctness,
