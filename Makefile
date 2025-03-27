@@ -56,3 +56,12 @@ dep:
 .PHONY: vet
 vet:
 	go vet ./...
+
+#https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
+.PHONY: lint
+lint:
+	golangci-lint run -v ./...
+
+.PHONY: lint-fix
+lint-fix:
+	golangci-lint run --fix -v ./...

@@ -80,7 +80,7 @@ func (c *CPUMetric) writeMetric(systemPercent, userPercent float64) {
 }
 
 func (c *CPUMetric) AggregateResults() string {
-	var values map[string][]float64 = make(map[string][]float64)
+	var values = make(map[string][]float64)
 
 	for _, point := range c.DataPoints {
 		values[SystemCPUMeasurement] = append(values[SystemCPUMeasurement], point.Values[SystemCPUMeasurement])

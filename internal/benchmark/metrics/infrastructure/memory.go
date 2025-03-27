@@ -81,7 +81,7 @@ func (m *MemoryMetric) writeMetric(cached, used, free, total uint64) {
 }
 
 func (m *MemoryMetric) AggregateResults() string {
-	var values map[string][]float64 = make(map[string][]float64)
+	var values = make(map[string][]float64)
 
 	for _, point := range m.DataPoints {
 		values[TotalMemoryMeasurement] = append(values[TotalMemoryMeasurement], toMegabytes(point.Values[TotalMemoryMeasurement]))
