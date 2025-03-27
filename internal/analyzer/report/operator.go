@@ -71,7 +71,7 @@ func NewOperator() *OperatorReport {
 func (r *OperatorReport) AddRecord(record OperatorRecord) {
 	var (
 		clusterReportItem                             string
-		operatorID                                    string = fmt.Sprint(record.OperatorID)
+		operatorID                                    = fmt.Sprint(record.OperatorID)
 		consensusDuplicateBlockRootSubmissionsPercent string
 		delayedPrepare                                []string
 		delayedCommit                                 []string

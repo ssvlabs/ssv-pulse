@@ -20,7 +20,7 @@ const (
 	PeerCountMeasurement = "Count"
 )
 
-var measuringErr = errors.New("UNABLE_TO_MEASURE")
+var errUnableMeasure = errors.New("UNABLE_TO_MEASURE")
 
 type PeerMetric struct {
 	metric.Base[uint32]
@@ -115,7 +115,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 		p.writeMetric(0)
 		err := errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported")
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
-		p.measuringErrors[PeerCountMeasurement] = errors.Join(measuringErr, err)
+		p.measuringErrors[PeerCountMeasurement] = errors.Join(errUnableMeasure, err)
 		return
 	}
 

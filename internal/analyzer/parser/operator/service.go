@@ -47,7 +47,7 @@ func (s *Service) Analyze() (Stats, error) {
 	defer s.logFile.Close()
 	scanner := parser.NewScanner(s.logFile)
 	var (
-		stats Stats = Stats{
+		stats = Stats{
 			Clusters: make(map[parser.SignerID][][]uint32),
 		}
 		clusters [][]parser.SignerID

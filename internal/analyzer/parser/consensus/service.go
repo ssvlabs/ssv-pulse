@@ -63,7 +63,7 @@ func (s *Service) Analyze() (Stats, error) {
 	scanner := parser.NewScanner(s.logFile)
 
 	var (
-		stats Stats = Stats{
+		stats = Stats{
 			OperatorStats: make(map[uint32]OperatorStats),
 		}
 		operatorConsensusParticipation = make(map[parser.DutyID]struct {
@@ -157,7 +157,7 @@ func (s *Service) Analyze() (Stats, error) {
 	for signerID, consensusTimes := range signerConsensusTimes {
 		var (
 			consensusDurationsTotal time.Duration
-			consensusDurationLen    int = len(consensusTimes)
+			consensusDurationLen    = len(consensusTimes)
 		)
 		for _, duration := range consensusTimes {
 			consensusDurationsTotal += duration

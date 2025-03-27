@@ -63,7 +63,7 @@ func (s *Service) Analyze() (Stats, error) {
 	scanner := parser.NewScanner(s.logFile)
 
 	var (
-		stats Stats = Stats{
+		stats = Stats{
 			ConsensusClientResponseTimeDelayPercent: map[time.Duration]float32{
 				s.delay: 0,
 			}}

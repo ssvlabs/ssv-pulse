@@ -115,7 +115,7 @@ func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
 }
 
 func (p *ConnectionsMetric) AggregateResults() string {
-	var measurements map[string][]uint32 = make(map[string][]uint32)
+	var measurements = make(map[string][]uint32)
 
 	for _, point := range p.DataPoints {
 		measurements[InboundConnectionsMeasurement] = append(measurements[InboundConnectionsMeasurement], point.Values[InboundConnectionsMeasurement])
