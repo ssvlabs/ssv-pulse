@@ -111,10 +111,9 @@ func (a *AttestationMetric) fetchAttestationData(ctx context.Context, slot phase
 }
 
 func (a *AttestationMetric) launchListener(ctx context.Context) {
-	if err := a.client.(client.EventsProvider).Events(
-		ctx,
-		[]string{"head"},
-		func(event *v1.Event) {
+	if err := a.client.(client.EventsProvider).Events(ctx, &api.EventsOpts{
+		Topics: []string{"head"},
+		Handler: func(event *v1.Event) {
 			data := event.Data.(*v1.HeadEvent)
 
 			a.eventBlockRoots.Store(data.Slot, SlotData{
@@ -124,7 +123,7 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 
 			go a.checkUnreadyBlock(ctx, data.Slot, data.Block)
 		},
-	); err != nil {
+	}); err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 	}
 }
