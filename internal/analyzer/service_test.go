@@ -31,6 +31,7 @@ func TestProposeAnalyze(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(rootCMD)
 	})
+
 	t.Run("test propose logs - not cluster", func(t *testing.T) {
 		args := []string{command, fmt.Sprintf("--%s", logFilesDirectoryFlag), testLogFilePath, fmt.Sprintf("--%s", operatorsFlag), "54,178,225,226,227,228,229"}
 		rootCMD.SetArgs(args)
@@ -38,6 +39,7 @@ func TestProposeAnalyze(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(rootCMD)
 	})
+
 	t.Run("test propose logs - all", func(t *testing.T) {
 		args := []string{command, fmt.Sprintf("--%s", logFilesDirectoryFlag), testLogFilePath}
 		rootCMD.SetArgs(args)
@@ -53,6 +55,11 @@ func resetFlags(cmd *cobra.Command) {
 			value := reflect.ValueOf(flag.Value).Elem().FieldByName("value")
 			ptr := (*[]string)(unsafe.Pointer(value.Pointer()))
 			*ptr = make([]string, 0)
+		}
+		if flag.Value.Type() == "bool" {
+			if err := flag.Value.Set("false"); err != nil {
+				panic(fmt.Sprintf("failed to reset flag %s: %v", flag.Name, err))
+			}
 		}
 	})
 	for _, cmd := range cmd.Commands() {
