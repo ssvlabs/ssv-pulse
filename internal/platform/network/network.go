@@ -20,6 +20,7 @@ const (
 	Holesky Name = "holesky"
 	Mainnet Name = "mainnet"
 	Hoodi   Name = "hoodi"
+	Sepolia Name = "sepolia"
 )
 
 var (
@@ -27,6 +28,7 @@ var (
 		Holesky: {Name: Holesky, GenesisTime: time.Unix(1695902400, 0)},
 		Mainnet: {Name: Mainnet, GenesisTime: time.Unix(1606824023, 0)},
 		Hoodi:   {Name: Hoodi, GenesisTime: time.Unix(1742213400, 0)},
+		Sepolia: {Name: Sepolia, GenesisTime: time.Unix(1655733600, 0)},
 	}
 )
 
