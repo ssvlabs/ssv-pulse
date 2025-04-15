@@ -26,6 +26,7 @@ const (
 	MissedAttestationMeasurement = "MissedAttestation"
 	FreshAttestationMeasurement  = "FreshAttestation"
 	CorrectnessMeasurement       = "Correctness"
+	recentDataPointsWindow       = 32
 )
 
 var (
@@ -260,8 +261,8 @@ func (a *AttestationMetric) AddDataPoint(values map[string]float64) {
 		Timestamp: time.Now(),
 		Values:    values,
 	})
-	if len(a.recentDataPoints) > 32 {
-		a.recentDataPoints = a.recentDataPoints[len(a.recentDataPoints)-32:]
+	if len(a.recentDataPoints) > recentDataPointsWindow {
+		a.recentDataPoints = a.recentDataPoints[len(a.recentDataPoints)-recentDataPointsWindow:]
 	}
 }
 
