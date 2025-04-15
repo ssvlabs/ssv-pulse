@@ -168,7 +168,6 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 
 func (a *AttestationMetric) AggregateResults() string {
 	var (
-		latestCorrectnessMeasurement                                                                    time.Time
 		missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
 	)
 
@@ -178,14 +177,10 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
+	}
 
-		val, ok := point.Values[CorrectnessMeasurement]
-		if ok {
-			if latestCorrectnessMeasurement.Before(point.Timestamp) {
-				correctness = val
-				latestCorrectnessMeasurement = point.Timestamp
-			}
-		}
+	if receivedBlocks > 0 {
+		correctness = freshAttestations / receivedBlocks * 100
 	}
 
 	return fmt.Sprintf(
