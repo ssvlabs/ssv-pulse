@@ -44,6 +44,8 @@ type (
 		genesisTime           time.Time
 		eventBlockRoots       sync.Map
 		attestationBlockRoots sync.Map
+
+		recentDataPoints []metric.DataPoint[float64]
 	}
 )
 
@@ -69,6 +71,7 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 		eventBlockRoots:       sync.Map{},
 		attestationBlockRoots: sync.Map{},
 		genesisTime:           genesisTime,
+		recentDataPoints:      []metric.DataPoint[float64]{},
 	}
 }
 
@@ -251,15 +254,30 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	}
 }
 
+func (a *AttestationMetric) AddDataPoint(values map[string]float64) {
+	a.Base.AddDataPoint(values)
+	a.recentDataPoints = append(a.recentDataPoints, metric.DataPoint[float64]{
+		Timestamp: time.Now(),
+		Values:    values,
+	})
+	if len(a.recentDataPoints) > 32 {
+		a.recentDataPoints = a.recentDataPoints[len(a.recentDataPoints)-32:]
+	}
+}
+
 func (a *AttestationMetric) calculateCorrectness() {
 	var freshAttestations, receivedBlocks float64
 
-	for _, point := range a.DataPoints {
+	// Use only recentDataPoints for Prometheus metric
+	for _, point := range a.recentDataPoints {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 	}
 
-	correctness := freshAttestations / receivedBlocks * 100
+	correctness := 0.0
+	if receivedBlocks > 0 {
+		correctness = freshAttestations / receivedBlocks * 100
+	}
 
 	a.AddDataPoint(map[string]float64{
 		CorrectnessMeasurement: correctness,
