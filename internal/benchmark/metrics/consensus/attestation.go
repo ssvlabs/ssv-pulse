@@ -45,8 +45,6 @@ type (
 		genesisTime           time.Time
 		eventBlockRoots       sync.Map
 		attestationBlockRoots sync.Map
-
-		recentDataPoints []metric.DataPoint[float64]
 	}
 )
 
@@ -72,7 +70,6 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 		eventBlockRoots:       sync.Map{},
 		attestationBlockRoots: sync.Map{},
 		genesisTime:           genesisTime,
-		recentDataPoints:      []metric.DataPoint[float64]{},
 	}
 }
 
@@ -168,6 +165,7 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 
 func (a *AttestationMetric) AggregateResults() string {
 	var (
+		latestCorrectnessMeasurement                                                                    time.Time
 		missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
 	)
 
@@ -177,10 +175,14 @@ func (a *AttestationMetric) AggregateResults() string {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
-	}
 
-	if receivedBlocks > 0 {
-		correctness = freshAttestations / receivedBlocks * 100
+		val, ok := point.Values[CorrectnessMeasurement]
+		if ok {
+			if latestCorrectnessMeasurement.Before(point.Timestamp) {
+				correctness = val
+				latestCorrectnessMeasurement = point.Timestamp
+			}
+		}
 	}
 
 	return fmt.Sprintf(
@@ -250,22 +252,14 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	}
 }
 
-func (a *AttestationMetric) AddDataPoint(values map[string]float64) {
-	a.Base.AddDataPoint(values)
-	a.recentDataPoints = append(a.recentDataPoints, metric.DataPoint[float64]{
-		Timestamp: time.Now(),
-		Values:    values,
-	})
-	if len(a.recentDataPoints) > recentDataPointsWindow {
-		a.recentDataPoints = a.recentDataPoints[len(a.recentDataPoints)-recentDataPointsWindow:]
-	}
-}
-
 func (a *AttestationMetric) calculateCorrectness() {
-	var freshAttestations, receivedBlocks float64
+	var (
+		freshAttestations float64
+		receivedBlocks    float64
+	)
 
-	// Use only recentDataPoints for Prometheus metric
-	for _, point := range a.recentDataPoints {
+	// Use all data points for historical correctness (for reporting)
+	for _, point := range a.DataPoints {
 		freshAttestations += point.Values[FreshAttestationMeasurement]
 		receivedBlocks += point.Values[ReceivedBlockMeasurement]
 	}
@@ -279,7 +273,19 @@ func (a *AttestationMetric) calculateCorrectness() {
 		CorrectnessMeasurement: correctness,
 	})
 
-	correctnessMetric.With(serverAddrLabel(a.client.Address())).Set(correctness)
+	if len(a.DataPoints)%recentDataPointsWindow == 0 && len(a.DataPoints) >= recentDataPointsWindow {
+		recent := a.DataPoints[len(a.DataPoints)-recentDataPointsWindow:]
+		var recentFresh, recentReceived float64
+		for _, point := range recent {
+			recentFresh += point.Values[FreshAttestationMeasurement]
+			recentReceived += point.Values[ReceivedBlockMeasurement]
+		}
+		recentCorrectness := 0.0
+		if recentReceived > 0 {
+			recentCorrectness = recentFresh / recentReceived * 100
+		}
+		correctnessMetric.With(serverAddrLabel(a.client.Address())).Set(recentCorrectness)
+	}
 
 	logger.WriteMetric(metric.ConsensusGroup, a.Name, map[string]any{
 		CorrectnessMeasurement: correctness,
