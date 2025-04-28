@@ -3,7 +3,7 @@ module github.com/ssvlabs/ssv-pulse
 go 1.24
 
 require (
-	github.com/aquasecurity/table v1.8.0
+	github.com/aquasecurity/table v1.9.0
 	github.com/grafana/loki-client-go v0.0.0-20240913122146-e119d400c3a5
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/prometheus/client_golang v1.21.1
