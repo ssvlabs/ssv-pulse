@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/aquasecurity/table v1.8.0
 	github.com/grafana/loki-client-go v0.0.0-20240913122146-e119d400c3a5
-	github.com/mackerelio/go-osstat v0.2.5
+	github.com/mackerelio/go-osstat v0.2.6
 	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/common v0.63.0
 	github.com/rs/zerolog v1.34.0
@@ -86,7 +86,7 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
