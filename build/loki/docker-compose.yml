@@ -3,7 +3,7 @@ networks:
 
 services:
   loki:
-    image: grafana/loki:2.9.2
+    image: grafana/loki:2.9.2@sha256:6074e01dbe03cbf8f848c478f7e98df326f984d263162eff5bd47db3970f7ffb
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml —log.level= debug
@@ -37,7 +37,7 @@ services:
           editable: false
         EOF
         /run.sh
-    image: grafana/grafana:latest
+    image: grafana/grafana:latest@sha256:63ef3130e7cb8b85317e0bb965e452cc001929a5032800e8f64d6699cf6089da
     ports:
       - "3000:3000"
     networks:
