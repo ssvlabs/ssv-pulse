@@ -1,7 +1,7 @@
 services:
   ### MONITORING
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus@sha256:9abc6cf6aea7710d163dbb28d8eeb7dc5baef01e38fa4cd146a406dd9f07f70d
     container_name: prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -12,7 +12,7 @@ services:
       - ssv-pulse
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana@sha256:63ef3130e7cb8b85317e0bb965e452cc001929a5032800e8f64d6699cf6089da
     container_name: grafana
     ports:
       - "3000:3000"
