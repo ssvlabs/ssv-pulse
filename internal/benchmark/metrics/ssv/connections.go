@@ -3,12 +3,14 @@ package ssv
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
 	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
@@ -68,7 +70,7 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		if err != ctx.Err() {
+		if !errors.Is(err, ctx.Err()) {
 			c.writeMetric(0, 0)
 
 			logger.WriteError(metric.SSVGroup, c.Name, err)
