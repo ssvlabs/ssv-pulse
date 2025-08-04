@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -44,19 +45,21 @@ func New(logFilePath string, delay time.Duration) (*Service, error) {
 	}, nil
 }
 
-func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
-	defer p.logFile.Close()
+func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
+	defer s.logFile.Close()
 
-	scanner := parser.NewScanner(p.logFile)
+	scanner := parser.NewScanner(s.logFile)
 
 	leaderProposeTime := make(map[parser.DutyID]time.Time)
 	prepareSignerTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
 
+	lineNumber := 0
 	for scanner.Scan() {
 		var entry prepareLogEntry
 		line := scanner.Text()
+		lineNumber++
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, s.logFile.Name(), line, err)
 		}
 
 		if strings.Contains(entry.Message, leaderProposeMsg) {
@@ -77,8 +80,8 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	if err := scanner.Err(); err != nil {
 		logger := slog.
 			With("parserName", parserName).
-			With("fileName", p.logFile.Name())
-		if err == bufio.ErrTooLong {
+			With("fileName", s.logFile.Name())
+		if errors.Is(err, bufio.ErrTooLong) {
 			logger.Warn("the log line was too long, continue reading..")
 		} else {
 			logger.
@@ -89,7 +92,7 @@ func (p *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		}
 	}
 
-	stats := p.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
+	stats := s.calcPrepareTimes(leaderProposeTime, prepareSignerTimes)
 
 	return stats, nil
 }

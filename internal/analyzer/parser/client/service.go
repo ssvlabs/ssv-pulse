@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -15,7 +16,8 @@ import (
 )
 
 const (
-	attestationMsg    = "starting QBFT instance"
+	attestationMsg = "starting QBFT instance"
+
 	nodesUnhealthyMsg = "ethereum node(s) are either out of sync or down. Ensure the nodes are healthy to resume."
 	nodeUnhealthyMsg  = "node is not healthy"
 
@@ -66,19 +68,22 @@ func (s *Service) Analyze() (Stats, error) {
 		stats = Stats{
 			ConsensusClientResponseTimeDelayPercent: map[time.Duration]float32{
 				s.delay: 0,
-			}}
+			},
+		}
 
 		attestationEndpointResponseTimes   []time.Duration
 		attestationEndpointResponseTimeSum time.Duration
 		attestationEndpointTotalDelayed    = make(map[time.Duration]uint32)
 	)
 
+	lineNumber := 0
 	for scanner.Scan() {
 		var entry clientLogEntry
 		line := scanner.Text()
+		lineNumber++
 		err := json.Unmarshal([]byte(line), &entry)
 		if err != nil {
-			return stats, err
+			return stats, fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, s.logFile.Name(), line, err)
 		}
 
 		if strings.Contains(entry.Message, attestationMsg) {
@@ -114,7 +119,7 @@ func (s *Service) Analyze() (Stats, error) {
 		logger := slog.
 			With("parserName", parserName).
 			With("fileName", s.logFile.Name())
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 			logger.Warn("the log line was too long, continue reading..")
 		} else {
 			logger.

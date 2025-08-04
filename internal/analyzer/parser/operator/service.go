@@ -53,11 +53,13 @@ func (s *Service) Analyze() (Stats, error) {
 		clusters [][]parser.SignerID
 	)
 
+	lineNumber := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineNumber++
 		var entry logEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			return stats, err
+			return stats, fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, s.logFile.Name(), line, err)
 		}
 
 		if strings.Contains(entry.Message, proposalMsg) {
@@ -100,7 +102,7 @@ func (s *Service) Analyze() (Stats, error) {
 		logger := slog.
 			With("parserName", parserName).
 			With("fileName", s.logFile.Name())
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 			logger.Warn("the log line was too long, continue reading..")
 		} else {
 			logger.

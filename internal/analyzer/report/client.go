@@ -21,7 +21,7 @@ var (
 	}
 
 	ssvClientHeaders = []string{
-		"Crashes(reason: unhealthy EL/CL): \n total(EL/CL)",
+		"SSV node terminates =\nEL-issue + CL-issue",
 	}
 )
 
@@ -47,7 +47,7 @@ func NewClient() *ClientReport {
 	t := table.New(os.Stdout)
 
 	headers := slices.Concat(consensusClientHeaders, ssvClientHeaders)
-	t.SetHeaders("Consensus Client Performance", "SSV Client Performance")
+	t.SetHeaders("Consensus Client Performance", "EL / CL issues")
 	t.AddHeaders(headers...)
 	t.SetAutoMerge(true)
 	t.SetHeaderColSpans(0, len(consensusClientHeaders), len(ssvClientHeaders))
@@ -125,7 +125,7 @@ func (c *ClientReport) Render() {
 			fmt.Sprint(record.consensusClientResponseTimeP50Total/time.Duration(record.consensusClientResponseTimeRecordCount)),
 			fmt.Sprint(record.consensusClientResponseTimeP90Total/time.Duration(record.consensusClientResponseTimeRecordCount)),
 			strings.Join(delayedResponses, "\n"),
-			fmt.Sprintf("%d(%d/%d)", record.ssvClientCrashesTotal, record.SSVClientELUnhealthyTotal, record.SSVClientCLUnhealthyTotal),
+			fmt.Sprintf("%d = %d + %d", record.ssvClientCrashesTotal, record.SSVClientELUnhealthyTotal, record.SSVClientCLUnhealthyTotal),
 		)
 	}
 

@@ -40,8 +40,8 @@ func (s *Service) Start(ctx context.Context) {
 	slog.With("metrics", s.metrics).Debug("starting benchmark service")
 
 	for _, groupMetrics := range s.metrics {
-		for _, metric := range groupMetrics {
-			go metric.Measure(ctx)
+		for _, m := range groupMetrics {
+			go m.Measure(ctx)
 		}
 	}
 
