@@ -6,6 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -14,9 +17,12 @@ const slotPattern = "\"slot\":%d"
 
 type Committee struct {
 	dutySteps []string
+
+	blockchain *environment.Blockchain
+	logParser  environment.LogParser
 }
 
-func NewCommittee() *Committee {
+func NewCommittee(blockchain *environment.Blockchain, logParser environment.LogParser) *Committee {
 	return &Committee{
 		dutySteps: []string{
 			"starting duty processing",
@@ -31,10 +37,12 @@ func NewCommittee() *Committee {
 			"successfully submitted sync committee",
 			"successfully finished duty processing",
 		},
+		blockchain: blockchain,
+		logParser:  logParser,
 	}
 }
 
-func (s *Committee) AnalyzeLog(logFilePath string, targetSlot uint64) error {
+func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -43,11 +51,15 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot uint64) error {
 		_ = logFile.Close()
 	}()
 
+	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
+	if err != nil {
+		return fmt.Errorf("get target slot start time: %w", err)
+	}
+
 	logger := slog.With("duty_type", dutyTypeCommitteePattern)
 
-	scanner := parser.NewScanner(logFile)
-
 	lineNumber := 0
+	scanner := parser.NewScanner(logFile)
 	for scanner.Scan() {
 		line := scanner.Text()
 		lineNumber++
@@ -62,13 +74,14 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot uint64) error {
 
 		for _, dutyStep := range s.dutySteps {
 			if strings.Contains(line, dutyStep) {
-				logger.Info(line)
+				entry, err := s.logParser.ParseLogLine(line)
+				if err != nil {
+					return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+				}
 
-				// TODO
-				//var entry commitLogEntry
-				//if err := json.Unmarshal([]byte(line), &entry); err != nil {
-				//	return fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, logFile.Name(), line, err)
-				//}
+				timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
+
+				logger.With("time_into_slot_ms", timeIntoSlot.Milliseconds()).Info(line)
 			}
 		}
 	}
@@ -129,34 +142,4 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot uint64) error {
 //
 //type jsonEntry struct {
 //	Line string `json:"line"`
-//}
-
-// TODO - need this ?
-//type commitLogEntry struct {
-//	Timestamp     parser.MultiFormatTime `json:"T"`
-//	Round         uint8                  `json:"round"`
-//	DutyID        string                 `json:"duty_id"`
-//	Message       string                 `json:"M"`
-//	CommitSigners []parser.SignerID      `json:"commit_signers"` //NOTE: This array always contains 1 item
-//}
-//
-//func (p *commitLogEntry) UnmarshalJSON(data []byte) error {
-//	type Entry commitLogEntry
-//
-//	alias := &struct {
-//		CommitSignersDash []parser.SignerID `json:"commit-signers"`
-//		*Entry
-//	}{
-//		Entry: (*Entry)(p),
-//	}
-//
-//	if err := json.Unmarshal(data, &alias); err != nil {
-//		return err
-//	}
-//
-//	if alias.CommitSignersDash != nil {
-//		p.CommitSigners = alias.CommitSignersDash
-//	}
-//
-//	return nil
 //}

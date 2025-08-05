@@ -13,6 +13,7 @@ import (
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/config"
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/duties"
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
 )
 
 const (
@@ -32,7 +33,6 @@ func init() {
 func main() {
 	err := CMD.Execute()
 	if err != nil {
-		slog.With("err", err.Error()).Error("failed to execute root(main) command")
 		os.Exit(1)
 	}
 	os.Exit(0)
@@ -78,9 +78,19 @@ var CMD = &cobra.Command{
 			return fmt.Errorf("no log files found in %s", cfg.LogFilesDirectory)
 		}
 
+		blockchain, err := environment.BlockchainByName(cfg.Blockchain)
+		if err != nil {
+			return fmt.Errorf("get blockchain by name: %w", err)
+		}
+
+		logParser, err := environment.LogParserByName(cfg.LogParser)
+		if err != nil {
+			return fmt.Errorf("get log parser by name: %w", err)
+		}
+
 		// TODO
-		//proposer := duties.NewProposer()
-		commitee := duties.NewCommittee()
+		//proposer := duties.NewProposer(blockchain, logParser)
+		commitee := duties.NewCommittee(blockchain, logParser)
 
 		for _, file := range filesLog {
 			filePath := path.Join(cfg.LogFilesDirectory, file.Name())
@@ -98,7 +108,7 @@ var CMD = &cobra.Command{
 				Info(fmt.Sprintf("⏳⏳⏳ analyzing log file: %s", file.Name()))
 
 			// TODO
-			//err = proposer.AnalyzeLog(filePath)
+			//err = proposer.AnalyzeLog(filePath, cfg.TargetSlot)
 			//if err != nil {
 			//	return fmt.Errorf("proposer: analyze file: %w", err)
 			//}
