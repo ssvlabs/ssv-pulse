@@ -72,15 +72,17 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 			continue
 		}
 
+		entry, err := s.logParser.ParseLogLine(line)
+		if err != nil {
+			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+		}
+		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
+
+		if containsUnexpectedError(line) {
+			logger.With("time_into_slot_ms", timeIntoSlot.Milliseconds()).Info(line)
+		}
 		for _, dutyStep := range s.dutySteps {
 			if strings.Contains(line, dutyStep) {
-				entry, err := s.logParser.ParseLogLine(line)
-				if err != nil {
-					return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
-				}
-
-				timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
-
 				logger.With("time_into_slot_ms", timeIntoSlot.Milliseconds()).Info(line)
 			}
 		}
@@ -91,6 +93,22 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 	}
 
 	return nil
+}
+
+func containsUnexpectedError(line string) bool {
+	if !strings.Contains(line, "err") {
+		return false
+	}
+
+	if strings.Contains(line, "consensus has already finished") {
+		return false
+	}
+
+	if strings.Contains(line, "invalid post-consensus message: no running duty") {
+		return false
+	}
+
+	return true
 }
 
 // TODO - need this ?
