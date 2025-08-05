@@ -22,9 +22,12 @@ func NewBlockchain(genesisTime time.Time, slotDuration time.Duration) *Blockchai
 
 // SlotStartTime returns the start time for the given slot.
 func (b *Blockchain) SlotStartTime(slot phase0.Slot) (time.Time, error) {
-	maxAllowedSlotNumber := math.MaxInt64 / b.slotDuration
 	if slot > math.MaxInt64 {
-		return time.Time{}, fmt.Errorf("slot %d cannot exceed max allowed slot number of %d", slot, maxAllowedSlotNumber)
+		return time.Time{}, fmt.Errorf("slot number %d cannot exceed math.MaxInt64", slot)
+	}
+	maxAllowedSlotNumber := int64(math.MaxInt64 / b.slotDuration)
+	if int64(slot) > maxAllowedSlotNumber {
+		return time.Time{}, fmt.Errorf("slot number %d cannot exceed max allowed slot number of %d", slot, maxAllowedSlotNumber)
 	}
 	durationSinceGenesisStart := time.Duration(slot) * b.slotDuration
 	start := b.genesisTime.Add(durationSinceGenesisStart)
@@ -42,7 +45,7 @@ func (b *Blockchain) EstimatedSlotAtTime(time time.Time) (phase0.Slot, error) {
 
 var (
 	BlockchainMainnet = NewBlockchain(
-		time.Unix(1438269960, 0), // 2015-07-30 15:26:00 UTC UTC
+		time.Unix(1606824023, 0), // 2020-12-01 12:00:23 UTC
 		12*time.Second,
 	)
 	BlockchainHoodi = NewBlockchain(

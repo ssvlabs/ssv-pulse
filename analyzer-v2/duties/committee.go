@@ -108,6 +108,10 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
+	if strings.Contains(line, "not processing consensus message since instance is already decided") {
+		return false
+	}
+
 	return true
 }
 

@@ -1,5 +1,7 @@
 log-files-directory: /Users/iurii/Downloads/kraken
-blockchain: hoodi
+#blockchain: hoodi
+blockchain: mainnet
 log-parser: standard
-target-slot: 1012736 # attestations
-#target-slot: 999423 # sync-committee
+#log-parser: kraken
+target-slot: 12298720 # attestations example
+#target-slot: 999423 # sync-committee example
