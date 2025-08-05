@@ -1,0 +1,3 @@
+log-files-directory: /Users/iurii/Downloads/kraken
+target-slot: 1012736 # attestations
+#target-slot: 999423 # sync-committee
