@@ -27,6 +27,7 @@ func NewCommittee(blockchain *environment.Blockchain, logParser environment.LogP
 		dutySteps: []string{
 			"starting duty processing",
 			"fetched attestation data from CL",
+			"round timed out",
 			"QBFT instance decided",
 			"constructed & signed post consensus partial signature message",
 			"broadcasted post consensus partial signature message",
