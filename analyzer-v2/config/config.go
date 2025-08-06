@@ -7,10 +7,12 @@ import (
 )
 
 type Config struct {
-	LogFilesDirectory string      `mapstructure:"log-files-directory"`
-	Blockchain        string      `mapstructure:"blockchain"`
-	LogParser         string      `mapstructure:"log-parser"`
-	TargetSlot        phase0.Slot `mapstructure:"target-slot"`
+	LogFilesDirectory    string      `mapstructure:"log-files-directory"`
+	Blockchain           string      `mapstructure:"blockchain"`
+	LogParser            string      `mapstructure:"log-parser"`
+	TargetSlot           phase0.Slot `mapstructure:"target-slot"`
+	AnalyzeCommitteeDuty bool        `mapstructure:"analyze-committee-duty"`
+	AnalyzeProposerDuty  bool        `mapstructure:"analyze-proposer-duty"`
 }
 
 func (c *Config) Validate() error {

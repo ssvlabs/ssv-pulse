@@ -1,7 +1,11 @@
-log-files-directory: /Users/iurii/Downloads/kraken
+#log-files-directory: /Users/iurii/Downloads/target
+log-files-directory: /Users/iurii/Downloads/missedProposeAtSlot12133924Log
 #blockchain: hoodi
 blockchain: mainnet
 #log-parser: standard
 log-parser: kraken
-target-slot: 12147269 # attestations example
+analyze-committee-duty: false
+analyze-proposer-duty: true
+target-slot: 12133924 # attestations example
+#target-slot: 12298346 # attestations example (have a snippet with failing RANDAO signing)
 #target-slot: 999423 # sync-committee example

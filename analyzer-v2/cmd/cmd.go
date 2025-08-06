@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -88,34 +86,20 @@ var CMD = &cobra.Command{
 			return fmt.Errorf("get log parser by name: %w", err)
 		}
 
-		// TODO
-		//proposer := duties.NewProposer(blockchain, logParser)
-		commitee := duties.NewCommittee(blockchain, logParser)
-
-		for _, file := range filesLog {
-			filePath := path.Join(cfg.LogFilesDirectory, file.Name())
-
-			fileSizeMB := 0.0
-			stat, err := os.Stat(filePath)
+		if cfg.AnalyzeCommitteeDuty {
+			slog.Info(fmt.Sprintf("analyzing COMMITTEE duty for target slot %d", cfg.TargetSlot))
+			a := duties.NewCommittee(blockchain, logParser)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
 			if err != nil {
-				slog.With("err", err.Error()).Warn(fmt.Sprintf("error fetching `%s` file info, will try to read the file anyway", file.Name()))
+				return fmt.Errorf("analyze proposer duty: %w", err)
 			}
-			if err == nil {
-				fileSizeMB = float64(stat.Size()) / (1024 * 1024)
-			}
-			slog.
-				With("file_size_megabytes", math.Round(fileSizeMB)).
-				Info(fmt.Sprintf("⏳⏳⏳ analyzing log file: %s", file.Name()))
-
-			// TODO
-			//err = proposer.AnalyzeLog(filePath, cfg.TargetSlot)
-			//if err != nil {
-			//	return fmt.Errorf("proposer: analyze file: %w", err)
-			//}
-
-			err = commitee.AnalyzeLog(filePath, cfg.TargetSlot)
+		}
+		if cfg.AnalyzeProposerDuty {
+			slog.Info(fmt.Sprintf("analyzing PROPOSER duty for target slot %d", cfg.TargetSlot))
+			a := duties.NewProposer(blockchain, logParser)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
 			if err != nil {
-				return fmt.Errorf("commitee: analyze file: %w", err)
+				return fmt.Errorf("analyze proposer duty: %w", err)
 			}
 		}
 

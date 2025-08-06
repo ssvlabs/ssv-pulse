@@ -9,35 +9,17 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
-const dutyTypeCommitteePattern = "committee"
-const slotPattern = "\"slot\":%d"
-
 type Committee struct {
-	dutySteps []string
-
 	blockchain *environment.Blockchain
 	logParser  environment.LogParser
 }
 
 func NewCommittee(blockchain *environment.Blockchain, logParser environment.LogParser) *Committee {
 	return &Committee{
-		dutySteps: []string{
-			"starting duty processing",
-			"fetched attestation data from CL",
-			"round timed out",
-			"QBFT instance decided",
-			"constructed & signed post consensus partial signature message",
-			"broadcasted post consensus partial signature message",
-			"got post consensus quorum",
-			"submitting attestations",
-			"successfully submitted attestations",
-			"submitting sync committee",
-			"successfully submitted sync committee",
-			"successfully finished duty processing",
-		},
 		blockchain: blockchain,
 		logParser:  logParser,
 	}
@@ -60,7 +42,7 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 		line := scanner.Text()
 		lineNumber++
 
-		if !strings.Contains(line, dutyTypeCommitteePattern) {
+		if !helper.ContainsCaseInsensitive(line, dutyTypeCommitteePattern) {
 			continue
 		}
 		targetSlotPattern := fmt.Sprintf(slotPattern, targetSlot)
@@ -68,12 +50,12 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 			continue
 		}
 
-		if containsUnexpectedError(line) {
+		if containsUnexpectedCommitteeError(line) {
 			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
 				return err
 			}
 		}
-		for _, dutyStep := range s.dutySteps {
+		for _, dutyStep := range dutyStepsCommittee {
 			if strings.Contains(line, dutyStep) {
 				if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
 					return err
@@ -105,30 +87,6 @@ func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNu
 	logger.Info(timeIntoSlotStr + " " + line)
 
 	return nil
-}
-
-func containsUnexpectedError(line string) bool {
-	if !strings.Contains(line, "err") {
-		return false
-	}
-
-	if strings.Contains(line, "consensus has already finished") {
-		return false
-	}
-
-	if strings.Contains(line, "invalid post-consensus message: no running duty") {
-		return false
-	}
-
-	if strings.Contains(line, "not processing consensus message since instance is already decided") {
-		return false
-	}
-
-	if strings.Contains(line, "instance stopped processing messages") {
-		return false
-	}
-
-	return true
 }
 
 // TODO - need this ?
