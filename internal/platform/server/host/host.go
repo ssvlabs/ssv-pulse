@@ -25,7 +25,7 @@ func New(port uint16, handler http.Handler) *WebHost {
 
 func (h *WebHost) Run() {
 	go func() {
-		if err := h.server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+		if err := h.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			const errMsg = "error running web host"
 			slog.With("error", err.Error()).Error(errMsg)
 			panic(errMsg)
