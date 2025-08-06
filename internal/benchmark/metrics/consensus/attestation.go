@@ -76,9 +76,8 @@ func (a *AttestationMetric) Measure(ctx context.Context) {
 	go a.launchListener(ctx)
 
 	go func() {
-		slot := currentSlot(a.genesisTime)
-		const calculationSlotLag = 2
-		laggedSlot := slot + calculationSlotLag
+		genesisSlot := currentSlot(a.genesisTime)
+		slot := genesisSlot
 		for {
 			slot++
 			nextSlotWithDelay := time.After(time.Until(slotTime(a.genesisTime, slot).Add(time.Second * 4)))
@@ -86,8 +85,8 @@ func (a *AttestationMetric) Measure(ctx context.Context) {
 			case <-nextSlotWithDelay:
 				go func(slot phase0.Slot) {
 					a.fetchAttestationData(ctx, slot)
-
-					if slot > laggedSlot {
+					const calculationSlotLag = 2
+					if slot > genesisSlot+calculationSlotLag {
 						a.calculateMeasurements(slot - calculationSlotLag)
 					}
 				}(slot)

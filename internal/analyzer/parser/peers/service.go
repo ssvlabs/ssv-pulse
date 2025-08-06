@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
@@ -75,17 +76,14 @@ func (s *Service) Analyze() (Stats, error) {
 		nodeClientVersions    []string
 	)
 
+	lineNumber := 0
 	for scanner.Scan() {
 		var entry logEntry
 		line := scanner.Text()
-
+		lineNumber++
 		if strings.Contains(line, scoredPeersMsg) || strings.Contains(line, peerIdentityMsg) || strings.Contains(line, peerScoresMsg) {
 			if err := json.Unmarshal([]byte(line), &entry); err != nil {
-				slog.
-					With("err", err).
-					With("line", line).
-					Warn("failed to unmarshal line. Skipping")
-				continue
+				return stats, fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, s.logFile.Name(), line, err)
 			}
 
 			if strings.EqualFold(entry.Message, scoredPeersMsg) {
@@ -113,7 +111,7 @@ func (s *Service) Analyze() (Stats, error) {
 		logger := slog.
 			With("parserName", parserName).
 			With("fileName", s.logFile.Name())
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 			logger.Warn("the log line was too long, continue reading..")
 		} else {
 			logger.

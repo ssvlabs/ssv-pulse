@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"log/slog"
 	"maps"
 	"math"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,9 +52,15 @@ var CMD = &cobra.Command{
 		}
 
 		fileDirectory := configs.Values.Analyzer.LogFilesDirectory
-		files, err := os.ReadDir(fileDirectory)
+		filesAll, err := os.ReadDir(fileDirectory)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not read logs directory: %w", err)
+		}
+		files := make([]os.DirEntry, 0, len(filesAll))
+		for _, file := range filesAll {
+			if strings.HasSuffix(file.Name(), ".log") {
+				files = append(files, file)
+			}
 		}
 
 		var (
@@ -102,8 +110,8 @@ var CMD = &cobra.Command{
 			case <-progressTicker.C:
 				slog.
 					With("count", len(files)).
-					With("filesSizeMB", math.Round(totalFileSizeMB)).
-					Info("⏳⏳⏳ processing file(s)...")
+					With("totalSizeMB", math.Round(totalFileSizeMB)).
+					Info("⏳⏳⏳ still processing file(s)...")
 			case peerRecord, isOpen := <-peerRecordsChan:
 				if isOpen {
 					peersReport.AddRecord(peerRecord)
@@ -283,7 +291,8 @@ func analyzeFile(
 	peerRecordChan chan<- report.PeerRecord,
 	clientRecordChan chan<- report.ClientRecord,
 	operatorRecordChan chan<- map[uint32]report.OperatorRecord,
-	errorChan chan<- error) {
+	errorChan chan<- error,
+) {
 	clientAnalyzer, err := client.New(filePath, time.Millisecond*800)
 	if err != nil {
 		errorChan <- err
@@ -319,7 +328,7 @@ func analyzeFile(
 		return
 	}
 
-	analyzerSvc, err := New(
+	analyzerSvc := New(
 		peersAnalyzer,
 		consensusAnalyzer,
 		operatorAnalyzer,
@@ -327,11 +336,8 @@ func analyzeFile(
 		commitAnalyzer,
 		prepareAnalyzer,
 		configs.Values.Analyzer.Operators,
-		configs.Values.Analyzer.Cluster)
-	if err != nil {
-		errorChan <- err
-		return
-	}
+		configs.Values.Analyzer.Cluster,
+	)
 
 	result, err := analyzerSvc.Start()
 	if err != nil {

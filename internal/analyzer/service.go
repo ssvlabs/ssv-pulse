@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -97,8 +98,8 @@ func New(
 	commitAnalyzer commitAnalyzer,
 	prepareAnalyzer prepareAnalyzer,
 	operators []uint32,
-	cluster bool) (*Service, error) {
-
+	cluster bool,
+) *Service {
 	return &Service{
 		peersAnalyzer:     peersAnalyzer,
 		consensusAnalyzer: consensusAnalyzer,
@@ -108,14 +109,14 @@ func New(
 		prepareAnalyzer:   prepareAnalyzer,
 		operators:         operators,
 		cluster:           cluster,
-	}, nil
+	}
 }
 
 func (s *Service) Start() (AnalyzerResult, error) {
 	var result AnalyzerResult
 	peerStats, operatorStats, consensusStats, commitStats, prepareStats, clientStats, err := s.runAnalyzers()
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("run analyzers: %w", err)
 	}
 
 	operatorIDs := array.CollectDistinct(
@@ -178,14 +179,15 @@ func (s *Service) Start() (AnalyzerResult, error) {
 	return result, nil
 }
 
-func (r *Service) runAnalyzers() (
+func (s *Service) runAnalyzers() (
 	peers.Stats,
 	operator.Stats,
 	consensus.Stats,
 	map[parser.SignerID]commit.Stats,
 	map[parser.SignerID]prepare.Stats,
 	client.Stats,
-	error) {
+	error,
+) {
 	var wg sync.WaitGroup
 	errChan := make(chan error, 6)
 
@@ -202,9 +204,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		commitStats, err = r.commitAnalyzer.Analyze()
+		commitStats, err = s.commitAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("commit analyzer -> analize: %w", err)
 			return
 		}
 	}()
@@ -213,9 +215,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		prepareStats, err = r.prepareAnalyzer.Analyze()
+		prepareStats, err = s.prepareAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("prepare analyzer -> analize: %w", err)
 			return
 		}
 	}()
@@ -224,9 +226,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		clientStats, err = r.clientAnalyzer.Analyze()
+		clientStats, err = s.clientAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("client analyzer -> analize: %w", err)
 			return
 		}
 	}()
@@ -235,9 +237,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		operatorStats, err = r.operatorAnalyzer.Analyze()
+		operatorStats, err = s.operatorAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("operator analyzer -> analize: %w", err)
 			return
 		}
 	}()
@@ -246,9 +248,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		consensusStats, err = r.consensusAnalyzer.Analyze()
+		consensusStats, err = s.consensusAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("consensus analyzer -> analize: %w", err)
 			return
 		}
 	}()
@@ -257,9 +259,9 @@ func (r *Service) runAnalyzers() (
 	go func() {
 		defer wg.Done()
 		var err error
-		peersStats, err = r.peersAnalyzer.Analyze()
+		peersStats, err = s.peersAnalyzer.Analyze()
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("peer analyzer -> analize: %w", err)
 			return
 		}
 	}()

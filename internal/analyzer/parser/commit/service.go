@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -52,11 +53,13 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 	proposeTime := make(map[parser.DutyID]time.Time)
 	commitTimes := make(map[parser.DutyID]map[parser.SignerID]time.Time)
 
+	lineNumber := 0
 	for scanner.Scan() {
 		var entry commitLogEntry
 		line := scanner.Text()
+		lineNumber++
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, s.logFile.Name(), line, err)
 		}
 
 		if strings.Contains(entry.Message, proposeMsg) {
@@ -79,7 +82,7 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 		logger := slog.
 			With("parserName", parserName).
 			With("fileName", s.logFile.Name())
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 			logger.Warn("the log line was too long, continue reading..")
 		} else {
 			logger.
