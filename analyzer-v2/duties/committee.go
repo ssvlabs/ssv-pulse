@@ -51,11 +51,6 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 		_ = logFile.Close()
 	}()
 
-	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
-	if err != nil {
-		return fmt.Errorf("get target slot start time: %w", err)
-	}
-
 	logger := slog.With("duty_type", dutyTypeCommitteePattern)
 
 	lineNumber := 0
@@ -72,18 +67,16 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 			continue
 		}
 
-		entry, err := s.logParser.ParseLogLine(line)
-		if err != nil {
-			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
-		}
-		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
-
 		if containsUnexpectedError(line) {
-			logger.With("time_into_slot_ms", timeIntoSlot.Milliseconds()).Info(line)
+			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+				return err
+			}
 		}
 		for _, dutyStep := range s.dutySteps {
 			if strings.Contains(line, dutyStep) {
-				logger.With("time_into_slot_ms", timeIntoSlot.Milliseconds()).Info(line)
+				if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -91,6 +84,24 @@ func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
 	if err != nil {
 		return fmt.Errorf("read %d log lines, scanner error: %w", lineNumber, err)
 	}
+
+	return nil
+}
+
+func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
+	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
+	if err != nil {
+		return fmt.Errorf("get target slot start time: %w", err)
+	}
+
+	entry, err := s.logParser.ParseLogLine(line)
+	if err != nil {
+		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+	}
+	timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
+
+	timeIntoSlotStr := fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
+	logger.Info(timeIntoSlotStr + " " + line)
 
 	return nil
 }
@@ -109,6 +120,10 @@ func containsUnexpectedError(line string) bool {
 	}
 
 	if strings.Contains(line, "not processing consensus message since instance is already decided") {
+		return false
+	}
+
+	if strings.Contains(line, "instance stopped processing messages") {
 		return false
 	}
 

@@ -47,9 +47,9 @@ var CMD = &cobra.Command{
 			return fmt.Errorf("parse config: %w", err)
 		}
 
-		slog.With("config_file", viper.ConfigFileUsed()).
-			With("config", cfg).
-			Debug("configuration is loaded")
+		slog.With("config", cfg).
+			With("config_file", viper.ConfigFileUsed()).
+			Info("configuration is loaded")
 
 		err = cfg.Validate()
 		if err != nil {
