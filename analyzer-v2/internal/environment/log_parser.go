@@ -29,7 +29,7 @@ func (parser *StandardLogParser) ParseLogLine(line string) (entry LogEntry, trim
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
 	}
 	return LogEntry{
-		Timestamp: entry.Timestamp,
+		Timestamp: e.Timestamp,
 	}, trimmedLine, nil
 }
 
@@ -51,7 +51,7 @@ func (parser *ExternalLogParser) ParseLogLine(line string) (entry LogEntry, trim
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
 	}
 	return LogEntry{
-		Timestamp: entry.Timestamp,
+		Timestamp: e.Timestamp,
 	}, trimmedLine, nil
 }
 
