@@ -45,6 +45,12 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		if !helper.ContainsCaseInsensitive(line, dutyTypeCommitteePattern) {
 			continue
 		}
+		// since sync-committee-contribution cannot be filtered out by `dutyTypeCommitteePattern`
+		// we have to do this additional filtering here
+		if helper.ContainsCaseInsensitive(line, dutyTypeSyncCommitteePattern) {
+			continue
+		}
+
 		targetSlotPattern := fmt.Sprintf(slotPattern, targetSlot)
 		if !strings.Contains(line, targetSlotPattern) {
 			continue

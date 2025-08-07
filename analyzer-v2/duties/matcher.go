@@ -47,8 +47,9 @@ func containsUnexpectedProposerError(line string) bool {
 }
 
 const (
-	dutyTypeCommitteePattern = "committee"
-	dutyTypeProposerPattern  = "proposer"
+	dutyTypeCommitteePattern     = "committee"
+	dutyTypeProposerPattern      = "proposer"
+	dutyTypeSyncCommitteePattern = "sync_committee"
 
 	slotPattern = "\"slot\":%d"
 )

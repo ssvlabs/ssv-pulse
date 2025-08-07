@@ -6,5 +6,5 @@ log-format: standard
 #log-format: external
 analyze-committee-duty: true
 analyze-proposer-duty: false
-target-slot: 1026253 # attestations example
+target-slot: 1026357 # attestations example
 #target-slot: 999423 # sync-committee example
