@@ -9,7 +9,7 @@ import (
 type Config struct {
 	LogFilesDirectory    string      `mapstructure:"log-files-directory"`
 	Blockchain           string      `mapstructure:"blockchain"`
-	LogParser            string      `mapstructure:"log-parser"`
+	LogFormat            string      `mapstructure:"log-format"`
 	TargetSlot           phase0.Slot `mapstructure:"target-slot"`
 	AnalyzeCommitteeDuty bool        `mapstructure:"analyze-committee-duty"`
 	AnalyzeProposerDuty  bool        `mapstructure:"analyze-proposer-duty"`
@@ -22,8 +22,8 @@ func (c *Config) Validate() error {
 	if c.Blockchain == "" {
 		return fmt.Errorf("❕ 'blockchain' was not specified")
 	}
-	if c.LogParser == "" {
-		return fmt.Errorf("❕ 'log-parser' was not specified")
+	if c.LogFormat == "" {
+		return fmt.Errorf("❕ 'log-format' was not specified")
 	}
 	if c.TargetSlot == 0 {
 		return fmt.Errorf("❕ 'target-slot' was not specified")

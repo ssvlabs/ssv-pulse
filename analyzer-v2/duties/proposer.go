@@ -25,7 +25,7 @@ func NewProposer(blockchain *environment.Blockchain, logParser environment.LogPa
 	}
 }
 
-func (s *Proposer) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error {
+func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -82,14 +82,14 @@ func (s *Proposer) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNum
 		return fmt.Errorf("get target slot start time: %w", err)
 	}
 
-	entry, err := s.logParser.ParseLogLine(line)
+	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
 	if err != nil {
 		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 	}
 	timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
 
 	timeIntoSlotStr := fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
-	logger.Info(timeIntoSlotStr + " " + line)
+	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
 }

@@ -25,7 +25,7 @@ func NewCommittee(blockchain *environment.Blockchain, logParser environment.LogP
 	}
 }
 
-func (s *Committee) AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error {
+func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -77,65 +77,14 @@ func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNu
 		return fmt.Errorf("get target slot start time: %w", err)
 	}
 
-	entry, err := s.logParser.ParseLogLine(line)
+	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
 	if err != nil {
 		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 	}
 	timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
 
 	timeIntoSlotStr := fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
-	logger.Info(timeIntoSlotStr + " " + line)
+	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
 }
-
-// TODO - need this ?
-////func (s *Committee) AnalyzeJson(logFilePath string) error {
-////	jsonFile, err := os.Open(logFilePath)
-////	if err != nil {
-////		return fmt.Errorf("open json file: %w", err)
-////	}
-////	defer func() {
-////		_ = jsonFile.Close()
-////	}()
-////
-////	logger := slog.With("duty_type", dutyTypeCommitteePattern)
-////
-////	jsonFileContents, err := io.ReadAll(jsonFile)
-////	if err != nil {
-////		return fmt.Errorf("read json file contents: `%s`, err: %w", jsonFile.Name(), err)
-////	}
-////	var entries []jsonEntry
-////	err = json.Unmarshal(jsonFileContents, &entries)
-////	if err != nil {
-////		return fmt.Errorf("parse json file contents: `%s`, err: %w", jsonFile.Name(), err)
-////	}
-////
-////	lineNumber := 0
-////	for _, entry := range entries {
-////		line := entry.Line
-////		lineNumber++
-////
-////		if !strings.Contains(line, dutyTypeCommitteePattern) {
-////			continue
-////		}
-////
-////		for _, dutyStep := range s.dutySteps {
-////			if strings.Contains(line, dutyStep) {
-////				logger.Info(line)
-////
-////				// TODO
-////				//var entry commitLogEntry
-////				//if err := json.Unmarshal([]byte(line), &entry); err != nil {
-////				//	return fmt.Errorf("unmarshal log line %d (file = `%s`): `%s`, err: %w", lineNumber, logFile.Name(), line, err)
-////				//}
-////			}
-////		}
-////	}
-////
-////	return nil
-////}
-//
-//type jsonEntry struct {
-//	Line string `json:"line"`
-//}

@@ -11,7 +11,7 @@ import (
 )
 
 type analyzer interface {
-	AnalyzeLog(logFilePath string, targetSlot phase0.Slot) error
+	Analyze(logFilePath string, targetSlot phase0.Slot) error
 }
 
 func Analyze(a analyzer, dir string, files []os.DirEntry, targetSlot phase0.Slot) error {
@@ -30,13 +30,7 @@ func Analyze(a analyzer, dir string, files []os.DirEntry, targetSlot phase0.Slot
 			With("file_size_megabytes", math.Round(fileSizeMB)).
 			Info(fmt.Sprintf("⏳⏳⏳ analyzing log file: %s", file.Name()))
 
-		// TODO
-		//err = proposer.AnalyzeLog(filePath, cfg.TargetSlot)
-		//if err != nil {
-		//	return fmt.Errorf("proposer: analyze file: %w", err)
-		//}
-
-		err = a.AnalyzeLog(filePath, targetSlot)
+		err = a.Analyze(filePath, targetSlot)
 		if err != nil {
 			return fmt.Errorf("commitee: analyze file: %w", err)
 		}
