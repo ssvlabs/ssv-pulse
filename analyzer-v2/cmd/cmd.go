@@ -98,6 +98,14 @@ var CMD = &cobra.Command{
 				return fmt.Errorf("analyze proposer duty: %w", err)
 			}
 		}
+		if cfg.AnalyzeAggregatorDuty {
+			slog.Info(fmt.Sprintf("analyzing AGGREGATOR duty for target slot %d", cfg.TargetSlot))
+			a := duties.NewAggregator(blockchain, logParser)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			if err != nil {
+				return fmt.Errorf("analyze aggregator duty: %w", err)
+			}
+		}
 
 		return nil
 	},

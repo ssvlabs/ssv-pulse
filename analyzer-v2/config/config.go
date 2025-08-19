@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	LogFilesDirectory    string      `mapstructure:"log-files-directory"`
-	Blockchain           string      `mapstructure:"blockchain"`
-	LogFormat            string      `mapstructure:"log-format"`
-	TargetSlot           phase0.Slot `mapstructure:"target-slot"`
-	AnalyzeCommitteeDuty bool        `mapstructure:"analyze-committee-duty"`
-	AnalyzeProposerDuty  bool        `mapstructure:"analyze-proposer-duty"`
+	LogFilesDirectory     string      `mapstructure:"log-files-directory"`
+	Blockchain            string      `mapstructure:"blockchain"`
+	LogFormat             string      `mapstructure:"log-format"`
+	TargetSlot            phase0.Slot `mapstructure:"target-slot"`
+	AnalyzeCommitteeDuty  bool        `mapstructure:"analyze-committee-duty"`
+	AnalyzeProposerDuty   bool        `mapstructure:"analyze-proposer-duty"`
+	AnalyzeAggregatorDuty bool        `mapstructure:"analyze-aggregator-duty"`
 }
 
 func (c *Config) Validate() error {

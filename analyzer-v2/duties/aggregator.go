@@ -13,19 +13,19 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
-type Proposer struct {
+type Aggregator struct {
 	blockchain *environment.Blockchain
 	logParser  environment.LogParser
 }
 
-func NewProposer(blockchain *environment.Blockchain, logParser environment.LogParser) *Proposer {
-	return &Proposer{
+func NewAggregator(blockchain *environment.Blockchain, logParser environment.LogParser) *Aggregator {
+	return &Aggregator{
 		blockchain: blockchain,
 		logParser:  logParser,
 	}
 }
 
-func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
+func (s *Aggregator) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -34,7 +34,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", dutyTypeProposerPattern)
+	logger := slog.With("duty_type", dutyTypeAggregatorPattern)
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -42,11 +42,11 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !helper.ContainsCaseInsensitive(line, dutyTypeProposerPattern) {
+		if !helper.ContainsCaseInsensitive(line, dutyTypeAggregatorPattern) {
 			continue
 		}
 
-		// TODO - gotta filter by validator-pubkey as well since errors typically don't contain `duty_id`
+		//TODO - gotta filter by validator-pubkey as well since errors typically don't contain `duty_id`
 		targetSlotPattern := fmt.Sprintf(slotPattern, targetSlot)
 		if !strings.Contains(line, targetSlotPattern) {
 			continue
@@ -56,12 +56,12 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		//	continue
 		//}
 
-		if containsUnexpectedProposerError(line) {
+		if containsUnexpectedAggregatorError(line) {
 			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
 				return err
 			}
 		}
-		for _, dutyStep := range dutyStepsProposer {
+		for _, dutyStep := range dutyStepsAggregator {
 			if strings.Contains(line, dutyStep) {
 				if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
 					return err
@@ -77,7 +77,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	return nil
 }
 
-func (s *Proposer) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
+func (s *Aggregator) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
 	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
 	if err != nil {
 		return fmt.Errorf("get target slot start time: %w", err)
