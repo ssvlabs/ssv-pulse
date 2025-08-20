@@ -8,7 +8,7 @@ import (
 
 type prepareLogEntry struct {
 	Timestamp      parser.MultiFormatTime `json:"T"`
-	Round          uint8                  `json:"round"`
+	Round          uint8                  `json:"qbft_round"`
 	DutyID         string                 `json:"duty_id"`
 	Message        string                 `json:"M"`
 	PrepareSigners []parser.SignerID      `json:"prepare_signers"`

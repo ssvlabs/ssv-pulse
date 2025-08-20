@@ -28,7 +28,7 @@ type (
 		Message       string                 `json:"M"`
 		DutyID        string                 `json:"duty_id"`
 		Slot          uint64                 `json:"slot"`
-		Round         uint8                  `json:"round"`
+		Round         uint8                  `json:"qbft_round"`
 		Signers       []parser.SignerID      `json:"signers"`
 		ConsensusTime string                 `json:"consensus_time"`
 		BlockRoot     string                 `json:"block_root,omitempty"`

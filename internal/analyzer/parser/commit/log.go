@@ -8,7 +8,7 @@ import (
 
 type commitLogEntry struct {
 	Timestamp     parser.MultiFormatTime `json:"T"`
-	Round         uint8                  `json:"round"`
+	Round         uint8                  `json:"qbft_round"`
 	DutyID        string                 `json:"duty_id"`
 	Message       string                 `json:"M"`
 	CommitSigners []parser.SignerID      `json:"commit_signers"` //NOTE: This array always contains 1 item
