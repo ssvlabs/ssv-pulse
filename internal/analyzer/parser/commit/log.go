@@ -7,11 +7,14 @@ import (
 )
 
 type commitLogEntry struct {
-	Timestamp     parser.MultiFormatTime `json:"T"`
-	Round         uint8                  `json:"qbft_round"`
-	DutyID        string                 `json:"duty_id"`
-	Message       string                 `json:"M"`
-	CommitSigners []parser.SignerID      `json:"commit_signers"` //NOTE: This array always contains 1 item
+	Timestamp parser.MultiFormatTime `json:"T"`
+	// Round is deprecated by https://github.com/ssvlabs/ssv/pull/2453#discussion_r2287196265 but kept for now
+	// for backward-compatibility, use QBFTRound instead (we can remove Round later).
+	Round         uint8             `json:"round"`
+	QBFTRound     uint8             `json:"qbft_round"`
+	DutyID        string            `json:"duty_id"`
+	Message       string            `json:"M"`
+	CommitSigners []parser.SignerID `json:"commit_signers"` //NOTE: This array always contains 1 item
 }
 
 func (p *commitLogEntry) UnmarshalJSON(data []byte) error {

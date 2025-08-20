@@ -40,7 +40,7 @@ func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t
 			input: jsonData1,
 			expected: commitLogEntry{
 				Timestamp:     expectedTime,
-				Round:         1,
+				QBFTRound:     1,
 				DutyID:        "1234",
 				Message:       "Commit message",
 				CommitSigners: []parser.SignerID{1, 2, 3},
@@ -52,7 +52,7 @@ func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t
 			input: jsonData2,
 			expected: commitLogEntry{
 				Timestamp:     expectedTime,
-				Round:         1,
+				QBFTRound:     1,
 				DutyID:        "1234",
 				Message:       "Commit message",
 				CommitSigners: []parser.SignerID{4, 5, 6},

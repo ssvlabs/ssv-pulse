@@ -66,7 +66,7 @@ func (s *Service) Analyze() (map[parser.SignerID]Stats, error) {
 			proposeTime[entry.DutyID] = entry.Timestamp.Time
 		}
 
-		if strings.Contains(entry.Message, commitMsg) && entry.Round == 1 {
+		if strings.Contains(entry.Message, commitMsg) && (entry.Round == 1 || entry.QBFTRound == 1) {
 			if _, exists := commitTimes[entry.DutyID]; !exists {
 				commitTimes[entry.DutyID] = make(map[parser.SignerID]time.Time)
 			}

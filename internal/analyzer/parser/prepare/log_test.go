@@ -40,7 +40,7 @@ func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(
 			input: jsonData1,
 			expected: prepareLogEntry{
 				Timestamp:      expectedTime,
-				Round:          1,
+				QBFTRound:      1,
 				DutyID:         "1234",
 				Message:        "Prepare message",
 				PrepareSigners: []parser.SignerID{1, 2, 3},
@@ -52,7 +52,7 @@ func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(
 			input: jsonData2,
 			expected: prepareLogEntry{
 				Timestamp:      expectedTime,
-				Round:          1,
+				QBFTRound:      1,
 				DutyID:         "1234",
 				Message:        "Prepare message",
 				PrepareSigners: []parser.SignerID{4, 5, 6},
