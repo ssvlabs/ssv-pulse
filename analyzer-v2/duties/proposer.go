@@ -9,7 +9,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
-	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -34,7 +33,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", dutyTypeProposerPattern)
+	logger := slog.With("duty_type", "proposer")
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -42,19 +41,12 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !helper.ContainsCaseInsensitive(line, dutyTypeProposerPattern) {
+		if !relevantForProposerDuty(line) {
 			continue
 		}
-
-		// TODO - gotta filter by validator-pubkey as well since errors typically don't contain `duty_id`
-		targetSlotPattern := fmt.Sprintf(slotPattern, targetSlot)
-		if !strings.Contains(line, targetSlotPattern) {
+		if !relevantForSlot(line, targetSlot) {
 			continue
 		}
-		//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
-		//if !strings.Contains(line, targetSlotPattern) && !strings.Contains(line, vPubkey) {
-		//	continue
-		//}
 
 		if containsUnexpectedProposerError(line) {
 			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {

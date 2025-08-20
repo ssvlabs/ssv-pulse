@@ -1,12 +1,54 @@
 package duties
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 )
 
+func relevantForCommitteeDuty(line string) bool {
+	if helper.ContainsCaseInsensitive(line, "attester") {
+		return true
+	}
+	if helper.ContainsCaseInsensitive(line, "sync_committee") {
+		return true
+	}
+	return helper.ContainsCaseInsensitive(line, "committee")
+}
+
+func relevantForProposerDuty(line string) bool {
+	// TODO - gotta filter by validator-pubkey sometimes as well ?
+	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
+	//if !strings.Contains(line, vPubkey) {
+	//	return false
+	//}
+	return helper.ContainsCaseInsensitive(line, "proposer")
+}
+
+func relevantForAggregatorDuty(line string) bool {
+	// TODO - gotta filter by validator-pubkey sometimes as well ?
+	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
+	//if !strings.Contains(line, vPubkey) {
+	//	return false
+	//}
+	return helper.ContainsCaseInsensitive(line, "aggregator")
+}
+
+func relevantForSlot(line string, targetSlot phase0.Slot) bool {
+	if strings.Contains(line, fmt.Sprintf("\"slot\":%d", targetSlot)) {
+		return true
+	}
+	if strings.Contains(line, fmt.Sprintf("-s%d", targetSlot)) {
+		return true
+	}
+	return false
+}
+
 var dutyStepsCommittee = []string{
+	"got duties",
 	"executing committee duty",
 	"starting duty processing",
 	"fetched attestation data from CL",
@@ -30,6 +72,7 @@ func containsUnexpectedCommitteeError(line string) bool {
 }
 
 var dutyStepsProposer = []string{
+	"got duties",
 	"executing validator duty",
 	"starting duty processing",
 	"signed & broadcasted partial RANDAO signature",
@@ -54,6 +97,7 @@ func containsUnexpectedProposerError(line string) bool {
 }
 
 var dutyStepsAggregator = []string{
+	"got duties",
 	"executing validator duty",
 	"starting duty processing",
 	"signed aggregator selection proof",
@@ -76,15 +120,6 @@ var dutyStepsAggregator = []string{
 func containsUnexpectedAggregatorError(line string) bool {
 	return containsUnexpectedError(line)
 }
-
-const (
-	dutyTypeCommitteePattern     = "committee"
-	dutyTypeProposerPattern      = "proposer"
-	dutyTypeAggregatorPattern    = "aggregator"
-	dutyTypeSyncCommitteePattern = "sync_committee"
-
-	slotPattern = "\"slot\":%d"
-)
 
 func containsUnexpectedError(line string) bool {
 	if !helper.ContainsCaseInsensitive(line, "err") {

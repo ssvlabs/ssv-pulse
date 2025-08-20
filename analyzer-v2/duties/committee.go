@@ -9,7 +9,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
-	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -34,7 +33,7 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", dutyTypeCommitteePattern)
+	logger := slog.With("duty_type", "committee")
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -42,17 +41,10 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !helper.ContainsCaseInsensitive(line, dutyTypeCommitteePattern) {
+		if !relevantForCommitteeDuty(line) {
 			continue
 		}
-		// since sync-committee-contribution cannot be filtered out by `dutyTypeCommitteePattern`
-		// we have to do this additional filtering here
-		if helper.ContainsCaseInsensitive(line, dutyTypeSyncCommitteePattern) {
-			continue
-		}
-
-		targetSlotPattern := fmt.Sprintf(slotPattern, targetSlot)
-		if !strings.Contains(line, targetSlotPattern) {
+		if !relevantForSlot(line, targetSlot) {
 			continue
 		}
 
