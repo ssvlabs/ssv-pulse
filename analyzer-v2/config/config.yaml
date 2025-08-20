@@ -7,10 +7,10 @@ blockchain: mainnet
 #log-format: standard
 log-format: external
 
-#analyze-committee-duty: true
-analyze-committee-duty: false
-analyze-proposer-duty: true
-#analyze-proposer-duty: false
+analyze-committee-duty: true
+#analyze-committee-duty: false
+#analyze-proposer-duty: true
+analyze-proposer-duty: false
 #analyze-aggregator-duty: true
 analyze-aggregator-duty: false
 

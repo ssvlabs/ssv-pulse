@@ -7,6 +7,7 @@ import (
 )
 
 var dutyStepsCommittee = []string{
+	"executing committee duty",
 	"starting duty processing",
 	"fetched attestation data from CL",
 	"starting new QBFT instance",
@@ -29,6 +30,7 @@ func containsUnexpectedCommitteeError(line string) bool {
 }
 
 var dutyStepsProposer = []string{
+	"executing validator duty",
 	"starting duty processing",
 	"signed & broadcasted partial RANDAO signature",
 	"got partial RANDAO signatures",
@@ -52,6 +54,7 @@ func containsUnexpectedProposerError(line string) bool {
 }
 
 var dutyStepsAggregator = []string{
+	"executing validator duty",
 	"starting duty processing",
 	"signed aggregator selection proof",
 	"got partial aggregator selection proof signatures",
