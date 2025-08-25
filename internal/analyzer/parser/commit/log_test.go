@@ -12,7 +12,7 @@ import (
 func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t *testing.T) {
 	jsonData1 := `{
 		"T": "2024-09-27T05:48:39.348Z",
-		"round": 1,
+		"qbft_round": 1,
 		"duty_id": "1234",
 		"M": "Commit message",
 		"commit_signers": [1, 2, 3]
@@ -20,7 +20,7 @@ func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t
 
 	jsonData2 := `{
 		"T": "2024-09-27T05:48:39.348Z",
-		"round": 1,
+		"qbft_round": 1,
 		"duty_id": "1234",
 		"M": "Commit message",
 		"commit-signers": [4, 5, 6]
@@ -40,7 +40,7 @@ func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t
 			input: jsonData1,
 			expected: commitLogEntry{
 				Timestamp:     expectedTime,
-				Round:         1,
+				QBFTRound:     1,
 				DutyID:        "1234",
 				Message:       "Commit message",
 				CommitSigners: []parser.SignerID{1, 2, 3},
@@ -52,7 +52,7 @@ func Test_GivenCommitLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t
 			input: jsonData2,
 			expected: commitLogEntry{
 				Timestamp:     expectedTime,
-				Round:         1,
+				QBFTRound:     1,
 				DutyID:        "1234",
 				Message:       "Commit message",
 				CommitSigners: []parser.SignerID{4, 5, 6},

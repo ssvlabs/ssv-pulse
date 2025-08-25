@@ -24,14 +24,17 @@ const (
 
 type (
 	logEntry struct {
-		Timestamp     parser.MultiFormatTime `json:"T"`
-		Message       string                 `json:"M"`
-		DutyID        string                 `json:"duty_id"`
-		Slot          uint64                 `json:"slot"`
-		Round         uint8                  `json:"round"`
-		Signers       []parser.SignerID      `json:"signers"`
-		ConsensusTime string                 `json:"consensus_time"`
-		BlockRoot     string                 `json:"block_root,omitempty"`
+		Timestamp parser.MultiFormatTime `json:"T"`
+		Message   string                 `json:"M"`
+		DutyID    string                 `json:"duty_id"`
+		Slot      uint64                 `json:"slot"`
+		// Round is deprecated by https://github.com/ssvlabs/ssv/pull/2453#discussion_r2287196265 but kept for now
+		// for backward-compatibility, use QBFTRound instead (we can remove Round later).
+		Round         uint8             `json:"round"`
+		QBFTRound     uint8             `json:"qbft_round"`
+		Signers       []parser.SignerID `json:"signers"`
+		ConsensusTime string            `json:"consensus_time"`
+		BlockRoot     string            `json:"block_root,omitempty"`
 	}
 
 	OperatorStats struct {
@@ -112,7 +115,7 @@ func (s *Service) Analyze() (Stats, error) {
 
 		//only consensus times with round 1 are not diluted
 		if strings.Contains(entry.Message, attestationSubmissionLogRecord) {
-			if entry.Round == 1 {
+			if entry.Round == 1 || entry.QBFTRound == 1 {
 				consensusDuration, err := stringToDuration(entry.ConsensusTime, time.Second)
 				if err != nil {
 					return stats, err
