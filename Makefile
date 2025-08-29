@@ -19,6 +19,10 @@ run-benchmark: build
 run-analyzer: build
 	@cd ${BINARY_DIR} && ./${BINARY_NAME} analyzer
 
+.PHONY: log-analyzer-v2
+log-analyzer-v2:
+	go run analyzer-v2/cmd/cmd.go
+
 ########## DOCKER
 .PHONY: docker-build
 docker-build:

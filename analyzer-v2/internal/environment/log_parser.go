@@ -29,8 +29,9 @@ func (parser *StandardLogParser) ParseLogLine(line string) (entry LogEntry, trim
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
 	}
 
+	// TODO - no longer need this ? Remove then.
 	// trim certain log-lines (those listing duties) to keep the output reasonably short
-	trimmedLine = helper.TrimRightOf(line, "\"duties\"") + " ..."
+	//trimmedLine = helper.TrimRightOf(line, "\"duties\"") + " ..."
 
 	return LogEntry{
 		Timestamp: e.Timestamp,
