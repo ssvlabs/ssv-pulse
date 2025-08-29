@@ -106,6 +106,14 @@ var CMD = &cobra.Command{
 				return fmt.Errorf("analyze aggregator duty: %w", err)
 			}
 		}
+		if cfg.AnalyzeSyncCommitteeContribution {
+			slog.Info(fmt.Sprintf("analyzing SYNC_COMMITTEE_CONTRIBUTION duty for target slot %d", cfg.TargetSlot))
+			a := duties.NewSyncCommitteeContribution(blockchain, logParser)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			if err != nil {
+				return fmt.Errorf("analyze sync_committee_contribution duty: %w", err)
+			}
+		}
 
 		return nil
 	},

@@ -28,6 +28,10 @@ func (parser *StandardLogParser) ParseLogLine(line string) (entry LogEntry, trim
 	if err != nil {
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
 	}
+
+	// trim certain log-lines (those listing duties) to keep the output reasonably short
+	trimmedLine = helper.TrimRightOf(line, "\"duties\"") + " ..."
+
 	return LogEntry{
 		Timestamp: e.Timestamp,
 	}, trimmedLine, nil

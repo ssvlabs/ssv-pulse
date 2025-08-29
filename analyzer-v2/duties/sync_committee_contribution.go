@@ -12,15 +12,11 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
-var dutyStepsProposer = []string{
+var dutyStepsSyncCommitteeContribution = []string{
 	"got duties",
 	"executing validator duty",
 	"starting duty processing",
-	"signed & broadcasted partial RANDAO signature",
-	"got partial RANDAO signatures",
 	"got pre consensus quorum",
-	"reconstructed partial RANDAO signatures",
-	"got beacon block proposal",
 	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"starting QBFT instance",
 	"starting new QBFT instance",
@@ -36,25 +32,24 @@ var dutyStepsProposer = []string{
 	"QBFT instance is decided",
 	"broadcasted post consensus partial signature message",
 	"got post consensus quorum",
-	"waited out proposer delay",
-	"submitting block proposal",
-	"successfully submitted block proposal",
+	"submitting sync committee aggregator",
+	"successfully submitted sync committee aggregator",
 	"successfully finished duty processing",
 }
 
-type Proposer struct {
+type SyncCommitteeContribution struct {
 	blockchain *environment.Blockchain
 	logParser  environment.LogParser
 }
 
-func NewProposer(blockchain *environment.Blockchain, logParser environment.LogParser) *Proposer {
-	return &Proposer{
+func NewSyncCommitteeContribution(blockchain *environment.Blockchain, logParser environment.LogParser) *SyncCommitteeContribution {
+	return &SyncCommitteeContribution{
 		blockchain: blockchain,
 		logParser:  logParser,
 	}
 }
 
-func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
+func (s *SyncCommitteeContribution) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -63,7 +58,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", "proposer")
+	logger := slog.With("duty_type", "syncCommitteeContribution")
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -74,12 +69,12 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		if !relevantForSlot(line, targetSlot) {
 			continue
 		}
-		if !relevantForProposerDuty(line) {
+		if !relevantForSyncCommitteeContributionDuty(line) {
 			continue
 		}
 
 		lineIsRelevant := false
-		for _, dutyStep := range dutyStepsProposer {
+		for _, dutyStep := range dutyStepsSyncCommitteeContribution {
 			if strings.Contains(line, dutyStep) {
 				lineIsRelevant = true
 				break
@@ -99,7 +94,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 	return nil
 }
 
-func (s *Proposer) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
+func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
 	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
 	if err != nil {
 		return fmt.Errorf("get target slot start time: %w", err)

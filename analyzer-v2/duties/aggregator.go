@@ -12,6 +12,36 @@ import (
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
+var dutyStepsAggregator = []string{
+	"got duties",
+	"executing validator duty",
+	"starting duty processing",
+	"signed aggregator selection proof",
+	"got pre consensus quorum",
+	"got partial aggregator selection proof signatures",
+	"aggregation duty won't be needed from this validator for this slot",
+	"submitted aggregate and proof",
+	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
+	"starting QBFT instance",
+	"starting new QBFT instance",
+	"leader broadcasting proposal message",
+	"got proposal message",
+	"got prepare message",
+	"got prepare quorum",
+	"got prepare quorum",
+	"got commit quorum",
+	"round timed out",
+	"got round change",
+	"got justified round change",
+	"QBFT instance is decided",
+	"broadcasted post consensus partial signature message",
+	"got post consensus quorum",
+	"submitting signed aggregate and proof",
+	"successful submitted aggregate", // TODO - remove this line once typo-fix is enacted (`successful` -> `successfully`)
+	"successfully submitted signed aggregate and proof",
+	"successfully finished duty processing",
+}
+
 type Aggregator struct {
 	blockchain *environment.Blockchain
 	logParser  environment.LogParser
@@ -41,23 +71,23 @@ func (s *Aggregator) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !relevantForAggregatorDuty(line) {
-			continue
-		}
 		if !relevantForSlot(line, targetSlot) {
 			continue
 		}
-
-		if containsUnexpectedAggregatorError(line) {
-			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-				return err
-			}
+		if !relevantForAggregatorDuty(line) {
+			continue
 		}
+
+		lineIsRelevant := false
 		for _, dutyStep := range dutyStepsAggregator {
 			if strings.Contains(line, dutyStep) {
-				if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-					return err
-				}
+				lineIsRelevant = true
+				break
+			}
+		}
+		if lineIsRelevant {
+			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+				return err
 			}
 		}
 	}

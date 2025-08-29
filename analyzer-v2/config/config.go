@@ -7,13 +7,14 @@ import (
 )
 
 type Config struct {
-	LogFilesDirectory     string      `mapstructure:"log-files-directory"`
-	Blockchain            string      `mapstructure:"blockchain"`
-	LogFormat             string      `mapstructure:"log-format"`
-	TargetSlot            phase0.Slot `mapstructure:"target-slot"`
-	AnalyzeCommitteeDuty  bool        `mapstructure:"analyze-committee-duty"`
-	AnalyzeProposerDuty   bool        `mapstructure:"analyze-proposer-duty"`
-	AnalyzeAggregatorDuty bool        `mapstructure:"analyze-aggregator-duty"`
+	LogFilesDirectory                string      `mapstructure:"log-files-directory"`
+	Blockchain                       string      `mapstructure:"blockchain"`
+	LogFormat                        string      `mapstructure:"log-format"`
+	TargetSlot                       phase0.Slot `mapstructure:"target-slot"`
+	AnalyzeCommitteeDuty             bool        `mapstructure:"analyze-committee-duty"`
+	AnalyzeProposerDuty              bool        `mapstructure:"analyze-proposer-duty"`
+	AnalyzeAggregatorDuty            bool        `mapstructure:"analyze-aggregator-duty"`
+	AnalyzeSyncCommitteeContribution bool        `mapstructure:"analyze-sync-committee-contribution-duty"`
 }
 
 func (c *Config) Validate() error {
@@ -28,6 +29,10 @@ func (c *Config) Validate() error {
 	}
 	if c.TargetSlot == 0 {
 		return fmt.Errorf("❕ 'target-slot' was not specified")
+	}
+
+	if !c.AnalyzeCommitteeDuty && !c.AnalyzeProposerDuty && !c.AnalyzeAggregatorDuty && !c.AnalyzeSyncCommitteeContribution {
+		return fmt.Errorf("❕ must specify at least 1 duty analyzer")
 	}
 
 	return nil

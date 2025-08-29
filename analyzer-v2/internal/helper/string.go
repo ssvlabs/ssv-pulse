@@ -9,10 +9,18 @@ func ContainsCaseInsensitive(str string, pattern string) bool {
 	return strings.Contains(strings.ToLower(str), strings.ToLower(pattern))
 }
 
-// TrimLeftOf trims everything left of the provided pattern in string str.
+// TrimLeftOf trims everything to the left of the provided pattern in string str.
 func TrimLeftOf(str string, pattern string) string {
 	if idx := strings.Index(str, pattern); idx != -1 {
 		return str[idx:]
+	}
+	return str
+}
+
+// TrimRightOf trims everything to the right of the provided pattern in string str.
+func TrimRightOf(str string, pattern string) string {
+	if idx := strings.Index(str, pattern); idx != -1 {
+		return str[:idx+len(pattern)]
 	}
 	return str
 }
