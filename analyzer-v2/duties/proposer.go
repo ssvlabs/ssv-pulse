@@ -13,8 +13,10 @@ import (
 )
 
 var dutyStepsProposer = []string{
+	"ticker event",
 	"got duties",
 	"executing validator duty",
+	"late duty execution",
 	"starting duty processing",
 	"signed & broadcasted partial RANDAO signature",
 	"got partial RANDAO signatures",

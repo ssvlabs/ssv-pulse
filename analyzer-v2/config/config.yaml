@@ -17,4 +17,9 @@ analyze-aggregator-duty: false
 #analyze-aggregator-duty: true
 analyze-sync-committee-contribution-duty: false
 
-target-slot: 1184672
+# MEV proposal
+#target-slot: 1201568
+# non-MEV proposal
+#target-slot: 1201578
+
+target-slot: 1202806

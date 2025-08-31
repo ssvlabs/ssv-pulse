@@ -13,8 +13,10 @@ import (
 )
 
 var dutyStepsSyncCommitteeContribution = []string{
+	"ticker event",
 	"got duties",
 	"executing validator duty",
+	"late duty execution",
 	"starting duty processing",
 	"got pre consensus quorum",
 	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")

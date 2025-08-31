@@ -10,13 +10,20 @@ import (
 )
 
 func relevantForCommitteeDuty(line string) bool {
+	// Clean up the line from false-positive triggers it potentially might have.
+	line = strings.ReplaceAll(line, "\"committee_index\":", "")
+	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
+
+	// This is a special handling of legacy log-line (that contains "ticker event").
+	if strings.Contains(line, "\"handler\":\"CLUSTER\"") {
+		return true
+	}
+	// This is a special handling of legacy log-line (that contains "got duties").
+	if strings.Contains(line, "\"handler\":\"ATTESTER\"") && strings.Contains(line, "\"duties\":\"") {
+		return true
+	}
+
 	if containsUnexpectedError(line) {
-		return true
-	}
-	if helper.ContainsCaseInsensitive(line, "attester") {
-		return true
-	}
-	if helper.ContainsCaseInsensitive(line, "sync_committee") {
 		return true
 	}
 	return helper.ContainsCaseInsensitive(line, "committee")

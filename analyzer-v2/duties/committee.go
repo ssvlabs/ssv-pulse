@@ -13,8 +13,11 @@ import (
 )
 
 var dutyStepsCommittee = []string{
+	"ticker event",
 	"got duties",
+	"no attester or sync-committee duties to execute",
 	"executing committee duty",
+	"late duty execution",
 	"starting duty processing",
 	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"successfully fetched attestation data",

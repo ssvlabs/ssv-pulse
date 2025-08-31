@@ -13,8 +13,10 @@ import (
 )
 
 var dutyStepsAggregator = []string{
+	"ticker event",
 	"got duties",
 	"executing validator duty",
+	"late duty execution",
 	"starting duty processing",
 	"signed aggregator selection proof",
 	"got pre consensus quorum",
