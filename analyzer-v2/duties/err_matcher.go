@@ -23,7 +23,7 @@ func relevantForCommitteeDuty(line string) bool {
 		return true
 	}
 
-	if containsUnexpectedError(line) {
+	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
 		return true
 	}
 	return helper.ContainsCaseInsensitive(line, "committee")
@@ -35,7 +35,7 @@ func relevantForProposerDuty(line string) bool {
 	//if !strings.Contains(line, vPubkey) {
 	//	return false
 	//}
-	if containsUnexpectedError(line) {
+	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
 		return true
 	}
 	return helper.ContainsCaseInsensitive(line, "proposer")
@@ -47,14 +47,14 @@ func relevantForAggregatorDuty(line string) bool {
 	//if !strings.Contains(line, vPubkey) {
 	//	return false
 	//}
-	if containsUnexpectedError(line) {
+	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
 		return true
 	}
 	return helper.ContainsCaseInsensitive(line, "aggregator")
 }
 
 func relevantForSyncCommitteeContributionDuty(line string) bool {
-	if containsUnexpectedError(line) {
+	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
 		return true
 	}
 	return helper.ContainsCaseInsensitive(line, "sync_committee")
@@ -94,6 +94,14 @@ func containsUnexpectedError(line string) bool {
 	}
 
 	if strings.Contains(line, "instance stopped processing messages") {
+		return false
+	}
+
+	return true
+}
+
+func containsUnexpectedWarn(line string) bool {
+	if !helper.ContainsCaseInsensitive(line, "warn") {
 		return false
 	}
 
