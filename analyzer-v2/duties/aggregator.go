@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -73,24 +74,24 @@ func (s *Aggregator) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !relevantForSlot(line, targetSlot) {
-			continue
-		}
-		if !relevantForAggregatorDuty(line) {
+		lineIsRelevant := func() bool {
+			if !relevantForSlot(line, targetSlot) {
+				return false
+			}
+
+			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+				return true
+			}
+
+			return relevantForAggregatorDuty(line)
+		}()
+
+		if !lineIsRelevant {
 			continue
 		}
 
-		lineIsRelevant := false
-		for _, dutyStep := range dutyStepsAggregator {
-			if strings.Contains(line, dutyStep) {
-				lineIsRelevant = true
-				break
-			}
-		}
-		if lineIsRelevant {
-			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-				return err
-			}
+		if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+			return err
 		}
 	}
 	err = scanner.Err()
@@ -117,4 +118,24 @@ func (s *Aggregator) logWithTimeIntoSlot(logger *slog.Logger, line string, lineN
 	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
+}
+
+func relevantForAggregatorDuty(line string) bool {
+	// TODO - gotta filter by validator-pubkey sometimes as well ?
+	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
+	//if !strings.Contains(line, vPubkey) {
+	//	return false
+	//}
+
+	if !helper.ContainsCaseInsensitive(line, "aggregator") {
+		return false
+	}
+
+	for _, dutyStep := range dutyStepsAggregator {
+		if strings.Contains(line, dutyStep) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -76,24 +77,24 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		line := scanner.Text()
 		lineNumber++
 
-		if !relevantForSlot(line, targetSlot) {
-			continue
-		}
-		if !relevantForCommitteeDuty(line) {
+		lineIsRelevant := func() bool {
+			if !relevantForSlot(line, targetSlot) {
+				return false
+			}
+
+			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+				return true
+			}
+
+			return relevantForCommitteeDuty(line)
+		}()
+
+		if !lineIsRelevant {
 			continue
 		}
 
-		lineIsRelevant := false
-		for _, dutyStep := range dutyStepsCommittee {
-			if strings.Contains(line, dutyStep) {
-				lineIsRelevant = true
-				break
-			}
-		}
-		if lineIsRelevant {
-			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-				return err
-			}
+		if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+			return err
 		}
 	}
 	err = scanner.Err()
@@ -120,4 +121,31 @@ func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNu
 	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
+}
+
+func relevantForCommitteeDuty(line string) bool {
+	// Clean up the line from false-positive triggers it potentially might have.
+	line = strings.ReplaceAll(line, "\"committee_index\":", "")
+	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
+
+	// This is a special handling of legacy log-line (that contains "ticker event").
+	if strings.Contains(line, "\"handler\":\"CLUSTER\"") {
+		return true
+	}
+	// This is a special handling of legacy log-line (that contains "got duties").
+	if strings.Contains(line, "\"handler\":\"ATTESTER\"") && strings.Contains(line, "\"duties\":\"") {
+		return true
+	}
+
+	if !helper.ContainsCaseInsensitive(line, "committee") {
+		return false
+	}
+
+	for _, dutyStep := range dutyStepsCommittee {
+		if strings.Contains(line, dutyStep) {
+			return true
+		}
+	}
+
+	return false
 }

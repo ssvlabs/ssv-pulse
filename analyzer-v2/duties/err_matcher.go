@@ -9,57 +9,6 @@ import (
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 )
 
-func relevantForCommitteeDuty(line string) bool {
-	// Clean up the line from false-positive triggers it potentially might have.
-	line = strings.ReplaceAll(line, "\"committee_index\":", "")
-	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
-
-	// This is a special handling of legacy log-line (that contains "ticker event").
-	if strings.Contains(line, "\"handler\":\"CLUSTER\"") {
-		return true
-	}
-	// This is a special handling of legacy log-line (that contains "got duties").
-	if strings.Contains(line, "\"handler\":\"ATTESTER\"") && strings.Contains(line, "\"duties\":\"") {
-		return true
-	}
-
-	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
-		return true
-	}
-	return helper.ContainsCaseInsensitive(line, "committee")
-}
-
-func relevantForProposerDuty(line string) bool {
-	// TODO - gotta filter by validator-pubkey sometimes as well ?
-	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
-	//if !strings.Contains(line, vPubkey) {
-	//	return false
-	//}
-	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
-		return true
-	}
-	return helper.ContainsCaseInsensitive(line, "proposer")
-}
-
-func relevantForAggregatorDuty(line string) bool {
-	// TODO - gotta filter by validator-pubkey sometimes as well ?
-	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
-	//if !strings.Contains(line, vPubkey) {
-	//	return false
-	//}
-	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
-		return true
-	}
-	return helper.ContainsCaseInsensitive(line, "aggregator")
-}
-
-func relevantForSyncCommitteeContributionDuty(line string) bool {
-	if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
-		return true
-	}
-	return helper.ContainsCaseInsensitive(line, "sync_committee")
-}
-
 func relevantForSlot(line string, targetSlot phase0.Slot) bool {
 	if strings.Contains(line, fmt.Sprintf("\"slot\":%d", targetSlot)) {
 		return true
@@ -71,6 +20,9 @@ func relevantForSlot(line string, targetSlot phase0.Slot) bool {
 }
 
 func containsUnexpectedError(line string) bool {
+	// Clean up the line from false-positive triggers it potentially might have.
+	line = strings.ReplaceAll(line, "\"errored\":0", "")
+
 	if !helper.ContainsCaseInsensitive(line, "err") {
 		return false
 	}
@@ -85,7 +37,15 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
+	if strings.Contains(line, "invalid partial sig slot") {
+		return false
+	}
+
 	if strings.Contains(line, "invalid post-consensus message: no running duty") {
+		return false
+	}
+
+	if strings.Contains(line, "invalid post-consensus message: no decided value") {
 		return false
 	}
 

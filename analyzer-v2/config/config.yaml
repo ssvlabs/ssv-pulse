@@ -1,4 +1,5 @@
 log-files-directory: /Users/iurii/Downloads/target
+#log-files-directory: /Users/iurii/Downloads/hashkey
 #log-files-directory: /Users/iurii/Downloads/kraken
 
 blockchain: hoodi
@@ -7,19 +8,18 @@ blockchain: hoodi
 log-format: standard
 #log-format: external
 
-analyze-committee-duty: true
-#analyze-committee-duty: false
+#analyze-committee-duty: true
+analyze-committee-duty: false
 
 #analyze-proposer-duty: true
 analyze-proposer-duty: false
 #analyze-aggregator-duty: true
 analyze-aggregator-duty: false
 #analyze-aggregator-duty: true
-analyze-sync-committee-contribution-duty: false
+analyze-sync-committee-contribution-duty: true
+#analyze-sync-committee-contribution-duty: false
 
-# MEV proposal
-#target-slot: 1201568
-# non-MEV proposal
-#target-slot: 1201578
+# hashkey proposer issue
+#target-slot: 12493638
 
-target-slot: 1202806
+target-slot: 1224841

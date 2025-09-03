@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/environment"
+	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 )
 
@@ -68,24 +69,24 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, targetSlot phase
 		line := scanner.Text()
 		lineNumber++
 
-		if !relevantForSlot(line, targetSlot) {
-			continue
-		}
-		if !relevantForSyncCommitteeContributionDuty(line) {
+		lineIsRelevant := func() bool {
+			if !relevantForSlot(line, targetSlot) {
+				return false
+			}
+
+			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+				return true
+			}
+
+			return relevantForSyncCommitteeContributionDuty(line)
+		}()
+
+		if !lineIsRelevant {
 			continue
 		}
 
-		lineIsRelevant := false
-		for _, dutyStep := range dutyStepsSyncCommitteeContribution {
-			if strings.Contains(line, dutyStep) {
-				lineIsRelevant = true
-				break
-			}
-		}
-		if lineIsRelevant {
-			if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-				return err
-			}
+		if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
+			return err
 		}
 	}
 	err = scanner.Err()
@@ -112,4 +113,18 @@ func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, lin
 	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
+}
+
+func relevantForSyncCommitteeContributionDuty(line string) bool {
+	if !helper.ContainsCaseInsensitive(line, "sync_committee") {
+		return false
+	}
+
+	for _, dutyStep := range dutyStepsSyncCommitteeContribution {
+		if strings.Contains(line, dutyStep) {
+			return true
+		}
+	}
+
+	return false
 }
