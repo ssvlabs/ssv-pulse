@@ -79,7 +79,7 @@ func (s *Proposer) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 				return false
 			}
 
-			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+			if containsUnexpectedProposerError(line) {
 				return true
 			}
 
@@ -127,7 +127,7 @@ func relevantForProposerDuty(line string) bool {
 	//	return false
 	//}
 
-	if !helper.ContainsCaseInsensitive(line, "proposer") {
+	if !maybeRelevantForProposer(line) {
 		return false
 	}
 
@@ -138,4 +138,8 @@ func relevantForProposerDuty(line string) bool {
 	}
 
 	return false
+}
+
+func maybeRelevantForProposer(line string) bool {
+	return helper.ContainsCaseInsensitive(line, "proposer")
 }

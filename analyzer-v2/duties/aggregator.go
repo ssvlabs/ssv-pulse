@@ -79,7 +79,7 @@ func (s *Aggregator) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 				return false
 			}
 
-			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+			if containsUnexpectedAggregatorError(line) {
 				return true
 			}
 
@@ -127,7 +127,7 @@ func relevantForAggregatorDuty(line string) bool {
 	//	return false
 	//}
 
-	if !helper.ContainsCaseInsensitive(line, "aggregator") {
+	if !maybeRelevantForAggregator(line) {
 		return false
 	}
 
@@ -138,4 +138,8 @@ func relevantForAggregatorDuty(line string) bool {
 	}
 
 	return false
+}
+
+func maybeRelevantForAggregator(line string) bool {
+	return helper.ContainsCaseInsensitive(line, "aggregator")
 }

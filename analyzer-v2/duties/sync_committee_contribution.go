@@ -74,11 +74,11 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, targetSlot phase
 				return false
 			}
 
-			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+			if containsUnexpectedSyncCommitteeError(line) {
 				return true
 			}
 
-			return relevantForSyncCommitteeContributionDuty(line)
+			return relevantForSyncCommitteeContribution(line)
 		}()
 
 		if !lineIsRelevant {
@@ -115,8 +115,8 @@ func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, lin
 	return nil
 }
 
-func relevantForSyncCommitteeContributionDuty(line string) bool {
-	if !helper.ContainsCaseInsensitive(line, "sync_committee") {
+func relevantForSyncCommitteeContribution(line string) bool {
+	if !maybeRelevantForSyncCommitteeContribution(line) {
 		return false
 	}
 
@@ -127,4 +127,8 @@ func relevantForSyncCommitteeContributionDuty(line string) bool {
 	}
 
 	return false
+}
+
+func maybeRelevantForSyncCommitteeContribution(line string) bool {
+	return helper.ContainsCaseInsensitive(line, "sync_committee")
 }

@@ -82,7 +82,7 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 				return false
 			}
 
-			if containsUnexpectedError(line) || containsUnexpectedWarn(line) {
+			if containsUnexpectedCommitteeError(line) {
 				return true
 			}
 
@@ -137,7 +137,7 @@ func relevantForCommitteeDuty(line string) bool {
 		return true
 	}
 
-	if !helper.ContainsCaseInsensitive(line, "committee") {
+	if !maybeRelevantForCommittee(line) {
 		return false
 	}
 
@@ -148,4 +148,8 @@ func relevantForCommitteeDuty(line string) bool {
 	}
 
 	return false
+}
+
+func maybeRelevantForCommittee(line string) bool {
+	return helper.ContainsCaseInsensitive(line, "committee")
 }
