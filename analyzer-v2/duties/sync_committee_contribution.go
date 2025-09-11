@@ -61,7 +61,7 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", "syncCommitteeContribution")
+	logger := slog.With("duty_type", "sync_committee_contribution")
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -70,15 +70,26 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 		lineNumber++
 
 		lineIsRelevant := func() bool {
-			if !relevantForSlot(line, targetSlot) {
-				return false
-			}
-
-			if containsUnexpectedSyncCommitteeError(line) {
+			if containsUnexpectedSyncCommitteeContributionError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(line, targetSlot)) {
 				return true
 			}
 
-			return relevantForSyncCommitteeContribution(line)
+			// Special lines are relevant only if the target slot has been specified.
+			if specialSyncCommitteeContributionDutyLines(line) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			if relevantSyncCommitteeContributionDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) {
+				return true
+			}
+
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			if relevantSyncCommitteeContributionDutyStep(line) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+
+			return false
 		}()
 
 		if !lineIsRelevant {
@@ -116,6 +127,40 @@ func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, lin
 }
 
 func relevantForSyncCommitteeContribution(line string) bool {
+	if !maybeRelevantForSyncCommitteeContribution(line) {
+		return false
+	}
+
+	for _, dutyStep := range dutyStepsSyncCommitteeContribution {
+		if strings.Contains(line, dutyStep) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func specialSyncCommitteeContributionDutyLines(line string) bool {
+	// This is a special handling of legacy log-line (that contains "got duties").
+	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {
+		return true
+	}
+
+	// This is a special handling of legacy log-line (that contains "ticker event").
+	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {
+		return true
+	}
+
+	return false
+}
+
+func relevantSyncCommitteeContributionDutyStep(line string) bool {
+	// TODO - gotta filter by validator-pubkey sometimes as well ?
+	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
+	//if !strings.Contains(line, vPubkey) {
+	//	return false
+	//}
+
 	if !maybeRelevantForSyncCommitteeContribution(line) {
 		return false
 	}

@@ -10,6 +10,11 @@ import (
 )
 
 func relevantForSlot(line string, targetSlot phase0.Slot) bool {
+	// The line is not relevant if the target slot isn't specified.
+	if targetSlot == phase0.Slot(0) {
+		return false
+	}
+
 	if strings.Contains(line, fmt.Sprintf("\"slot\":%d", targetSlot)) {
 		return true
 	}
@@ -79,7 +84,7 @@ func containsUnexpectedProposerError(line string) bool {
 	return true
 }
 
-func containsUnexpectedSyncCommitteeError(line string) bool {
+func containsUnexpectedSyncCommitteeContributionError(line string) bool {
 	if !containsUnexpectedError(line) {
 		return false
 	}
@@ -142,5 +147,9 @@ func containsUnexpectedError(line string) bool {
 }
 
 func relevantForDutyID(line string, dutyID string) bool {
+	// The line is not relevant if the duty ID isn't specified.
+	if dutyID == "" {
+		return false
+	}
 	return helper.ContainsCaseInsensitive(line, dutyID)
 }

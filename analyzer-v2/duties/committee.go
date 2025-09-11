@@ -78,12 +78,40 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 		lineNumber++
 
 		lineIsRelevant := func() bool {
-			// Log-line must be either relevant to the target-slot or the specified duty-id, otherwise it's noise.
-			if !(targetSlot != 0 && relevantForSlot(line, targetSlot)) && !(dutyID != "" && relevantForDutyID(line, dutyID)) {
-				return false
+			// Line containing unexpected error that mentions either target slot or duty ID is relevant.
+			// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
+			// in order to filter out the noise (duties for different slots). Once we add slot number to
+			// committee-duty-id we should replace this condition with the one below (the commented out lines).
+			if containsUnexpectedCommitteeError(line) && (targetSlot == phase0.Slot(0) && relevantForDutyID(line, dutyID) ||
+				targetSlot != phase0.Slot(0) && relevantForSlot(line, targetSlot)) {
+				return true
+			}
+			//if containsUnexpectedCommitteeError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(line, targetSlot)) {
+			//	return true
+			//}
+
+			// Special lines are relevant only if the target slot has been specified.
+			if specialCommitteeDutyLines(line) && relevantForSlot(line, targetSlot) {
+				return true
 			}
 
-			return relevantForCommitteeDuty(line)
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
+			// in order to filter out the noise (duties for different slots). Once we add slot number
+			// to committee-duty-id we should replace this condition with the one below (the commented out lines).
+			if relevantCommitteeDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+			//if relevantCommitteeDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID) {
+			//	return true
+			//}
+
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			if relevantCommitteeDutyStep(line) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+
+			return false
 		}()
 
 		if !lineIsRelevant {
@@ -120,23 +148,23 @@ func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNu
 	return nil
 }
 
-func relevantForCommitteeDuty(line string) bool {
-	if containsUnexpectedCommitteeError(line) {
-		return true
-	}
-
-	// Clean up the line from false-positive triggers it potentially might have.
-	line = strings.ReplaceAll(line, "\"committee_index\":", "")
-	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
-
-	// This is a special handling of legacy log-line (that contains "ticker event").
-	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"CLUSTER\"") {
-		return true
-	}
+func specialCommitteeDutyLines(line string) bool {
 	// This is a special handling of legacy log-line (that contains "got duties").
 	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"ATTESTER\"") {
 		return true
 	}
+	// This is a special handling of legacy log-line (that contains "ticker event").
+	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"CLUSTER\"") {
+		return true
+	}
+
+	return false
+}
+
+func relevantCommitteeDutyStep(line string) bool {
+	// Clean up the line from false-positive triggers it potentially might have.
+	line = strings.ReplaceAll(line, "\"committee_index\":", "")
+	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
 
 	if !maybeRelevantForCommittee(line) {
 		return false

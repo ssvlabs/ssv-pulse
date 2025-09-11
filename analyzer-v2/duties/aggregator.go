@@ -75,15 +75,26 @@ func (s *Aggregator) Analyze(logFilePath string, dutyID string, targetSlot phase
 		lineNumber++
 
 		lineIsRelevant := func() bool {
-			if !relevantForSlot(line, targetSlot) {
-				return false
-			}
-
-			if containsUnexpectedAggregatorError(line) {
+			if containsUnexpectedAggregatorError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(line, targetSlot)) {
 				return true
 			}
 
-			return relevantForAggregatorDuty(line)
+			// Special lines are relevant only if the target slot has been specified.
+			if specialAggregatorDutyLines(line) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			if relevantAggregatorDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) {
+				return true
+			}
+
+			// The line is interesting only if it references a specific duty-step, the rest would be noise.
+			if relevantAggregatorDutyStep(line) && relevantForSlot(line, targetSlot) {
+				return true
+			}
+
+			return false
 		}()
 
 		if !lineIsRelevant {
@@ -120,7 +131,21 @@ func (s *Aggregator) logWithTimeIntoSlot(logger *slog.Logger, line string, lineN
 	return nil
 }
 
-func relevantForAggregatorDuty(line string) bool {
+func specialAggregatorDutyLines(line string) bool {
+	// This is a special handling of legacy log-line (that contains "got duties").
+	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"ATTESTER\"") {
+		return true
+	}
+
+	// This is a special handling of legacy log-line (that contains "ticker event").
+	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"ATTESTER\"") {
+		return true
+	}
+
+	return false
+}
+
+func relevantAggregatorDutyStep(line string) bool {
 	// TODO - gotta filter by validator-pubkey sometimes as well ?
 	//const vPubkey = "903dff3e6a2615754803e58e320d206056535c354c1b650793b0c14c00017de4fc341b25869928a83a3bcaa45f943379"
 	//if !strings.Contains(line, vPubkey) {
