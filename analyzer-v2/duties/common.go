@@ -123,9 +123,12 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
-	if strings.Contains(line, "invalid partial sig slot") {
-		return false
-	}
+	// Until https://github.com/ssvlabs/ssv/pull/2445 is merged, we cannot filter out lines with
+	// `invalid partial sig slot` because they might refer not only to past messages that are irrelevant
+	// but also to future messages.
+	//if strings.Contains(line, "invalid partial sig slot") {
+	//	return false
+	//}
 
 	if strings.Contains(line, "invalid post-consensus message: no running duty") {
 		return false
