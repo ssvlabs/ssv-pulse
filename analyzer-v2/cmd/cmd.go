@@ -85,7 +85,7 @@ var CMD = &cobra.Command{
 		if cfg.AnalyzeCommitteeDuty {
 			slog.Info(fmt.Sprintf("analyzing COMMITTEE duty for target slot %d", cfg.TargetSlot))
 			a := duties.NewCommittee(blockchain, logParser)
-			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
 				return fmt.Errorf("analyze proposer duty: %w", err)
 			}
@@ -93,7 +93,7 @@ var CMD = &cobra.Command{
 		if cfg.AnalyzeProposerDuty {
 			slog.Info(fmt.Sprintf("analyzing PROPOSER duty for target slot %d", cfg.TargetSlot))
 			a := duties.NewProposer(blockchain, logParser)
-			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
 				return fmt.Errorf("analyze proposer duty: %w", err)
 			}
@@ -101,7 +101,7 @@ var CMD = &cobra.Command{
 		if cfg.AnalyzeAggregatorDuty {
 			slog.Info(fmt.Sprintf("analyzing AGGREGATOR duty for target slot %d", cfg.TargetSlot))
 			a := duties.NewAggregator(blockchain, logParser)
-			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
 				return fmt.Errorf("analyze aggregator duty: %w", err)
 			}
@@ -109,7 +109,7 @@ var CMD = &cobra.Command{
 		if cfg.AnalyzeSyncCommitteeContribution {
 			slog.Info(fmt.Sprintf("analyzing SYNC_COMMITTEE_CONTRIBUTION duty for target slot %d", cfg.TargetSlot))
 			a := duties.NewSyncCommitteeContribution(blockchain, logParser)
-			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.TargetSlot)
+			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
 				return fmt.Errorf("analyze sync_committee_contribution duty: %w", err)
 			}

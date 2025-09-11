@@ -60,7 +60,7 @@ func NewCommittee(blockchain *environment.Blockchain, logParser environment.LogP
 	}
 }
 
-func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
+func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -78,12 +78,9 @@ func (s *Committee) Analyze(logFilePath string, targetSlot phase0.Slot) error {
 		lineNumber++
 
 		lineIsRelevant := func() bool {
-			if !relevantForSlot(line, targetSlot) {
+			// Log-line must be either relevant to the target-slot or the specified duty-id, otherwise it's noise.
+			if !(targetSlot != 0 && relevantForSlot(line, targetSlot)) && !(dutyID != "" && relevantForDutyID(line, dutyID)) {
 				return false
-			}
-
-			if containsUnexpectedCommitteeError(line) {
-				return true
 			}
 
 			return relevantForCommitteeDuty(line)
@@ -124,16 +121,20 @@ func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNu
 }
 
 func relevantForCommitteeDuty(line string) bool {
+	if containsUnexpectedCommitteeError(line) {
+		return true
+	}
+
 	// Clean up the line from false-positive triggers it potentially might have.
 	line = strings.ReplaceAll(line, "\"committee_index\":", "")
 	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
 
 	// This is a special handling of legacy log-line (that contains "ticker event").
-	if strings.Contains(line, "\"handler\":\"CLUSTER\"") {
+	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"CLUSTER\"") {
 		return true
 	}
 	// This is a special handling of legacy log-line (that contains "got duties").
-	if strings.Contains(line, "\"handler\":\"ATTESTER\"") && strings.Contains(line, "\"duties\":\"") {
+	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"ATTESTER\"") {
 		return true
 	}
 

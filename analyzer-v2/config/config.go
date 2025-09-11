@@ -7,14 +7,19 @@ import (
 )
 
 type Config struct {
-	LogFilesDirectory                string      `mapstructure:"log-files-directory"`
-	Blockchain                       string      `mapstructure:"blockchain"`
-	LogFormat                        string      `mapstructure:"log-format"`
-	TargetSlot                       phase0.Slot `mapstructure:"target-slot"`
-	AnalyzeCommitteeDuty             bool        `mapstructure:"analyze-committee-duty"`
-	AnalyzeProposerDuty              bool        `mapstructure:"analyze-proposer-duty"`
-	AnalyzeAggregatorDuty            bool        `mapstructure:"analyze-aggregator-duty"`
-	AnalyzeSyncCommitteeContribution bool        `mapstructure:"analyze-sync-committee-contribution-duty"`
+	LogFilesDirectory string `mapstructure:"log-files-directory"`
+
+	Blockchain string `mapstructure:"blockchain"`
+
+	LogFormat string `mapstructure:"log-format"`
+
+	AnalyzeCommitteeDuty             bool `mapstructure:"analyze-committee-duty"`
+	AnalyzeProposerDuty              bool `mapstructure:"analyze-proposer-duty"`
+	AnalyzeAggregatorDuty            bool `mapstructure:"analyze-aggregator-duty"`
+	AnalyzeSyncCommitteeContribution bool `mapstructure:"analyze-sync-committee-contribution-duty"`
+
+	DutyID     string      `mapstructure:"duty-id"`
+	TargetSlot phase0.Slot `mapstructure:"target-slot"`
 }
 
 func (c *Config) Validate() error {
@@ -27,8 +32,8 @@ func (c *Config) Validate() error {
 	if c.LogFormat == "" {
 		return fmt.Errorf("❕ 'log-format' was not specified")
 	}
-	if c.TargetSlot == 0 {
-		return fmt.Errorf("❕ 'target-slot' was not specified")
+	if c.DutyID == "" && c.TargetSlot == 0 {
+		return fmt.Errorf("❕ at least one of `duty-id`, 'target-slot' must be specified")
 	}
 
 	if !c.AnalyzeCommitteeDuty && !c.AnalyzeProposerDuty && !c.AnalyzeAggregatorDuty && !c.AnalyzeSyncCommitteeContribution {

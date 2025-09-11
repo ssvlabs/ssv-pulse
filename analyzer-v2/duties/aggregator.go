@@ -57,7 +57,7 @@ func NewAggregator(blockchain *environment.Blockchain, logParser environment.Log
 	}
 }
 
-func (s *Aggregator) Analyze(logFilePath string, targetSlot phase0.Slot) error {
+func (s *Aggregator) Analyze(logFilePath string, dutyID string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)

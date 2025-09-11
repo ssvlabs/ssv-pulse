@@ -11,10 +11,10 @@ import (
 )
 
 type analyzer interface {
-	Analyze(logFilePath string, targetSlot phase0.Slot) error
+	Analyze(logFilePath string, dutyID string, targetSlot phase0.Slot) error
 }
 
-func Analyze(a analyzer, dir string, files []os.DirEntry, targetSlot phase0.Slot) error {
+func Analyze(a analyzer, dir string, files []os.DirEntry, dutyID string, targetSlot phase0.Slot) error {
 	for _, file := range files {
 		filePath := path.Join(dir, file.Name())
 
@@ -30,7 +30,7 @@ func Analyze(a analyzer, dir string, files []os.DirEntry, targetSlot phase0.Slot
 			With("file_size_megabytes", math.Round(fileSizeMB)).
 			Info(fmt.Sprintf("⏳⏳⏳ analyzing log file: %s", file.Name()))
 
-		err = a.Analyze(filePath, targetSlot)
+		err = a.Analyze(filePath, dutyID, targetSlot)
 		if err != nil {
 			return fmt.Errorf("commitee: analyze file: %w", err)
 		}

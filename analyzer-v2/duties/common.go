@@ -100,15 +100,11 @@ func containsUnexpectedSyncCommitteeError(line string) bool {
 }
 
 func containsUnexpectedError(line string) bool {
-	// Treat warnings as errors.
-	if helper.ContainsCaseInsensitive(line, "warn") {
-		return true
-	}
-
 	// Clean up the line from false-positive triggers it potentially might have.
 	line = strings.ReplaceAll(line, "\"errored\":0", "")
 
-	if !helper.ContainsCaseInsensitive(line, "err") {
+	// Treat warnings as errors.
+	if !(helper.ContainsCaseInsensitive(line, "err") || helper.ContainsCaseInsensitive(line, "warn")) {
 		return false
 	}
 
@@ -143,4 +139,8 @@ func containsUnexpectedError(line string) bool {
 	}
 
 	return true
+}
+
+func relevantForDutyID(line string, dutyID string) bool {
+	return helper.ContainsCaseInsensitive(line, dutyID)
 }

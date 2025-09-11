@@ -52,7 +52,7 @@ func NewSyncCommitteeContribution(blockchain *environment.Blockchain, logParser 
 	}
 }
 
-func (s *SyncCommitteeContribution) Analyze(logFilePath string, targetSlot phase0.Slot) error {
+func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, targetSlot phase0.Slot) error {
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
