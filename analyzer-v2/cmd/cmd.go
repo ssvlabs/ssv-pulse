@@ -63,7 +63,7 @@ var CMD = &cobra.Command{
 			if file.IsDir() {
 				continue
 			}
-			if strings.HasSuffix(file.Name(), ".log") || strings.HasSuffix(file.Name(), ".txt") {
+			if strings.HasSuffix(file.Name(), ".log") || strings.HasSuffix(file.Name(), ".logs") || strings.HasSuffix(file.Name(), ".txt") {
 				filesLog = append(filesLog, file)
 			}
 		}

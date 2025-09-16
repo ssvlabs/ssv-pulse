@@ -119,6 +119,14 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
+	if strings.Contains(line, "validator registration") {
+		return false
+	}
+
+	if strings.Contains(line, "retrying message") {
+		return false
+	}
+
 	if strings.Contains(line, "consensus has already finished") {
 		return false
 	}
