@@ -16,6 +16,7 @@ import (
 var dutyStepsCommittee = []string{
 	"ticker event",
 	"got duties",
+	"Block arrived before 1/3 slot",
 	"no attester or sync-committee duties to execute",
 	"executing committee duty",
 	"late duty execution",
@@ -155,6 +156,11 @@ func specialCommitteeDutyLines(line string) bool {
 	}
 	// This is a special handling of legacy log-line (that contains "ticker event").
 	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"CLUSTER\"") {
+		return true
+	}
+
+	// This is a special handling a duty-relevant log-line (that contains "Block arrived before 1/3 slot").
+	if strings.Contains(line, "Block arrived before 1/3 slot") {
 		return true
 	}
 
