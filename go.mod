@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/aquasecurity/table v1.10.0
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/grafana/loki-client-go v0.0.0-20240913122146-e119d400c3a5
 	github.com/mackerelio/go-osstat v0.2.6
 	github.com/prometheus/client_golang v1.22.0
@@ -37,7 +38,6 @@ require (
 	github.com/huandu/go-clone v1.7.2 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

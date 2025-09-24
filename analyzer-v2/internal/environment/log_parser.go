@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/araddon/dateparse"
+
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 )
 
@@ -23,10 +25,18 @@ func (parser *StandardLogParser) ParseLogLine(line string) (entry LogEntry, trim
 	// trim additional info (such as timestamps) added by environment logger itself
 	trimmedLine = helper.TrimLeftOf(line, "{")
 
-	var e standardLogEntry
-	err = json.Unmarshal([]byte(trimmedLine), &e)
+	var standardLogEntry struct {
+		Timestamp string `json:"time"`
+	}
+
+	err = json.Unmarshal([]byte(trimmedLine), &standardLogEntry)
 	if err != nil {
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
+	}
+
+	ts, err := dateparse.ParseAny(standardLogEntry.Timestamp)
+	if err != nil {
+		return LogEntry{}, trimmedLine, fmt.Errorf("external log entry: parse timestamp: %s: %w", standardLogEntry.Timestamp, err)
 	}
 
 	// TODO - no longer need this ? Remove then.
@@ -34,12 +44,8 @@ func (parser *StandardLogParser) ParseLogLine(line string) (entry LogEntry, trim
 	//trimmedLine = helper.TrimRightOf(line, "\"duties\"") + " ..."
 
 	return LogEntry{
-		Timestamp: e.Timestamp,
+		Timestamp: ts,
 	}, trimmedLine, nil
-}
-
-type standardLogEntry struct {
-	Timestamp time.Time `json:"time"`
 }
 
 // ExternalLogParser is a log parser that understands log format used by external SSV Operators (managed
@@ -50,18 +56,23 @@ func (parser *ExternalLogParser) ParseLogLine(line string) (entry LogEntry, trim
 	// nothing to trim for production format
 	trimmedLine = line
 
-	var e krakenLogEntry
-	err = json.Unmarshal([]byte(trimmedLine), &e)
+	var externalLogEntry struct {
+		Timestamp string `json:"T"`
+	}
+
+	err = json.Unmarshal([]byte(trimmedLine), &externalLogEntry)
 	if err != nil {
 		return LogEntry{}, trimmedLine, fmt.Errorf("unmarshal log line: %s, err %w", trimmedLine, err)
 	}
-	return LogEntry{
-		Timestamp: e.Timestamp,
-	}, trimmedLine, nil
-}
 
-type krakenLogEntry struct {
-	Timestamp time.Time `json:"T"`
+	ts, err := dateparse.ParseAny(externalLogEntry.Timestamp)
+	if err != nil {
+		return LogEntry{}, trimmedLine, fmt.Errorf("external log entry: parse timestamp: %s: %w", externalLogEntry.Timestamp, err)
+	}
+
+	return LogEntry{
+		Timestamp: ts,
+	}, trimmedLine, nil
 }
 
 func LogParserByName(name string) (LogParser, error) {
