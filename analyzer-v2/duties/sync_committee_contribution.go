@@ -20,9 +20,7 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"late duty execution",
 	"starting duty processing",
 	"got pre consensus quorum",
-	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"starting QBFT instance",
-	"starting new QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
 	"got prepare message",
@@ -35,8 +33,8 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"QBFT instance is decided",
 	"broadcasted post consensus partial signature message",
 	"got post consensus quorum",
-	"submitting sync committee aggregator",
-	"successfully submitted sync committee aggregator",
+	"submitting sync committee contributions",
+	"successfully submitted sync committee contributions",
 	"successfully finished duty processing",
 }
 

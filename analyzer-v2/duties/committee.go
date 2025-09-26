@@ -25,9 +25,7 @@ var dutyStepsCommittee = []string{
 	"successfully fetched attestation data",
 	"fetched attestation data from CL",
 	"got pre consensus quorum",
-	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"starting QBFT instance",
-	"starting new QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
 	"got prepare message",
@@ -160,7 +158,7 @@ func specialCommitteeDutyLines(line string) bool {
 	}
 
 	// This is a special handling a duty-relevant log-line (that contains "Block arrived before 1/3 slot").
-	if strings.Contains(line, "Block arrived before 1/3 slot") {
+	if helper.ContainsCaseInsensitive(line, "Block arrived before 1/3 slot") {
 		return true
 	}
 
@@ -168,9 +166,9 @@ func specialCommitteeDutyLines(line string) bool {
 }
 
 func relevantCommitteeDutyStep(line string) bool {
-	// Clean up the line from false-positive triggers it potentially might have.
-	line = strings.ReplaceAll(line, "\"committee_index\":", "")
-	line = strings.ReplaceAll(line, "\"handler\":\"SYNC_COMMITTEE\"", "")
+	if helper.ContainsCaseInsensitive(line, "SYNC_COMMITTEE") {
+		return false
+	}
 
 	if !maybeRelevantForCommittee(line) {
 		return false

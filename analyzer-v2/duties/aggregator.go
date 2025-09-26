@@ -24,9 +24,7 @@ var dutyStepsAggregator = []string{
 	"got partial aggregator selection proof signatures",
 	"aggregation duty won't be needed from this validator for this slot",
 	"submitted aggregate and proof",
-	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"starting QBFT instance",
-	"starting new QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
 	"got prepare message",

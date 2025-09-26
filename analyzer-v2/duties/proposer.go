@@ -25,9 +25,7 @@ var dutyStepsProposer = []string{
 	"reconstructed partial RANDAO signatures",
 	"waited out proposer delay",
 	"got beacon block proposal",
-	// TODO - this should eventually be replaced by the next step ("fetched attestation data from CL")
 	"starting QBFT instance",
-	"starting new QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
 	"got prepare message",
