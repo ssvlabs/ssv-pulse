@@ -11,15 +11,21 @@ log-format: standard
 
 analyze-committee-duty: true
 #analyze-committee-duty: false
-
+#
 #analyze-proposer-duty: true
 analyze-proposer-duty: false
 
 #analyze-aggregator-duty: true
 analyze-aggregator-duty: false
-#analyze-aggregator-duty: true
 #analyze-sync-committee-contribution-duty: true
 analyze-sync-committee-contribution-duty: false
 
-#duty-id: COMMITTEE-62_66_121_185_256_356_695
-target-slot: 1389192
+duty-id: COMMITTEE-1_2_417_418
+#duty-id: COMMITTEE-1_2_417_418-e50836-s1626773
+#
+#target-slot: 1626773 # ...
+
+# fork issues FULU
+#target-slot: 1622028 # ...
+
+

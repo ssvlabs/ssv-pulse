@@ -29,7 +29,7 @@ var dutyStepsAggregator = []string{
 	"got proposal message",
 	"got prepare message",
 	"got prepare quorum",
-	"got prepare quorum",
+	"got commit message",
 	"got commit quorum",
 	"round timed out",
 	"got round change",
