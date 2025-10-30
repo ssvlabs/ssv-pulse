@@ -20,6 +20,7 @@ var dutyStepsAggregator = []string{
 	"late duty execution",
 	"starting duty processing",
 	"signed aggregator selection proof",
+	"got pre-consensus message",
 	"got pre consensus quorum",
 	"got partial aggregator selection proof signatures",
 	"aggregation duty won't be needed from this validator for this slot",
@@ -36,6 +37,7 @@ var dutyStepsAggregator = []string{
 	"got justified round change",
 	"QBFT instance is decided",
 	"broadcasted post consensus partial signature message",
+	"got post-consensus message",
 	"got post consensus quorum",
 	"submitting signed aggregate and proof",
 	"successful submitted aggregate", // TODO - remove this line once typo-fix is enacted (`successful` -> `successfully`)
@@ -112,18 +114,26 @@ func (s *Aggregator) Analyze(logFilePath string, dutyID string, targetSlot phase
 }
 
 func (s *Aggregator) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
-	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
-	if err != nil {
-		return fmt.Errorf("get target slot start time: %w", err)
+	// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
+	// by parsing this log line matching against known patterns.
+	if targetSlot == phase0.Slot(0) {
+		targetSlot = helper.TryParseSlot(line)
 	}
 
 	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
 	if err != nil {
 		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 	}
-	timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
 
-	timeIntoSlotStr := fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
+	timeIntoSlotStr := "unknown"
+	if targetSlot != phase0.Slot(0) {
+		targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
+		if err != nil {
+			return fmt.Errorf("get target slot start time: %w", err)
+		}
+		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
+		timeIntoSlotStr = fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
+	}
 	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil

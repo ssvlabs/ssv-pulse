@@ -19,6 +19,7 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"executing validator duty",
 	"late duty execution",
 	"starting duty processing",
+	"got pre-consensus message",
 	"got pre consensus quorum",
 	"starting QBFT instance",
 	"leader broadcasting proposal message",
@@ -32,6 +33,7 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"got justified round change",
 	"QBFT instance is decided",
 	"broadcasted post consensus partial signature message",
+	"got post-consensus message",
 	"got post consensus quorum",
 	"submitting sync committee contributions",
 	"successfully submitted sync committee contributions",
@@ -107,18 +109,26 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 }
 
 func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
-	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
-	if err != nil {
-		return fmt.Errorf("get target slot start time: %w", err)
+	// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
+	// by parsing this log line matching against known patterns.
+	if targetSlot == phase0.Slot(0) {
+		targetSlot = helper.TryParseSlot(line)
 	}
 
 	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
 	if err != nil {
 		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 	}
-	timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
 
-	timeIntoSlotStr := fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
+	timeIntoSlotStr := "unknown"
+	if targetSlot != phase0.Slot(0) {
+		targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
+		if err != nil {
+			return fmt.Errorf("get target slot start time: %w", err)
+		}
+		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
+		timeIntoSlotStr = fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
+	}
 	logger.Info(timeIntoSlotStr + " " + trimmedLine)
 
 	return nil
