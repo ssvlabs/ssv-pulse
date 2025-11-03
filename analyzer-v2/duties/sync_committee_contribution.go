@@ -134,20 +134,6 @@ func (s *SyncCommitteeContribution) logWithTimeIntoSlot(logger *slog.Logger, lin
 	return nil
 }
 
-func relevantForSyncCommitteeContribution(line string) bool {
-	if !maybeRelevantForSyncCommitteeContribution(line) {
-		return false
-	}
-
-	for _, dutyStep := range dutyStepsSyncCommitteeContribution {
-		if strings.Contains(line, dutyStep) {
-			return true
-		}
-	}
-
-	return false
-}
-
 func specialSyncCommitteeContributionDutyLines(line string) bool {
 	// This is a special handling of legacy log-line (that contains "got duties").
 	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {

@@ -109,7 +109,7 @@ func containsUnexpectedError(line string) bool {
 	line = strings.ReplaceAll(line, "\"errored\":0", "")
 
 	// Treat warnings as errors.
-	if !(helper.ContainsCaseInsensitive(line, "err") || helper.ContainsCaseInsensitive(line, "warn")) {
+	if !helper.ContainsCaseInsensitive(line, "err") && !helper.ContainsCaseInsensitive(line, "warn") {
 		return false
 	}
 
