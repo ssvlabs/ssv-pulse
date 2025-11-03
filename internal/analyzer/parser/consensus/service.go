@@ -17,7 +17,7 @@ import (
 
 const (
 	partialSignatureLogRecord      = "🧩 reconstructed partial signatures"
-	attestationSubmissionLogRecord = "✅ successfully submitted attestation"
+	attestationSubmissionLogRecord = "✅ successfully submitted attestations"
 
 	parserName = "consensus"
 )

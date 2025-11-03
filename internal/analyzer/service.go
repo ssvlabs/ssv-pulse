@@ -21,17 +21,17 @@ type (
 	operatorAnalyzer interface {
 		Analyze() (operator.Stats, error)
 	}
+
 	clientAnalyzer interface {
 		Analyze() (client.Stats, error)
 	}
+
 	commitAnalyzer interface {
 		Analyze() (map[parser.SignerID]commit.Stats, error)
 	}
-
 	prepareAnalyzer interface {
 		Analyze() (map[parser.SignerID]prepare.Stats, error)
 	}
-
 	consensusAnalyzer interface {
 		Analyze() (consensus.Stats, error)
 	}
