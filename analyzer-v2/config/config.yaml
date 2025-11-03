@@ -20,11 +20,11 @@ analyze-aggregator-duty: false
 #analyze-sync-committee-contribution-duty: true
 analyze-sync-committee-contribution-duty: false
 
+duty-id: COMMITTEE-1_2_3_460
 #duty-id: COMMITTEE-53_54_55_56
-#duty-id: COMMITTEE-4_5_6_461
 #duty-id: COMMITTEE-1_2_417_418-e50846-s1627077
 #
-target-slot: 1634176 # ...
+#target-slot: 1662055 # ...
 
 # fork issues FULU
 #target-slot: 1622028 # ...
