@@ -12,7 +12,7 @@ import (
 func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(t *testing.T) {
 	jsonData1 := `{
 		"T": "2024-09-27T05:48:39.348Z",
-		"round": 1,
+		"qbft_round": 1,
 		"duty_id": "1234",
 		"M": "Prepare message",
 		"prepare_signers": [1, 2, 3]
@@ -20,7 +20,7 @@ func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(
 
 	jsonData2 := `{
 		"T": "2024-09-27T05:48:39.348Z",
-		"round": 1,
+		"qbft_round": 1,
 		"duty_id": "1234",
 		"M": "Prepare message",
 		"prepare-signers": [4, 5, 6]
@@ -40,7 +40,7 @@ func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(
 			input: jsonData1,
 			expected: prepareLogEntry{
 				Timestamp:      expectedTime,
-				Round:          1,
+				QBFTRound:      1,
 				DutyID:         "1234",
 				Message:        "Prepare message",
 				PrepareSigners: []parser.SignerID{1, 2, 3},
@@ -52,7 +52,7 @@ func Test_GivenPrepareLogEntry_WhenMultipleSignersFormats_ThenUnmarshalSucceeds(
 			input: jsonData2,
 			expected: prepareLogEntry{
 				Timestamp:      expectedTime,
-				Round:          1,
+				QBFTRound:      1,
 				DutyID:         "1234",
 				Message:        "Prepare message",
 				PrepareSigners: []parser.SignerID{4, 5, 6},
