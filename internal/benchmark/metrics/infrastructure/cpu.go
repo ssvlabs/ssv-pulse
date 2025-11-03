@@ -8,6 +8,7 @@ import (
 
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
 	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )

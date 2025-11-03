@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"github.com/grafana/loki-client-go/loki"
-	"github.com/grafana/loki-client-go/pkg/urlutil"
-	"github.com/prometheus/common/model"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/grafana/loki-client-go/loki"
+	"github.com/grafana/loki-client-go/pkg/urlutil"
+	"github.com/prometheus/common/model"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (

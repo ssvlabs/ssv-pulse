@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/aquasecurity/table"
+
 	"github.com/ssvlabs/ssv-pulse/internal/platform/metric"
 )
 
