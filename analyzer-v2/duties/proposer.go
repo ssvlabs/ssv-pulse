@@ -21,7 +21,7 @@ var dutyStepsProposer = []string{
 	"starting duty processing",
 	"signed & broadcasted partial RANDAO signature",
 	"got pre-consensus message",
-	"got pre consensus quorum",
+	"got pre-consensus quorum",
 	"reconstructed partial RANDAO signatures",
 	"waited out proposer delay",
 	"got beacon block proposal",
@@ -36,12 +36,12 @@ var dutyStepsProposer = []string{
 	"got round change",
 	"got justified round change",
 	"QBFT instance is decided",
-	"broadcasted post consensus partial signature message",
+	"broadcasted post-consensus partial signature message",
 	"got post-consensus message",
-	"got post consensus quorum",
+	"got post-consensus quorum",
 	"submitting block proposal",
 	"successfully submitted block proposal",
-	"successfully finished duty processing",
+	"finished duty processing",
 }
 
 type Proposer struct {

@@ -20,7 +20,7 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"late duty execution",
 	"starting duty processing",
 	"got pre-consensus message",
-	"got pre consensus quorum",
+	"got pre-consensus quorum",
 	"starting QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
@@ -32,12 +32,12 @@ var dutyStepsSyncCommitteeContribution = []string{
 	"got round change",
 	"got justified round change",
 	"QBFT instance is decided",
-	"broadcasted post consensus partial signature message",
+	"broadcasted post-consensus partial signature message",
 	"got post-consensus message",
-	"got post consensus quorum",
+	"got post-consensus quorum",
 	"submitting sync committee contributions",
 	"successfully submitted sync committee contributions",
-	"successfully finished duty processing",
+	"finished duty processing",
 }
 
 type SyncCommitteeContribution struct {

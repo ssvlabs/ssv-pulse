@@ -25,7 +25,7 @@ var dutyStepsCommittee = []string{
 	"successfully fetched attestation data",
 	"fetched attestation data from CL",
 	"got pre-consensus message",
-	"got pre consensus quorum",
+	"got pre-consensus quorum",
 	"starting QBFT instance",
 	"leader broadcasting proposal message",
 	"got proposal message",
@@ -37,17 +37,16 @@ var dutyStepsCommittee = []string{
 	"got round change",
 	"got justified round change",
 	"QBFT instance is decided",
-	"constructed & signed post consensus partial signature message",
-	"broadcasted post consensus partial signature message",
+	"broadcasted post-consensus partial signature message",
 	// TODO - this should eventually be replaced by the next step ("got post-consensus message")
 	"got partial signatures",
 	"got post-consensus message",
-	"got post consensus quorum",
+	"got post-consensus quorum",
 	"submitting attestations",
 	"successfully submitted attestations",
 	"submitting sync committee",
 	"successfully submitted sync committee",
-	"successfully finished duty processing",
+	"finished duty processing",
 }
 
 type Committee struct {

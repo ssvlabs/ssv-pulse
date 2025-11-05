@@ -21,7 +21,7 @@ var dutyStepsAggregator = []string{
 	"starting duty processing",
 	"signed aggregator selection proof",
 	"got pre-consensus message",
-	"got pre consensus quorum",
+	"got pre-consensus quorum",
 	"got partial aggregator selection proof signatures",
 	"aggregation duty won't be needed from this validator for this slot",
 	"submitted aggregate and proof",
@@ -36,13 +36,13 @@ var dutyStepsAggregator = []string{
 	"got round change",
 	"got justified round change",
 	"QBFT instance is decided",
-	"broadcasted post consensus partial signature message",
+	"broadcasted post-consensus partial signature message",
 	"got post-consensus message",
-	"got post consensus quorum",
+	"got post-consensus quorum",
 	"submitting signed aggregate and proof",
 	"successful submitted aggregate", // TODO - remove this line once typo-fix is enacted (`successful` -> `successfully`)
 	"successfully submitted signed aggregate and proof",
-	"successfully finished duty processing",
+	"finished duty processing",
 }
 
 type Aggregator struct {
