@@ -3,25 +3,29 @@ package duties
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 )
 
-func relevantForSlot(line string, targetSlot phase0.Slot) bool {
+func relevantForSlot(line string, targetSlot phase0.Slot, timeIntoSlot time.Duration) bool {
 	// The line is not relevant if the target slot isn't specified.
 	if targetSlot == phase0.Slot(0) {
 		return false
 	}
 
+	// See if the line is relevant to that slot number.
 	if strings.Contains(line, fmt.Sprintf("\"slot\":%d", targetSlot)) {
 		return true
 	}
 	if strings.Contains(line, fmt.Sprintf("-s%d", targetSlot)) {
 		return true
 	}
-	return false
+
+	// See if the line is relevant timewise (we are interested in the current slot + the next slot).
+	return timeIntoSlot < 2*12*time.Second
 }
 
 func containsUnexpectedAggregatorError(line string) bool {

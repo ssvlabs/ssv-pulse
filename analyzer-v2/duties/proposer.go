@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -65,7 +66,7 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", "proposer")
+	logger := slog.Default()
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -73,13 +74,30 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 		line := scanner.Text()
 		lineNumber++
 
+		// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
+		// by parsing this log line matching against known patterns.
+		slot := targetSlot
+		if slot == phase0.Slot(0) {
+			slot = helper.TryParseSlot(line)
+		}
+
+		entry, lineTrimmed, err := s.logParser.ParseLogLine(line)
+		if err != nil {
+			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+		}
+
+		timeIntoSlot, err := s.getTimeIntoSlot(slot, entry.Timestamp)
+		if err != nil {
+			return fmt.Errorf("get time into slot for line %d `%s`, err: %w", lineNumber, line, err)
+		}
+
 		lineIsRelevant := func() bool {
-			if containsUnexpectedProposerError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(line, targetSlot)) {
+			if containsUnexpectedProposerError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
 			// Special lines are relevant only if the target slot has been specified.
-			if specialProposerDutyLines(line) && relevantForSlot(line, targetSlot) {
+			if specialProposerDutyLines(line) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
 				return true
 			}
 
@@ -89,7 +107,7 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 			}
 
 			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantProposerDutyStep(line) && relevantForSlot(line, targetSlot) {
+			if relevantProposerDutyStep(line) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
 				return true
 			}
 
@@ -100,9 +118,7 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 			continue
 		}
 
-		if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-			return err
-		}
+		logger.Info(fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds()) + " " + lineTrimmed)
 	}
 	err = scanner.Err()
 	if err != nil {
@@ -112,30 +128,17 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 	return nil
 }
 
-func (s *Proposer) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
-	// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
-	// by parsing this log line matching against known patterns.
+func (s *Proposer) getTimeIntoSlot(targetSlot phase0.Slot, lineTimestamp time.Time) (time.Duration, error) {
 	if targetSlot == phase0.Slot(0) {
-		targetSlot = helper.TryParseSlot(line)
+		return 0, nil
 	}
 
-	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
+	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
 	if err != nil {
-		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+		return 0, fmt.Errorf("get target slot start time: %w", err)
 	}
 
-	timeIntoSlotStr := "unknown"
-	if targetSlot != phase0.Slot(0) {
-		targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
-		if err != nil {
-			return fmt.Errorf("get target slot start time: %w", err)
-		}
-		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
-		timeIntoSlotStr = fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
-	}
-	logger.Info(timeIntoSlotStr + " " + trimmedLine)
-
-	return nil
+	return lineTimestamp.Sub(targetSlotStartTime), nil
 }
 
 func specialProposerDutyLines(line string) bool {

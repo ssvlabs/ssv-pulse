@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -70,7 +71,7 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 		_ = logFile.Close()
 	}()
 
-	logger := slog.With("duty_type", "committee")
+	logger := slog.Default()
 
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
@@ -78,21 +79,39 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 		line := scanner.Text()
 		lineNumber++
 
+		// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
+		// by parsing this log line matching against known patterns.
+		slot := targetSlot
+		if slot == phase0.Slot(0) {
+			slot = helper.TryParseSlot(line)
+		}
+
+		entry, lineTrimmed, err := s.logParser.ParseLogLine(line)
+		if err != nil {
+			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+		}
+
+		timeIntoSlot, err := s.getTimeIntoSlot(slot, entry.Timestamp)
+		if err != nil {
+			return fmt.Errorf("get time into slot for line %d `%s`, err: %w", lineNumber, line, err)
+		}
+
 		lineIsRelevant := func() bool {
 			//// Line containing unexpected error that mentions either target slot or duty ID is relevant.
 			//// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
 			//// in order to filter out the noise (duties for different slots). Once we add slot number to
 			//// committee-duty-id we should replace this condition with the one below (the commented out lines).
-			//if containsUnexpectedCommitteeError(line) && (targetSlot == phase0.Slot(0) && relevantForDutyID(line, dutyID) ||
-			//	targetSlot != phase0.Slot(0) && relevantForSlot(line, targetSlot)) {
+			//if containsUnexpectedCommitteeError(lineTrimmed) && (slot == phase0.Slot(0) && relevantForDutyID(lineTrimmed, dutyID) ||
+			//	slot != phase0.Slot(0) && (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 			//	return true
 			//}
-			if containsUnexpectedCommitteeError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(line, targetSlot)) {
+			if containsUnexpectedCommitteeError(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
 			// Special lines are relevant only if the target slot has been specified.
-			if specialCommitteeDutyLines(line) && relevantForSlot(line, targetSlot) {
+			if specialCommitteeDutyLines(lineTrimmed) && (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
@@ -100,15 +119,16 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 			//// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
 			//// in order to filter out the noise (duties for different slots). Once we add slot number
 			//// to committee-duty-id we should replace this condition with the one below (the commented out lines).
-			//if relevantCommitteeDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) && relevantForSlot(line, targetSlot) {
+			//if relevantCommitteeDutyStep(lineTrimmed) && (dutyID != "" && relevantForDutyID(lineTrimmed, dutyID)) &&
+			//   (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 			//	return true
 			//}
-			if relevantCommitteeDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) {
+			if relevantCommitteeDutyStep(lineTrimmed) && (dutyID != "" && relevantForDutyID(lineTrimmed, dutyID)) {
 				return true
 			}
 
 			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantCommitteeDutyStep(line) && relevantForSlot(line, targetSlot) {
+			if relevantCommitteeDutyStep(lineTrimmed) && (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
@@ -119,9 +139,7 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 			continue
 		}
 
-		if err := s.logWithTimeIntoSlot(logger, line, lineNumber, targetSlot); err != nil {
-			return err
-		}
+		logger.Info(fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds()) + " " + lineTrimmed)
 	}
 	err = scanner.Err()
 	if err != nil {
@@ -131,30 +149,17 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 	return nil
 }
 
-func (s *Committee) logWithTimeIntoSlot(logger *slog.Logger, line string, lineNumber int, targetSlot phase0.Slot) error {
-	// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
-	// by parsing this log line matching against known patterns.
+func (s *Committee) getTimeIntoSlot(targetSlot phase0.Slot, lineTimestamp time.Time) (time.Duration, error) {
 	if targetSlot == phase0.Slot(0) {
-		targetSlot = helper.TryParseSlot(line)
+		return 0, nil
 	}
 
-	entry, trimmedLine, err := s.logParser.ParseLogLine(line)
+	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
 	if err != nil {
-		return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
+		return 0, fmt.Errorf("get target slot start time: %w", err)
 	}
 
-	timeIntoSlotStr := "unknown"
-	if targetSlot != phase0.Slot(0) {
-		targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
-		if err != nil {
-			return fmt.Errorf("get target slot start time: %w", err)
-		}
-		timeIntoSlot := entry.Timestamp.Sub(targetSlotStartTime)
-		timeIntoSlotStr = fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds())
-	}
-	logger.Info(timeIntoSlotStr + " " + trimmedLine)
-
-	return nil
+	return lineTimestamp.Sub(targetSlotStartTime), nil
 }
 
 func specialCommitteeDutyLines(line string) bool {
