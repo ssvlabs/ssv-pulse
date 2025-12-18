@@ -9,11 +9,11 @@ blockchain: mainnet
 log-format: standard
 #log-format: external
 
-analyze-committee-duty: true
-#analyze-committee-duty: false
+#analyze-committee-duty: true
+analyze-committee-duty: false
 
-#analyze-proposer-duty: true
-analyze-proposer-duty: false
+analyze-proposer-duty: true
+#analyze-proposer-duty: false
 
 #analyze-aggregator-duty: true
 analyze-aggregator-duty: false
@@ -30,7 +30,8 @@ analyze-sync-committee-contribution-duty: false
 #
 #target-slot: 13122372 # Kraken
 #target-slot: 13125357 # EtherFi
-target-slot: 13246656
+#target-slot: 13246656
+target-slot: 13263047
 
 # fork issues FULU
 #target-slot: 1622028 # ...

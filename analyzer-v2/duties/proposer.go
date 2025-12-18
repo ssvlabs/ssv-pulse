@@ -2,7 +2,6 @@ package duties
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -66,8 +65,6 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 		_ = logFile.Close()
 	}()
 
-	logger := slog.Default()
-
 	lineNumber := 0
 	scanner := parser.NewScanner(logFile)
 	for scanner.Scan() {
@@ -81,8 +78,13 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 			slot = helper.TryParseSlot(line)
 		}
 
+		// While parsing, skip a bunch of lines at the start of the file (if necessary) as a work-around for
+		// occasional junk that can be found there sometimes.
 		entry, lineTrimmed, err := s.logParser.ParseLogLine(line)
 		if err != nil {
+			if lineNumber < 20 {
+				continue // probably just some junk we need to skip
+			}
 			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 		}
 
@@ -118,7 +120,7 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 			continue
 		}
 
-		logger.Info(fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds()) + " " + lineTrimmed)
+		fmt.Println(fmt.Sprintf("time_into_slot_ms=%d", timeIntoSlot.Milliseconds()) + " " + lineTrimmed)
 	}
 	err = scanner.Err()
 	if err != nil {
