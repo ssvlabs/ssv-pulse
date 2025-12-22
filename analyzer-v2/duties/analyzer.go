@@ -2,12 +2,12 @@ package duties
 
 import (
 	"fmt"
-	"log/slog"
 	"math"
 	"os"
 	"path"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/sanity-io/litter"
 )
 
 type analyzer interface {
@@ -21,14 +21,11 @@ func Analyze(a analyzer, dir string, files []os.DirEntry, dutyID string, targetS
 		fileSizeMB := 0.0
 		stat, err := os.Stat(filePath)
 		if err != nil {
-			slog.With("err", err.Error()).Warn(fmt.Sprintf("error fetching `%s` file info, will try to read the file anyway", file.Name()))
+			return fmt.Errorf("fetch file info for %s: %w", file.Name(), err)
 		}
-		if err == nil {
-			fileSizeMB = float64(stat.Size()) / (1024 * 1024)
-		}
-		slog.
-			With("file_size_megabytes", math.Round(fileSizeMB)).
-			Info(fmt.Sprintf("⏳⏳⏳ analyzing log file: %s", file.Name()))
+		fileSizeMB = float64(stat.Size()) / (1024 * 1024)
+
+		fmt.Println(fmt.Sprintf("⏳⏳⏳ analyzing log file (size=%s): %s", litter.Sdump(math.Round(fileSizeMB)), file.Name()))
 
 		err = a.Analyze(filePath, dutyID, targetSlot)
 		if err != nil {

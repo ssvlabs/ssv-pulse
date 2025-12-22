@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 
+	"github.com/sanity-io/litter"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -45,9 +45,7 @@ var CMD = &cobra.Command{
 			return fmt.Errorf("parse config: %w", err)
 		}
 
-		slog.With("config", cfg).
-			With("config_file", viper.ConfigFileUsed()).
-			Info("configuration is loaded")
+		fmt.Println(fmt.Sprintf("config %s is loaded: %s", viper.ConfigFileUsed(), litter.Sdump(cfg)))
 
 		err = cfg.Validate()
 		if err != nil {
@@ -83,7 +81,7 @@ var CMD = &cobra.Command{
 		}
 
 		if cfg.AnalyzeCommitteeDuty {
-			slog.Info(fmt.Sprintf("analyzing COMMITTEE duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
+			fmt.Println(fmt.Sprintf("analyzing COMMITTEE duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
 			a := duties.NewCommittee(blockchain, logParser)
 			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
@@ -91,7 +89,7 @@ var CMD = &cobra.Command{
 			}
 		}
 		if cfg.AnalyzeProposerDuty {
-			slog.Info(fmt.Sprintf("analyzing PROPOSER duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
+			fmt.Println(fmt.Sprintf("analyzing PROPOSER duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
 			a := duties.NewProposer(blockchain, logParser)
 			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
@@ -99,7 +97,7 @@ var CMD = &cobra.Command{
 			}
 		}
 		if cfg.AnalyzeAggregatorDuty {
-			slog.Info(fmt.Sprintf("analyzing AGGREGATOR duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
+			fmt.Println(fmt.Sprintf("analyzing AGGREGATOR duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
 			a := duties.NewAggregator(blockchain, logParser)
 			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {
@@ -107,7 +105,7 @@ var CMD = &cobra.Command{
 			}
 		}
 		if cfg.AnalyzeSyncCommitteeContribution {
-			slog.Info(fmt.Sprintf("analyzing SYNC_COMMITTEE_CONTRIBUTION duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
+			fmt.Println(fmt.Sprintf("analyzing SYNC_COMMITTEE_CONTRIBUTION duty: target slot=%d, duty_id=%s", cfg.TargetSlot, cfg.DutyID))
 			a := duties.NewSyncCommitteeContribution(blockchain, logParser)
 			err := duties.Analyze(a, cfg.LogFilesDirectory, filesLog, cfg.DutyID, cfg.TargetSlot)
 			if err != nil {

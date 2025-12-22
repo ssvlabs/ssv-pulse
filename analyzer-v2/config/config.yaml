@@ -3,8 +3,8 @@ log-files-directory: /Users/iurii/Downloads/target
 #log-files-directory: /Users/iurii/Downloads/hashkey
 #log-files-directory: /Users/iurii/Downloads/kraken
 
-#blockchain: hoodi
-blockchain: mainnet
+blockchain: hoodi
+#blockchain: mainnet
 
 log-format: standard
 #log-format: external
@@ -31,7 +31,7 @@ analyze-sync-committee-contribution-duty: false
 #target-slot: 13122372 # Kraken
 #target-slot: 13125357 # EtherFi
 #target-slot: 13246656
-target-slot: 13263047
+target-slot: 1998016
 
 # fork issues FULU
 #target-slot: 1622028 # ...
