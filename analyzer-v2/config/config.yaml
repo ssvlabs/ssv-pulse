@@ -28,10 +28,8 @@ analyze-sync-committee-contribution-duty: false
 #target-slot: 13122239 # bad attestation
 #target-slot: 13122238 # good attestation
 #
-#target-slot: 13122372 # Kraken
-#target-slot: 13125357 # EtherFi
-#target-slot: 13246656
-target-slot: 1998016
+#target-slot: 1998016
+target-slot: 2002214
 
 # fork issues FULU
 #target-slot: 1622028 # ...

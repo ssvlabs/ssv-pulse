@@ -46,6 +46,7 @@ var CMD = &cobra.Command{
 		}
 
 		fmt.Println(fmt.Sprintf("config %s is loaded: %s", viper.ConfigFileUsed(), litter.Sdump(cfg)))
+		fmt.Println()
 
 		err = cfg.Validate()
 		if err != nil {

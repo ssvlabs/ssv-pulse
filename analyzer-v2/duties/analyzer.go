@@ -25,6 +25,7 @@ func Analyze(a analyzer, dir string, files []os.DirEntry, dutyID string, targetS
 		}
 		fileSizeMB = float64(stat.Size()) / (1024 * 1024)
 
+		fmt.Println()
 		fmt.Println(fmt.Sprintf("⏳⏳⏳ analyzing log file (size=%s): %s", litter.Sdump(math.Round(fileSizeMB)), file.Name()))
 
 		err = a.Analyze(filePath, dutyID, targetSlot)
