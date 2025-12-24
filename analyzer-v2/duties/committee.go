@@ -99,35 +99,20 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 		}
 
 		lineIsRelevant := func() bool {
-			//// Line containing unexpected error that mentions either target slot or duty ID is relevant.
-			//// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
-			//// in order to filter out the noise (duties for different slots). Once we add slot number to
-			//// committee-duty-id we should replace this condition with the one below (the commented out lines).
-			//if containsUnexpectedCommitteeError(lineTrimmed) && (slot == phase0.Slot(0) && relevantForDutyID(lineTrimmed, dutyID) ||
-			//	slot != phase0.Slot(0) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
-			//	return true
-			//}
+			// Note, this condition uses maybeRelevantForSlot (and not relevantForSlot) to ensure we don't
+			// miss any potentially relevant errors at the cost of getting occasional false-positives.
 			if containsUnexpectedCommitteeError(lineTrimmed) &&
 				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
-			if specialCommitteeDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if specialCommitteeDutyLines(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 
-			//// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
-			//// in order to filter out the noise (duties for different slots). Once we add slot number
-			//// to committee-duty-id we should replace this condition with the one below (the commented out lines).
-			//if relevantCommitteeDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) &&
-			//   relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
-			//	return true
-			//}
-			if relevantCommitteeDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
-				return true
-			}
-
-			if relevantCommitteeDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if relevantCommitteeDutyStep(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 

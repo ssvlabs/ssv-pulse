@@ -37,22 +37,22 @@ func NewConnectionsMetric(url, name string, interval time.Duration, healthCondit
 	}
 }
 
-func (p *ConnectionsMetric) Measure(ctx context.Context) {
-	ticker := time.NewTicker(p.interval)
+func (m *ConnectionsMetric) Measure(ctx context.Context) {
+	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.With("metric_name", p.Name).Debug("metric was stopped")
+			slog.With("metric_name", m.Name).Debug("metric was stopped")
 			return
 		case <-ticker.C:
-			p.measure(ctx)
+			m.measure(ctx)
 		}
 	}
 }
 
-func (c *ConnectionsMetric) measure(ctx context.Context) {
+func (m *ConnectionsMetric) measure(ctx context.Context) {
 	var (
 		resp struct {
 			Advanced struct {
@@ -63,47 +63,47 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 	)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/node/health", c.url), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/node/health", m.url), nil)
 	if err != nil {
-		logger.WriteError(metric.SSVGroup, c.Name, err)
+		logger.WriteError(metric.SSVGroup, m.Name, err)
 		return
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if !errors.Is(err, ctx.Err()) {
-			c.writeMetric(0, 0)
+			m.writeMetric(0, 0)
 
-			logger.WriteError(metric.SSVGroup, c.Name, err)
+			logger.WriteError(metric.SSVGroup, m.Name, err)
 		}
 		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		c.writeMetric(0, 0)
+		m.writeMetric(0, 0)
 
 		var errorResponse any
 		_ = json.NewDecoder(res.Body).Decode(&errorResponse)
 		jsonErrResponse, _ := json.Marshal(errorResponse)
 		logger.WriteError(
 			metric.SSVGroup,
-			c.Name,
+			m.Name,
 			fmt.Errorf("received unsuccessful status code. Code: '%s'. Response: '%s'", res.Status, jsonErrResponse))
 		return
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		c.writeMetric(0, 0)
+		m.writeMetric(0, 0)
 
-		logger.WriteError(metric.SSVGroup, c.Name, err)
+		logger.WriteError(metric.SSVGroup, m.Name, err)
 		return
 	}
 
-	c.writeMetric(resp.Advanced.Inbound, resp.Advanced.Outbound)
+	m.writeMetric(resp.Advanced.Inbound, resp.Advanced.Outbound)
 }
 
-func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
-	c.AddDataPoint(map[string]uint32{
+func (m *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
+	m.AddDataPoint(map[string]uint32{
 		InboundConnectionsMeasurement:  inbound,
 		OutboundConnectionsMeasurement: outbound,
 	})
@@ -111,15 +111,15 @@ func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
 	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "inbound"}).Set(float64(inbound))
 	connectionsMetric.With(prometheus.Labels{connectionDirectionLabel: "outbound"}).Set(float64(outbound))
 
-	logger.WriteMetric(metric.SSVGroup, c.Name, map[string]any{
+	logger.WriteMetric(metric.SSVGroup, m.Name, map[string]any{
 		InboundConnectionsMeasurement:  inbound,
 		OutboundConnectionsMeasurement: outbound})
 }
 
-func (p *ConnectionsMetric) AggregateResults() string {
+func (m *ConnectionsMetric) AggregateResults() string {
 	var measurements = make(map[string][]uint32)
 
-	for _, point := range p.DataPoints {
+	for _, point := range m.DataPoints {
 		measurements[InboundConnectionsMeasurement] = append(measurements[InboundConnectionsMeasurement], point.Values[InboundConnectionsMeasurement])
 		measurements[OutboundConnectionsMeasurement] = append(measurements[OutboundConnectionsMeasurement], point.Values[OutboundConnectionsMeasurement])
 	}

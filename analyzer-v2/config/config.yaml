@@ -27,6 +27,7 @@ analyze-sync-committee-contribution-duty: false
 #target-slot: 13308895
 #target-slot: 13308894
 target-slot: 13308893
+#target-slot: 13308892
 
 
 

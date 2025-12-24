@@ -1,6 +1,8 @@
 version: "2"
+
 run:
   allow-parallel-runners: true
+
 linters:
   exclusions:
     generated: lax
@@ -9,3 +11,9 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - "-S1038"

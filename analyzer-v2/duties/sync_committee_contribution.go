@@ -90,20 +90,20 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 		}
 
 		lineIsRelevant := func() bool {
+			// Note, this condition uses maybeRelevantForSlot (and not relevantForSlot) to ensure we don't
+			// miss any potentially relevant errors at the cost of getting occasional false-positives.
 			if containsUnexpectedSyncCommitteeContributionError(lineTrimmed) &&
 				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
-			if specialSyncCommitteeContributionDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if specialSyncCommitteeContributionDutyLines(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 
-			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
-				return true
-			}
-
-			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 

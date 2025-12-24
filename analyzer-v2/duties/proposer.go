@@ -94,20 +94,20 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 		}
 
 		lineIsRelevant := func() bool {
+			// Note, this condition uses maybeRelevantForSlot (and not relevantForSlot) to ensure we don't
+			// miss any potentially relevant errors at the cost of getting occasional false-positives.
 			if containsUnexpectedProposerError(lineTrimmed) &&
 				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
-			if specialProposerDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if specialProposerDutyLines(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 
-			if relevantProposerDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
-				return true
-			}
-
-			if relevantProposerDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
+			if relevantProposerDutyStep(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
 				return true
 			}
 
