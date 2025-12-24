@@ -161,6 +161,8 @@ func (s *Committee) getTimeIntoSlot(targetSlot phase0.Slot, lineTimestamp time.T
 	return lineTimestamp.Sub(targetSlotStartTime), nil
 }
 
+// specialCommitteeDutyLines highlights certain duty-relevant log-lines that will be skipped (filtered out) by
+// other rules we have defined.
 func specialCommitteeDutyLines(line string) bool {
 	// This is a special handling of legacy log-line (that contains "got duties").
 	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"ATTESTER\"") {
@@ -171,8 +173,17 @@ func specialCommitteeDutyLines(line string) bool {
 		return true
 	}
 
-	// This is a special handling a duty-relevant log-line (that contains "Block arrived before 1/3 slot").
+	// The following are committee-related log-lines that don't contain "committee" in them but are still relevant.
 	if helper.ContainsCaseInsensitive(line, "Block arrived before 1/3 slot") {
+		return true
+	}
+	if helper.ContainsCaseInsensitive(line, "response received") {
+		return true
+	}
+	if helper.ContainsCaseInsensitive(line, "soft timeout reached") {
+		return true
+	}
+	if helper.ContainsCaseInsensitive(line, "successfully fetched attestation data") {
 		return true
 	}
 
