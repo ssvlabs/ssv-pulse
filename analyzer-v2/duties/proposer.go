@@ -94,12 +94,13 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 		}
 
 		lineIsRelevant := func() bool {
-			if containsUnexpectedProposerError(line) && (relevantForDutyID(line, dutyID) || relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+			if containsUnexpectedProposerError(line) &&
+				(relevantForDutyID(line, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
 			// Special lines are relevant only if the target slot has been specified.
-			if specialProposerDutyLines(line) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
+			if specialProposerDutyLines(line) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 
@@ -109,7 +110,7 @@ func (s *Proposer) Analyze(logFilePath string, dutyID string, targetSlot phase0.
 			}
 
 			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantProposerDutyStep(line) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
+			if relevantProposerDutyStep(line) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 

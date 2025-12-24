@@ -10,7 +10,7 @@ import (
 	"github.com/ssvlabs/ssv-pulse/analyzer-v2/internal/helper"
 )
 
-func relevantForSlot(line string, targetSlot phase0.Slot, timeIntoSlot time.Duration) bool {
+func relevantForSlot(line string, targetSlot phase0.Slot) bool {
 	// The line is not relevant if the target slot isn't specified.
 	if targetSlot == phase0.Slot(0) {
 		return false
@@ -21,6 +21,14 @@ func relevantForSlot(line string, targetSlot phase0.Slot, timeIntoSlot time.Dura
 		return true
 	}
 	if strings.Contains(line, fmt.Sprintf("-s%d", targetSlot)) {
+		return true
+	}
+
+	return false
+}
+
+func maybeRelevantForSlot(line string, targetSlot phase0.Slot, timeIntoSlot time.Duration) bool {
+	if relevantForSlot(line, targetSlot) {
 		return true
 	}
 
