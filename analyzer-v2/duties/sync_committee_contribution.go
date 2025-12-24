@@ -67,13 +67,6 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 		line := scanner.Text()
 		lineNumber++
 
-		// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
-		// by parsing this log line matching against known patterns.
-		slot := targetSlot
-		if slot == phase0.Slot(0) {
-			slot = helper.TryParseSlot(line)
-		}
-
 		// While parsing, skip a bunch of lines at the start of the file (if necessary) as a work-around for
 		// occasional junk that can be found there sometimes.
 		entry, lineTrimmed, err := s.logParser.ParseLogLine(line)
@@ -84,7 +77,16 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 			return fmt.Errorf("parse log line %d `%s`, err: %w", lineNumber, line, err)
 		}
 
-		timeIntoSlot, err := s.getTimeIntoSlot(slot, entry.Timestamp)
+		// If the slot-number wasn't explicitly set, try to figure out what slot this line corresponds to
+		// by parsing this log line matching against known patterns.
+		if targetSlot == phase0.Slot(0) {
+			targetSlot, err = helper.TryParseSlot(line)
+			if err != nil {
+				return fmt.Errorf("parse target slot: %w", err)
+			}
+		}
+
+		timeIntoSlot, err := s.getTimeIntoSlot(targetSlot, entry.Timestamp)
 		if err != nil {
 			return fmt.Errorf("get time into slot for line %d `%s`, err: %w", lineNumber, line, err)
 		}
@@ -93,17 +95,17 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 			// Note, this condition uses maybeRelevantForSlot (and not relevantForSlot) to ensure we don't
 			// miss any potentially relevant errors at the cost of getting occasional false-positives.
 			if containsUnexpectedSyncCommitteeContributionError(lineTrimmed) &&
-				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, targetSlot, timeIntoSlot)) {
 				return true
 			}
 
 			if specialSyncCommitteeContributionDutyLines(lineTrimmed) &&
-				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, targetSlot)) {
 				return true
 			}
 
 			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) &&
-				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, slot)) {
+				(relevantForDutyID(lineTrimmed, dutyID) || relevantForSlot(lineTrimmed, targetSlot)) {
 				return true
 			}
 
@@ -131,7 +133,7 @@ func (s *SyncCommitteeContribution) getTimeIntoSlot(targetSlot phase0.Slot, line
 
 	targetSlotStartTime, err := s.blockchain.SlotStartTime(targetSlot)
 	if err != nil {
-		return 0, fmt.Errorf("get target slot start time: %w", err)
+		return 0, fmt.Errorf("get target slot %d start time: %w", targetSlot, err)
 	}
 
 	return lineTimestamp.Sub(targetSlotStartTime), nil
