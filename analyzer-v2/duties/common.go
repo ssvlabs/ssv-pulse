@@ -125,12 +125,7 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
-	// TODO - this error should no longer show up with the latest changes (merged into stage branch,
-	// but not into main branch yet), so we'll need to remove the skipping of this error eventually.
-	if strings.Contains(line, "validator is not an aggregator") {
-		return false
-	}
-
+	// TODO - what is that ?
 	if strings.Contains(line, "validator registration") {
 		return false
 	}
@@ -143,12 +138,9 @@ func containsUnexpectedError(line string) bool {
 		return false
 	}
 
-	// Until https://github.com/ssvlabs/ssv/pull/2445 is merged, we cannot filter out lines with
-	// `invalid partial sig slot` because they might refer not only to past messages that are irrelevant
-	// but also to future messages.
-	//if strings.Contains(line, "invalid partial sig slot") {
-	//	return false
-	//}
+	if strings.Contains(line, "invalid partial sig slot") {
+		return false
+	}
 
 	if strings.Contains(line, "invalid post-consensus message: no running duty") {
 		return false

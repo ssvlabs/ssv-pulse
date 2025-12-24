@@ -95,23 +95,20 @@ func (s *Aggregator) Analyze(logFilePath string, dutyID string, targetSlot phase
 		}
 
 		lineIsRelevant := func() bool {
-			if containsUnexpectedAggregatorError(line) &&
-				(relevantForDutyID(line, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+			if containsUnexpectedAggregatorError(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
-			// Special lines are relevant only if the target slot has been specified.
-			if specialAggregatorDutyLines(line) && relevantForSlot(lineTrimmed, slot) {
+			if specialAggregatorDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantAggregatorDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) {
+			if relevantAggregatorDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantAggregatorDutyStep(line) && relevantForSlot(lineTrimmed, slot) {
+			if relevantAggregatorDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 

@@ -90,23 +90,20 @@ func (s *SyncCommitteeContribution) Analyze(logFilePath string, dutyID string, t
 		}
 
 		lineIsRelevant := func() bool {
-			if containsUnexpectedSyncCommitteeContributionError(line) &&
-				(relevantForDutyID(line, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+			if containsUnexpectedSyncCommitteeContributionError(lineTrimmed) &&
+				(relevantForDutyID(lineTrimmed, dutyID) || maybeRelevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
 				return true
 			}
 
-			// Special lines are relevant only if the target slot has been specified.
-			if specialSyncCommitteeContributionDutyLines(line) && relevantForSlot(lineTrimmed, slot) {
+			if specialSyncCommitteeContributionDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantSyncCommitteeContributionDutyStep(line) && (dutyID != "" && relevantForDutyID(line, dutyID)) {
+			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantSyncCommitteeContributionDutyStep(line) && relevantForSlot(lineTrimmed, slot) {
+			if relevantSyncCommitteeContributionDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 

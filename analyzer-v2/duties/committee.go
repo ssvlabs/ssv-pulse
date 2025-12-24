@@ -104,7 +104,7 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 			//// in order to filter out the noise (duties for different slots). Once we add slot number to
 			//// committee-duty-id we should replace this condition with the one below (the commented out lines).
 			//if containsUnexpectedCommitteeError(lineTrimmed) && (slot == phase0.Slot(0) && relevantForDutyID(lineTrimmed, dutyID) ||
-			//	slot != phase0.Slot(0) && (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+			//	slot != phase0.Slot(0) && relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
 			//	return true
 			//}
 			if containsUnexpectedCommitteeError(lineTrimmed) &&
@@ -112,25 +112,22 @@ func (s *Committee) Analyze(logFilePath string, dutyID string, targetSlot phase0
 				return true
 			}
 
-			// Special lines are relevant only if the target slot has been specified.
-			if specialCommitteeDutyLines(lineTrimmed) && (relevantForSlot(lineTrimmed, slot)) {
+			if specialCommitteeDutyLines(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
 			//// TODO - committee-duty-id lacks slot number, thus we have to additionally filter by target-slot
 			//// in order to filter out the noise (duties for different slots). Once we add slot number
 			//// to committee-duty-id we should replace this condition with the one below (the commented out lines).
-			//if relevantCommitteeDutyStep(lineTrimmed) && (dutyID != "" && relevantForDutyID(lineTrimmed, dutyID)) &&
-			//   (relevantForSlot(lineTrimmed, slot, timeIntoSlot)) {
+			//if relevantCommitteeDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) &&
+			//   relevantForSlot(lineTrimmed, slot, timeIntoSlot) {
 			//	return true
 			//}
-			if relevantCommitteeDutyStep(lineTrimmed) && (dutyID != "" && relevantForDutyID(lineTrimmed, dutyID)) {
+			if relevantCommitteeDutyStep(lineTrimmed) && relevantForDutyID(lineTrimmed, dutyID) {
 				return true
 			}
 
-			// The line is interesting only if it references a specific duty-step, the rest would be noise.
-			if relevantCommitteeDutyStep(lineTrimmed) && (relevantForSlot(lineTrimmed, slot)) {
+			if relevantCommitteeDutyStep(lineTrimmed) && relevantForSlot(lineTrimmed, slot) {
 				return true
 			}
 
