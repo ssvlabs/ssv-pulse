@@ -32,8 +32,8 @@ func maybeRelevantForSlot(line string, targetSlot phase0.Slot, timeIntoSlot time
 		return true
 	}
 
-	// See if the line is relevant timewise (we are interested in the current slot + the next slot).
-	return timeIntoSlot < 2*12*time.Second
+	// See if the line is relevant timewise (we are interested in the current slot plus small buffer before/after it).
+	return -4*time.Second < timeIntoSlot && timeIntoSlot < 12*time.Second+4*time.Second
 }
 
 func containsUnexpectedAggregatorError(line string) bool {
