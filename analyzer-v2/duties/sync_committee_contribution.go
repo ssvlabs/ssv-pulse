@@ -142,13 +142,13 @@ func (s *SyncCommitteeContribution) getTimeIntoSlot(targetSlot phase0.Slot, line
 // specialSyncCommitteeContributionDutyLines highlights certain duty-relevant log-lines that will be skipped (filtered out) by
 // other rules we have defined.
 func specialSyncCommitteeContributionDutyLines(line string) bool {
-	// This is a special handling of legacy log-line (that contains "got duties").
 	if strings.Contains(line, "got duties") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {
 		return true
 	}
-
-	// This is a special handling of legacy log-line (that contains "ticker event").
 	if strings.Contains(line, "ticker event") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {
+		return true
+	}
+	if helper.ContainsCaseInsensitive(line, "reorg") && strings.Contains(line, "\"handler\":\"SYNC_COMMITTEE\"") {
 		return true
 	}
 

@@ -3,16 +3,16 @@ log-files-directory: /Users/iurii/Downloads/target
 #log-files-directory: /Users/iurii/Downloads/hashkey
 #log-files-directory: /Users/iurii/Downloads/kraken
 
-#blockchain: hoodi
-blockchain: mainnet
+blockchain: hoodi
+#blockchain: mainnet
 
-#log-format: standard
-log-format: external
+log-format: standard
+#log-format: external
 
-#analyze-committee-duty: true
-analyze-committee-duty: false
-analyze-proposer-duty: true
-#analyze-proposer-duty: false
+analyze-committee-duty: true
+#analyze-committee-duty: false
+#analyze-proposer-duty: true
+analyze-proposer-duty: false
 
 #analyze-aggregator-duty: true
 analyze-aggregator-duty: false
@@ -25,7 +25,7 @@ analyze-sync-committee-contribution-duty: false
 #duty-id: COMMITTEE-1_2_417_418-e50846-s1627077
 #
 #target-slot: 13766754
-target-slot: 13763200
+target-slot: 2743105
 
 
 
