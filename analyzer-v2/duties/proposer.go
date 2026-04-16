@@ -22,7 +22,6 @@ var dutyStepsProposer = []string{
 	"signed & broadcasted partial RANDAO signature",
 	"got pre-consensus message",
 	"got pre-consensus quorum",
-	"reconstructed partial RANDAO signatures",
 	"waited out proposer delay",
 	"got beacon block proposal",
 	"starting QBFT instance",
