@@ -18,8 +18,7 @@ import (
 const (
 	attestationMsg = "starting QBFT instance"
 
-	nodesUnhealthyMsg = "ethereum node(s) are either out of sync or down. Ensure the nodes are healthy to resume."
-	nodeUnhealthyMsg  = "node is not healthy"
+	ethereumNodesUnhealthyMsg = "ethereum node(s) are not healthy"
 
 	parserName = "client"
 )
@@ -100,20 +99,9 @@ func (s *Service) Analyze() (Stats, error) {
 			}
 		}
 
-		if strings.Contains(entry.Message, nodesUnhealthyMsg) {
+		if strings.Contains(entry.Message, ethereumNodesUnhealthyMsg) {
 			stats.SSVClientCrashesTotal++
 		}
-
-		if strings.Contains(entry.Message, nodeUnhealthyMsg) {
-			if strings.EqualFold(entry.Node, "consensus client") {
-				stats.SSVClientCLUnhealthy++
-			} else if strings.EqualFold(entry.Node, "execution client") {
-				stats.SSVClientELUnhealthy++
-			} else {
-				slog.With("name", entry.Node).Warn("could not determine node name")
-			}
-		}
-
 	}
 	if err := scanner.Err(); err != nil {
 		logger := slog.

@@ -19,6 +19,10 @@ run-benchmark: build
 run-analyzer: build
 	@cd ${BINARY_DIR} && ./${BINARY_NAME} analyzer
 
+.PHONY: log-analyzer-v2
+log-analyzer-v2:
+	go run analyzer-v2/cmd/cmd.go
+
 ########## DOCKER
 .PHONY: docker-build
 docker-build:
@@ -56,6 +60,18 @@ dep:
 .PHONY: vet
 vet:
 	go vet ./...
+
+.PHONY: format
+format:
+	# `goimports` doesn't support simplify option ("-s"), hence we run `gofmt` separately
+	# just for that - see https://github.com/golang/go/issues/21476 for details.
+	gofmt -s -w $$(find . -name '*.go' -not -path "*mock*")
+	# Formatters such as goimports do not deem necessary to "skip" generated code and
+	# rather want generators to generate code that complies with the desired formats
+	# (see https://github.com/golang/go/issues/71676 for details). In practice however
+	# it's not always possible to fix that on the generator side, so we have to use a
+	# work-around here to filter out generated files on our own.
+	$(RUN_TOOL) goimports -l -w -local github.com/ssvlabs/ssv-pulse/ $$(find . -name '*.go' -not -path "*mock*")
 
 #https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
 .PHONY: lint

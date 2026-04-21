@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	proposalMsg      = "📢 got proposal, broadcasting prepare message"
-	savedInstanceMsg = "💾 saved instance upon decided"
+	proposalMsg = "📢 got proposal, broadcasting prepare message"
 
 	parserName = "operator"
 )

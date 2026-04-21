@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aquasecurity/table"
+
 	"github.com/ssvlabs/ssv-pulse/internal/analyzer/parser"
 	"github.com/ssvlabs/ssv-pulse/internal/platform/array"
 )
