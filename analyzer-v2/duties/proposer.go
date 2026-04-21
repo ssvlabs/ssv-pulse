@@ -39,6 +39,7 @@ var dutyStepsProposer = []string{
 	"got post-consensus message",
 	"got post-consensus quorum",
 	"submitting block proposal",
+	"leader will use",
 	"successfully submitted block proposal",
 	"finished duty processing",
 }
