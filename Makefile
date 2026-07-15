@@ -46,7 +46,7 @@ clean:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -race -cover ./...
 
 .PHONY: test_coverage
 test_coverage:
