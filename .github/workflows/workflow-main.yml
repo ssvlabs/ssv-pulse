@@ -5,8 +5,7 @@ on:
     branches:
       - main
 
-env:  
-  GO_VERSION: 1.24
+env:
   IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
   IMAGE_REGISTRY: ghcr.io
   DOCKERFILE_PATH: build/Dockerfile
@@ -14,60 +13,15 @@ env:
     This Docker image is a CLI tool for evaluating the health and severity of various SSV client related metrics over time.
 
 jobs:
-  go-lint:
-    name: Go Lint
-    runs-on: ubuntu-latest
+  go-checks:
+    uses: ./.github/workflows/go.yml
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: false
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
-        with:
-          version: latest
-
-  go-build:
-    name: Go Build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Build
-        run: make build
-
-  go-test:
-    name: Go Test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Test
-        run: make test
 
   publish-release:
     name: Publish Release
     runs-on: ubuntu-latest
-    needs: ["go-lint", "go-build", "go-test"]
+    needs: go-checks
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
