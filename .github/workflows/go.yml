@@ -2,25 +2,22 @@ name: Go checks
 
 on:
   workflow_call:
-    inputs:
-      go-version:
-        description: Go version to set up
-        required: false
-        type: string
-        default: "1.26"
 
 jobs:
   go-lint:
     name: Go Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
-          go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: |
             go.sum
@@ -32,14 +29,17 @@ jobs:
   go-build:
     name: Go Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
-          go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
           cache: true
 
       - name: Build
@@ -48,15 +48,25 @@ jobs:
   go-test:
     name: Go Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
-          go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
           cache: true
 
       - name: Test
-        run: make test
+        run: make test_coverage
+
+      - name: Coverage summary
+        run: |
+          echo '### Test coverage' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          go tool cover -func=coverage.out | tail -n 1 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
