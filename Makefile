@@ -50,7 +50,7 @@ test:
 
 .PHONY: test_coverage
 test_coverage:
-	go test ./... -coverprofile=coverage.out
+	go test -race ./... -coverprofile=coverage.out
 
 .PHONY: dep
 dep:
