@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	client "github.com/attestantio/go-eth2-client"
@@ -44,6 +45,15 @@ type (
 		genesisTime           time.Time
 		eventBlockRoots       sync.Map
 		attestationBlockRoots sync.Map
+
+		// Running counters backing AggregateResults, updated at the same
+		// points AddDataPoint is called below. Kept separately from
+		// Base[T] because Base no longer retains full history.
+		missedBlocksCount       atomic.Uint64
+		receivedBlocksCount     atomic.Uint64
+		missedAttestationsCount atomic.Uint64
+		freshAttestationsCount  atomic.Uint64
+		unreadyBlocksCount      atomic.Uint64
 	}
 )
 
@@ -136,6 +146,7 @@ func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.S
 	}
 
 	if blockRoot != block {
+		a.unreadyBlocksCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			UnreadyBlockMeasurement: 1,
 		})
@@ -162,26 +173,12 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 }
 
 func (a *AttestationMetric) AggregateResults() string {
-	var (
-		latestCorrectnessMeasurement                                                                    time.Time
-		missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
-	)
-
-	for _, point := range a.DataPoints {
-		missedAttestations += point.Values[MissedAttestationMeasurement]
-		missedBlocks += point.Values[MissedBlockMeasurement]
-		freshAttestations += point.Values[FreshAttestationMeasurement]
-		receivedBlocks += point.Values[ReceivedBlockMeasurement]
-		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
-
-		val, ok := point.Values[CorrectnessMeasurement]
-		if ok {
-			if latestCorrectnessMeasurement.Before(point.Timestamp) {
-				correctness = val
-				latestCorrectnessMeasurement = point.Timestamp
-			}
-		}
-	}
+	missedAttestations := float64(a.missedAttestationsCount.Load())
+	missedBlocks := float64(a.missedBlocksCount.Load())
+	freshAttestations := float64(a.freshAttestationsCount.Load())
+	receivedBlocks := float64(a.receivedBlocksCount.Load())
+	unreadyBlocks := float64(a.unreadyBlocksCount.Load())
+	correctness := a.LastValue(CorrectnessMeasurement)
 
 	return fmt.Sprintf(
 		"missed_attestations=%.0f, unready_blocks_%d_ms=%.0f, missed_blocks=%.0f \n fresh_attestations=%.0f received_blocks=%.0f, correctness=%.2f %%",
@@ -196,8 +193,12 @@ func (a *AttestationMetric) AggregateResults() string {
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	loggerArgs := a.consensusClientLoggerArgs()
 
-	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
+	// LoadAndDelete: each slot's entry is only ever needed for this one
+	// lookup, so consuming it here keeps both maps bounded to in-flight
+	// slots instead of growing for the lifetime of the process.
+	eventBlockRoot, ok := a.eventBlockRoots.LoadAndDelete(slot)
 	if !ok {
+		a.missedBlocksCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			MissedBlockMeasurement: 1,
 		})
@@ -210,6 +211,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 		return
 	}
 
+	a.receivedBlocksCount.Add(1)
 	a.AddDataPoint(map[string]float64{
 		ReceivedBlockMeasurement: 1,
 	})
@@ -222,8 +224,9 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 
 	defer a.calculateCorrectness()
 
-	attestationBlockRoot, ok := a.attestationBlockRoots.Load(slot)
+	attestationBlockRoot, ok := a.attestationBlockRoots.LoadAndDelete(slot)
 	if !ok {
+		a.missedAttestationsCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			MissedAttestationMeasurement: 1,
 		})
@@ -238,6 +241,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	}
 
 	if attestationBlockRoot == eventBlockRoot.(SlotData).RootBlock {
+		a.freshAttestationsCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			FreshAttestationMeasurement: 1,
 		})
@@ -251,12 +255,8 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 }
 
 func (a *AttestationMetric) calculateCorrectness() {
-	var freshAttestations, receivedBlocks float64
-
-	for _, point := range a.DataPoints {
-		freshAttestations += point.Values[FreshAttestationMeasurement]
-		receivedBlocks += point.Values[ReceivedBlockMeasurement]
-	}
+	freshAttestations := float64(a.freshAttestationsCount.Load())
+	receivedBlocks := float64(a.receivedBlocksCount.Load())
 
 	correctness := freshAttestations / receivedBlocks * 100
 

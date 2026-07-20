@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
@@ -21,6 +22,8 @@ type CPUMetric struct {
 	metric.Base[float64]
 	prevUser, prevSystem, total uint64
 	interval                    time.Duration
+	systemHistogram             *metric.Histogram[float64]
+	userHistogram               *metric.Histogram[float64]
 }
 
 func NewCPUMetric(name string, interval time.Duration, healthCondition []metric.HealthCondition[float64]) *CPUMetric {
@@ -29,8 +32,17 @@ func NewCPUMetric(name string, interval time.Duration, healthCondition []metric.
 			Name:             name,
 			HealthConditions: healthCondition,
 		},
-		interval: interval,
+		interval:        interval,
+		systemHistogram: metric.NewHistogram[float64](),
+		userHistogram:   metric.NewHistogram[float64](),
 	}
+}
+
+// roundPercent buckets a percentage to 2-decimal precision (matching this
+// metric's display precision) so the histogram's cardinality stays bounded
+// by the value domain (0-100) instead of growing with every observation.
+func roundPercent(v float64) float64 {
+	return math.Round(v*100) / 100
 }
 
 func (c *CPUMetric) Measure(ctx context.Context) {
@@ -65,6 +77,9 @@ func (c *CPUMetric) measure() {
 }
 
 func (c *CPUMetric) writeMetric(systemPercent, userPercent float64) {
+	c.systemHistogram.Observe(roundPercent(systemPercent))
+	c.userHistogram.Observe(roundPercent(userPercent))
+
 	c.AddDataPoint(map[string]float64{
 		SystemCPUMeasurement: systemPercent,
 		UserCPUMeasurement:   userPercent,
@@ -80,14 +95,7 @@ func (c *CPUMetric) writeMetric(systemPercent, userPercent float64) {
 }
 
 func (c *CPUMetric) AggregateResults() string {
-	var values = make(map[string][]float64)
-
-	for _, point := range c.DataPoints {
-		values[SystemCPUMeasurement] = append(values[SystemCPUMeasurement], point.Values[SystemCPUMeasurement])
-		values[UserCPUMeasurement] = append(values[UserCPUMeasurement], point.Values[UserCPUMeasurement])
-	}
-
 	return fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v",
-		metric.CalculatePercentiles(values[UserCPUMeasurement], 50)[50],
-		metric.CalculatePercentiles(values[SystemCPUMeasurement], 50)[50], c.total)
+		c.userHistogram.Percentiles(50)[50],
+		c.systemHistogram.Percentiles(50)[50], c.total)
 }

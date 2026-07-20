@@ -22,7 +22,7 @@ type LatencyMetric struct {
 	metric.Base[time.Duration]
 	host              string
 	interval, timeout time.Duration
-	durations         []time.Duration
+	durationHistogram *metric.Histogram[time.Duration]
 }
 
 func NewLatencyMetric(host, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
@@ -32,8 +32,9 @@ func NewLatencyMetric(host, name string, interval time.Duration, healthCondition
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
-		timeout:  time.Duration(float64(interval) * 0.75),
+		interval:          interval,
+		timeout:           time.Duration(float64(interval) * 0.75),
+		durationHistogram: metric.NewHistogram[time.Duration](),
 	}
 }
 
@@ -65,13 +66,13 @@ func (l *LatencyMetric) measure() {
 
 	latency = time.Since(start)
 
-	l.durations = append(l.durations, latency)
+	l.durationHistogram.Observe(latency.Round(time.Millisecond))
 
 	l.writeMetric(latency)
 }
 
 func (l *LatencyMetric) writeMetric(latency time.Duration) {
-	percentiles := metric.CalculatePercentiles(l.durations, 0, 10, 50, 90, 100)
+	percentiles := l.durationHistogram.Percentiles(0, 10, 50, 90, 100)
 
 	l.AddDataPoint(map[string]time.Duration{
 		DurationMinMeasurement: percentiles[0],
@@ -93,13 +94,11 @@ func (l *LatencyMetric) writeMetric(latency time.Duration) {
 }
 
 func (l *LatencyMetric) AggregateResults() string {
-	var min, p10, p50, p90, max time.Duration
-
-	min = l.DataPoints[len(l.DataPoints)-1].Values[DurationMinMeasurement]
-	p10 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP10Measurement]
-	p50 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP50Measurement]
-	p90 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP90Measurement]
-	max = l.DataPoints[len(l.DataPoints)-1].Values[DurationMaxMeasurement]
+	min := l.LastValue(DurationMinMeasurement)
+	p10 := l.LastValue(DurationP10Measurement)
+	p50 := l.LastValue(DurationP50Measurement)
+	p90 := l.LastValue(DurationP90Measurement)
+	max := l.LastValue(DurationMaxMeasurement)
 
 	return metric.FormatPercentiles(min, p10, p50, p90, max)
 }

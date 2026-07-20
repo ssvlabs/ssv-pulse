@@ -27,6 +27,7 @@ type PeerMetric struct {
 	url             string
 	interval        time.Duration
 	measuringErrors map[string]error
+	countHistogram  *metric.Histogram[uint32]
 }
 
 func NewPeerMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
@@ -38,6 +39,7 @@ func NewPeerMetric(url, name string, interval time.Duration, healthCondition []m
 		},
 		interval:        interval,
 		measuringErrors: make(map[string]error),
+		countHistogram:  metric.NewHistogram[uint32](),
 	}
 }
 
@@ -168,6 +170,7 @@ func (p *PeerMetric) logErrorResponse(res *http.Response) {
 }
 
 func (p *PeerMetric) writeMetric(value int64) {
+	p.countHistogram.Observe(uint32(value))
 	p.AddDataPoint(map[string]uint32{
 		PeerCountMeasurement: uint32(value),
 	})
@@ -188,12 +191,7 @@ func (p *PeerMetric) AggregateResults() string {
 		return err.Error()
 	}
 
-	var values []uint32
-	for _, point := range p.DataPoints {
-		values = append(values, point.Values[PeerCountMeasurement])
-	}
-
-	percentiles := metric.CalculatePercentiles(values, 0, 10, 50, 90, 100)
+	percentiles := p.countHistogram.Percentiles(0, 10, 50, 90, 100)
 
 	return metric.FormatPercentiles(
 		percentiles[0],
