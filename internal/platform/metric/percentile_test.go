@@ -97,3 +97,33 @@ func TestGivenNoObservationsWhenHistogramPercentilesThenReturnsZeroValues(t *tes
 
 	assert.Equal(t, map[float64]int{10: 0, 50: 0, 90: 0}, result)
 }
+
+func TestGivenFewerObservationsThanCapacityWhenRingBufferPercentilesThenExactOverWhatWasObserved(t *testing.T) {
+	r := NewRingBuffer[int](5)
+	for _, v := range []int{1, 2, 3} {
+		r.Observe(v)
+	}
+
+	result := r.Percentiles(0, 50, 100)
+
+	assert.Equal(t, map[float64]int{0: 1, 50: 2, 100: 3}, result)
+}
+
+func TestGivenMoreObservationsThanCapacityWhenRingBufferPercentilesThenOnlyMostRecentAreKept(t *testing.T) {
+	r := NewRingBuffer[int](3)
+	for _, v := range []int{100, 100, 100, 1, 2, 3} { // first three should be overwritten
+		r.Observe(v)
+	}
+
+	result := r.Percentiles(0, 50, 100)
+
+	assert.Equal(t, map[float64]int{0: 1, 50: 2, 100: 3}, result)
+}
+
+func TestGivenNoObservationsWhenRingBufferPercentilesThenReturnsZeroValues(t *testing.T) {
+	r := NewRingBuffer[int](5)
+
+	result := r.Percentiles(10, 50, 90)
+
+	assert.Equal(t, map[float64]int{10: 0, 50: 0, 90: 0}, result)
+}

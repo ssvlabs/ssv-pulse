@@ -18,11 +18,22 @@ const (
 	DurationMaxMeasurement = "DurationMax"
 )
 
+// recentSampleWindow bounds the ring buffer used for live health
+// evaluation to the most recent ~5 minutes of samples at the default 3s
+// interval — enough to give a meaningful P90, small enough to stay exact
+// and O(1) in memory.
+const recentSampleWindow = 100
+
 type LatencyMetric struct {
 	metric.Base[time.Duration]
 	host              string
 	interval, timeout time.Duration
+	// durationHistogram backs AggregateResults' whole-run report and buckets
+	// samples to millisecond precision to stay memory-bounded; recentWindow
+	// backs live health evaluation with exact, unrounded recent samples so
+	// bucketing can never flip a threshold classification.
 	durationHistogram *metric.Histogram[time.Duration]
+	recentWindow      *metric.RingBuffer[time.Duration]
 }
 
 func NewLatencyMetric(host, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
@@ -35,6 +46,7 @@ func NewLatencyMetric(host, name string, interval time.Duration, healthCondition
 		interval:          interval,
 		timeout:           time.Duration(float64(interval) * 0.75),
 		durationHistogram: metric.NewHistogram[time.Duration](),
+		recentWindow:      metric.NewRingBuffer[time.Duration](recentSampleWindow),
 	}
 }
 
@@ -67,12 +79,16 @@ func (l *LatencyMetric) measure() {
 	latency = time.Since(start)
 
 	l.durationHistogram.Observe(latency.Round(time.Millisecond))
+	l.recentWindow.Observe(latency)
 
 	l.writeMetric(latency)
 }
 
 func (l *LatencyMetric) writeMetric(latency time.Duration) {
-	percentiles := l.durationHistogram.Percentiles(0, 10, 50, 90, 100)
+	// Exact, unrounded percentiles over the recent window — this is what
+	// drives health evaluation below, so bucketing can't shift a value
+	// across the health threshold.
+	percentiles := l.recentWindow.Percentiles(0, 10, 50, 90, 100)
 
 	l.AddDataPoint(map[string]time.Duration{
 		DurationMinMeasurement: percentiles[0],
@@ -94,11 +110,12 @@ func (l *LatencyMetric) writeMetric(latency time.Duration) {
 }
 
 func (l *LatencyMetric) AggregateResults() string {
-	min := l.LastValue(DurationMinMeasurement)
-	p10 := l.LastValue(DurationP10Measurement)
-	p50 := l.LastValue(DurationP50Measurement)
-	p90 := l.LastValue(DurationP90Measurement)
-	max := l.LastValue(DurationMaxMeasurement)
+	percentiles := l.durationHistogram.Percentiles(0, 10, 50, 90, 100)
 
-	return metric.FormatPercentiles(min, p10, p50, p90, max)
+	return metric.FormatPercentiles(
+		percentiles[0],
+		percentiles[10],
+		percentiles[50],
+		percentiles[90],
+		percentiles[100])
 }

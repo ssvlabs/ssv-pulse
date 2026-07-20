@@ -98,7 +98,10 @@ func (m *MemoryMetric) writeMetric(cached, used, free, total uint64) {
 }
 
 func (m *MemoryMetric) AggregateResults() string {
-	return fmt.Sprintf("total_P50=%.2fMB, used_P50=%.2fMB, cached_P50=%.2fMB, free_P50=%.2fMB",
+	// Values are rounded to the nearest whole MB before being histogrammed
+	// (see writeMetric), so the format matches that precision instead of
+	// implying decimal precision that isn't actually there.
+	return fmt.Sprintf("total_P50=%.0fMB, used_P50=%.0fMB, cached_P50=%.0fMB, free_P50=%.0fMB",
 		m.totalHistogram.Percentiles(50)[50],
 		m.usedHistogram.Percentiles(50)[50],
 		m.cachedHistogram.Percentiles(50)[50],

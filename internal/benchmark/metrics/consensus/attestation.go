@@ -54,6 +54,12 @@ type (
 		missedAttestationsCount atomic.Uint64
 		freshAttestationsCount  atomic.Uint64
 		unreadyBlocksCount      atomic.Uint64
+
+		// Highest slot calculateMeasurements has finalized. Used to reject
+		// head events that arrive after their slot was already processed
+		// (and will never be revisited), so they don't leak a permanent
+		// entry into eventBlockRoots.
+		lastProcessedSlot atomic.Uint64
 	}
 )
 
@@ -125,15 +131,44 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 		Handler: func(event *v1.Event) {
 			data := event.Data.(*v1.HeadEvent)
 
-			a.eventBlockRoots.Store(data.Slot, SlotData{
-				Received:  time.Now(),
-				RootBlock: data.Block,
-			})
+			a.recordHeadEvent(data.Slot, data.Block)
 
 			go a.checkUnreadyBlock(ctx, data.Slot, data.Block)
 		},
 	}); err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
+	}
+}
+
+// recordHeadEvent stores the block root observed for a slot's head event,
+// unless calculateMeasurements has already finalized that slot — a late
+// event for an already-processed slot would never be consumed and would
+// otherwise leak a permanent entry into eventBlockRoots.
+func (a *AttestationMetric) recordHeadEvent(slot phase0.Slot, block phase0.Root) {
+	if uint64(slot) <= a.lastProcessedSlot.Load() {
+		return
+	}
+
+	a.eventBlockRoots.Store(slot, SlotData{
+		Received:  time.Now(),
+		RootBlock: block,
+	})
+}
+
+// advanceLastProcessedSlot moves lastProcessedSlot forward to slot, unless
+// it has already advanced past it. Per-slot goroutines can finish out of
+// order (fetchAttestationData has variable network latency), so this uses a
+// compare-and-swap loop rather than an unconditional store to guard against
+// a late, out-of-order call moving the watermark backwards.
+func (a *AttestationMetric) advanceLastProcessedSlot(slot phase0.Slot) {
+	for {
+		current := a.lastProcessedSlot.Load()
+		if uint64(slot) <= current {
+			return
+		}
+		if a.lastProcessedSlot.CompareAndSwap(current, uint64(slot)) {
+			return
+		}
 	}
 }
 
@@ -193,11 +228,21 @@ func (a *AttestationMetric) AggregateResults() string {
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	loggerArgs := a.consensusClientLoggerArgs()
 
+	// Finalize this slot before touching either map: any head event for
+	// this slot or earlier that arrives from here on is too late to matter
+	// and must not be stored (see recordHeadEvent).
+	a.advanceLastProcessedSlot(slot)
+
 	// LoadAndDelete: each slot's entry is only ever needed for this one
 	// lookup, so consuming it here keeps both maps bounded to in-flight
 	// slots instead of growing for the lifetime of the process.
 	eventBlockRoot, ok := a.eventBlockRoots.LoadAndDelete(slot)
 	if !ok {
+		// fetchAttestationData may have already written this slot's
+		// attestation root before we learned the block itself was missed —
+		// discard it so it doesn't leak, since it will never be read now.
+		a.attestationBlockRoots.Delete(slot)
+
 		a.missedBlocksCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			MissedBlockMeasurement: 1,
