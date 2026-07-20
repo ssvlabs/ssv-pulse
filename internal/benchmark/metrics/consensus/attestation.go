@@ -111,10 +111,23 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 }
 
 func (a *AttestationMetric) Measure(ctx context.Context) {
+	genesisSlot := currentSlot(a.genesisTime)
+
+	// finalizedWatermark defaults to zero, but the first slot this process
+	// will ever finalize is genesisSlot+1 (a real network's genesis time is
+	// years in the past, so this is a large number, not 1). Without this,
+	// every real slot would be treated as "ahead" of a watermark stuck at
+	// zero — the compaction loop in markFinalized would never find slot 1
+	// in finalizedAhead to unblock it, and finalizedAhead would grow by one
+	// entry per slot for the life of the process. Set before launchListener
+	// starts, so no head event can be evaluated against the wrong baseline.
+	a.mu.Lock()
+	a.finalizedWatermark = genesisSlot
+	a.mu.Unlock()
+
 	go a.launchListener(ctx)
 
 	go func() {
-		genesisSlot := currentSlot(a.genesisTime)
 		slot := genesisSlot
 		for {
 			slot++

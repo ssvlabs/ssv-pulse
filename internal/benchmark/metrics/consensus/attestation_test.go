@@ -146,6 +146,48 @@ func TestGivenSlotAlreadyFinalizedWhenLateHeadEventArrivesThenStillRejected(t *t
 	assert.False(t, ok)
 }
 
+// TestGivenLargeStartingSlotWhenFinalizingConsecutiveAndOutOfOrderSlotsThenWatermarkCompacts
+// guards against finalizedWatermark's zero-value default silently becoming
+// the effective baseline: a real benchmark's first finalized slot is
+// genesisSlot+1, a mainnet-scale number in the tens of millions, not 1. If
+// the watermark isn't initialized to that starting slot before the event
+// listener starts (see Measure), every real slot lands in finalizedAhead
+// forever, since the compaction loop can never find slot 1 there — the
+// exact same unbounded growth this whole fix exists to prevent, just moved
+// into a new field. Using small slot numbers relative to a zero-value
+// watermark (as the other tests in this file do, for simplicity) would
+// never have caught that, so this test explicitly starts from a
+// realistic, large, nonzero baseline.
+func TestGivenLargeStartingSlotWhenFinalizingConsecutiveAndOutOfOrderSlotsThenWatermarkCompacts(t *testing.T) {
+	a := newTestAttestationMetric()
+
+	const start = phase0.Slot(10_000_000) // mainnet-scale starting slot
+	a.mu.Lock()
+	a.finalizedWatermark = start
+	a.mu.Unlock()
+
+	// start+2 and start+3 finalize before start+1 (out of order).
+	a.calculateMeasurements(start + 3)
+	a.calculateMeasurements(start + 2)
+
+	a.mu.Lock()
+	watermark := a.finalizedWatermark
+	aheadSize := len(a.finalizedAhead)
+	a.mu.Unlock()
+	assert.Equal(t, start, watermark, "watermark must not advance past a gap at start+1")
+	assert.Equal(t, 2, aheadSize, "finalizedAhead must hold exactly the out-of-order slots seen so far, not grow unbounded")
+
+	// The gap closes.
+	a.calculateMeasurements(start + 1)
+
+	a.mu.Lock()
+	watermark = a.finalizedWatermark
+	aheadSize = len(a.finalizedAhead)
+	a.mu.Unlock()
+	assert.Equal(t, start+3, watermark, "watermark must compact through the whole contiguous run once the gap closes")
+	assert.Equal(t, 0, aheadSize, "finalizedAhead must be empty again once compaction catches up")
+}
+
 func TestGivenHigherSlotFinalizesFirstWhenLowerSlotDataArrivesThenAcceptedNotMissed(t *testing.T) {
 	a := newTestAttestationMetric()
 
