@@ -18,10 +18,19 @@ const (
 	DurationMaxMeasurement = "DurationMax"
 )
 
-// recentSampleWindow bounds the ring buffer used for live health
-// evaluation to the most recent ~5 minutes of samples at the default 3s
-// interval — enough to give a meaningful P90, small enough to stay exact
-// and O(1) in memory.
+// recentSampleWindow bounds the ring buffer that feeds health evaluation to
+// the most recent ~5 minutes of samples at the default 3s interval — enough
+// to give a meaningful P90, small enough to stay exact and O(1) in memory.
+//
+// This is a deliberate change from the original behavior, which evaluated
+// health against a cumulative whole-run P90 recomputed at every tick: a
+// short-lived latency spike can now trip the health condition even if the
+// whole-run average would look fine. This is intentional — a rolling recent
+// window is a more standard, more responsive health signal than an
+// ever-diluting lifetime average — but it is a real behavioral change, not
+// just an implementation detail. Health itself is still only ever read
+// once, at shutdown (see Service.Start), not polled live during the run;
+// what changed is what that one shutdown-time judgment is based on.
 const recentSampleWindow = 100
 
 type LatencyMetric struct {
@@ -30,8 +39,9 @@ type LatencyMetric struct {
 	interval, timeout time.Duration
 	// durationHistogram backs AggregateResults' whole-run report and buckets
 	// samples to millisecond precision to stay memory-bounded; recentWindow
-	// backs live health evaluation with exact, unrounded recent samples so
-	// bucketing can never flip a threshold classification.
+	// backs health evaluation with exact, unrounded recent samples so
+	// bucketing can never flip a threshold classification (see
+	// recentSampleWindow for why these two intentionally differ).
 	durationHistogram *metric.Histogram[time.Duration]
 	recentWindow      *metric.RingBuffer[time.Duration]
 }
@@ -85,9 +95,10 @@ func (l *LatencyMetric) measure() {
 }
 
 func (l *LatencyMetric) writeMetric(latency time.Duration) {
-	// Exact, unrounded percentiles over the recent window — this is what
-	// drives health evaluation below, so bucketing can't shift a value
-	// across the health threshold.
+	// Exact, unrounded percentiles over the recent window — this feeds
+	// AddDataPoint below, which incrementally updates the health state that
+	// EvaluateMetric reads once at shutdown, so bucketing can't shift a
+	// value across the health threshold.
 	percentiles := l.recentWindow.Percentiles(0, 10, 50, 90, 100)
 
 	l.AddDataPoint(map[string]time.Duration{
