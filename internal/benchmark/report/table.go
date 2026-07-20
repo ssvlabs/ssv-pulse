@@ -62,7 +62,7 @@ func formatSeverityMap(severityMap map[string]metric.SeverityLevel) string {
 	var builder strings.Builder
 
 	for name, severity := range severityMap {
-		builder.WriteString(fmt.Sprintf("%s: %s, ", name, severity))
+		fmt.Fprintf(&builder, "%s: %s, ", name, severity)
 	}
 
 	// Remove the trailing comma and space, if necessary

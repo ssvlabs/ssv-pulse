@@ -6,6 +6,9 @@ CONFIG_DIR=./configs
 CONFIG_FILE=config.yaml
 PORT=8080
 
+GET_TOOL=env GOWORK=off go get -modfile=tool.mod -tool
+RUN_TOOL=env GOWORK=off go tool -modfile=tool.mod
+
 .PHONY: build
 build:
 	go build -o ${BINARY_DIR}/${BINARY_NAME} ${EXEC_DIR}/main.go
@@ -43,11 +46,11 @@ clean:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -race -cover ./...
 
 .PHONY: test_coverage
 test_coverage:
-	go test ./... -coverprofile=coverage.out
+	go test -race ./... -coverprofile=coverage.out
 
 .PHONY: dep
 dep:
@@ -57,11 +60,17 @@ dep:
 vet:
 	go vet ./...
 
+.PHONY: tools
+# Keep tool.mod tools-only. Do not tidy it from the repo root, because that
+# makes Go resolve application packages through tool.mod and pulls app deps in.
+tools:
+	${GET_TOOL} github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+
 #https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
 .PHONY: lint
 lint:
-	golangci-lint run -v ./...
+	$(RUN_TOOL) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run -v ./...
 
 .PHONY: lint-fix
 lint-fix:
-	golangci-lint run --fix -v ./...
+	$(RUN_TOOL) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix -v ./...
