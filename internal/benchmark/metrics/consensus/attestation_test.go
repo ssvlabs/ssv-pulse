@@ -22,6 +22,7 @@ func newTestAttestationMetric() *AttestationMetric {
 		client:                fakeClientService{address: "fake-addr"},
 		eventBlockRoots:       make(map[phase0.Slot]SlotData),
 		attestationBlockRoots: make(map[phase0.Slot]phase0.Root),
+		finalizedAhead:        make(map[phase0.Slot]struct{}),
 	}
 }
 
@@ -122,20 +123,21 @@ func TestGivenLateHeadEventForAlreadyProcessedSlotWhenRecordHeadEventThenNotStor
 	assert.False(t, ok, "a late head event for an already-processed slot must not be stored")
 }
 
-func TestGivenOutOfOrderCalculateMeasurementsWhenFinalizeSlotThenWatermarkNeverMovesBackwards(t *testing.T) {
+func TestGivenSlotAlreadyFinalizedWhenLateHeadEventArrivesThenStillRejected(t *testing.T) {
 	a := newTestAttestationMetric()
 
 	a.calculateMeasurements(phase0.Slot(100))
 	a.calculateMeasurements(phase0.Slot(60)) // simulates an earlier slot's goroutine finishing late
 
 	a.mu.Lock()
-	watermark := a.lastProcessedSlot
+	isSlot60Finalized := a.isFinalized(phase0.Slot(60))
+	isSlot100Finalized := a.isFinalized(phase0.Slot(100))
 	a.mu.Unlock()
-	assert.Equal(t, phase0.Slot(100), watermark)
+	assert.True(t, isSlot60Finalized)
+	assert.True(t, isSlot100Finalized)
 
-	// A head event for slot 60, arriving after slot 100 was already
-	// finalized, must still be rejected even though it was processed
-	// "out of order" relative to slot 60's own goroutine.
+	// A head event for slot 60, arriving after slot 60 was itself already
+	// finalized, must still be rejected.
 	a.recordHeadEvent(phase0.Slot(60), phase0.Root{0x6})
 
 	a.mu.Lock()
@@ -144,14 +146,51 @@ func TestGivenOutOfOrderCalculateMeasurementsWhenFinalizeSlotThenWatermarkNeverM
 	assert.False(t, ok)
 }
 
-// TestGivenConcurrentHeadEventsAndFinalizationWhenRacingThenNoEntriesLeak
-// exercises the actual race the previous sync.Map + atomic-watermark
-// implementation was vulnerable to: recordHeadEvent and calculateMeasurements
-// firing for the same slot at the same time, with no guaranteed ordering.
-// Run with -race; the assertion afterwards additionally confirms that
-// regardless of which one "won" for a given slot, no map entries are left
-// behind.
-func TestGivenConcurrentHeadEventsAndFinalizationWhenRacingThenNoEntriesLeak(t *testing.T) {
+func TestGivenHigherSlotFinalizesFirstWhenLowerSlotDataArrivesThenAcceptedNotMissed(t *testing.T) {
+	a := newTestAttestationMetric()
+
+	// Give slot 100 its own event/attestation so its own finalization is a
+	// legitimate "received" rather than a "missed" — keeping the assertions
+	// below focused purely on whether slot 99 gets miscounted because of it.
+	slot100Root := phase0.Root{0x64}
+	a.recordHeadEvent(phase0.Slot(100), slot100Root)
+	a.recordAttestationRoot(phase0.Slot(100), slot100Root)
+
+	// Slot 100's own goroutine finishes first (e.g. its fetchAttestationData
+	// call happened to be faster), finalizing slot 100 before slot 99 has
+	// been finalized at all.
+	a.calculateMeasurements(phase0.Slot(100))
+
+	a.mu.Lock()
+	isSlot99FinalizedTooEarly := a.isFinalized(phase0.Slot(99))
+	a.mu.Unlock()
+	assert.False(t, isSlot99FinalizedTooEarly, "slot 99 must not be considered finalized just because a higher slot finalized first")
+
+	// Slot 99's on-time head event and attestation root now arrive. With a
+	// single scalar "highest slot seen" watermark these would have been
+	// incorrectly rejected, since 99 <= 100; they must be accepted here.
+	root := phase0.Root{0x63}
+	a.recordHeadEvent(phase0.Slot(99), root)
+	a.recordAttestationRoot(phase0.Slot(99), root)
+
+	a.calculateMeasurements(phase0.Slot(99))
+
+	assert.Equal(t, uint64(2), a.receivedBlocksCount.Load(), "both slot 99 and slot 100 must be counted as received")
+	assert.Equal(t, uint64(0), a.missedBlocksCount.Load(), "slot 99 must not be counted as missed just because slot 100 finalized first")
+	assert.Equal(t, uint64(2), a.freshAttestationsCount.Load())
+	assert.Equal(t, uint64(0), a.missedAttestationsCount.Load())
+}
+
+// TestGivenConcurrentHeadEventsAndFinalizationWhenRacingThenNoEntriesLeakOrMiscount
+// exercises the actual races the previous implementations were vulnerable
+// to: recordHeadEvent and calculateMeasurements firing for many different
+// slots concurrently, with no guaranteed ordering either within a slot or
+// across slots. Run with -race. Beyond confirming nothing leaks, this also
+// checks that every slot is accounted for exactly once — a slot's data
+// racing with a *different*, out-of-order slot's finalization must never
+// be silently dropped (see TestGivenHigherSlotFinalizesFirstWhenLowerSlotDataArrivesThenAcceptedNotMissed
+// for the deterministic version of that specific scenario).
+func TestGivenConcurrentHeadEventsAndFinalizationWhenRacingThenNoEntriesLeakOrMiscount(t *testing.T) {
 	a := newTestAttestationMetric()
 
 	const slots = 500
@@ -173,6 +212,11 @@ func TestGivenConcurrentHeadEventsAndFinalizationWhenRacingThenNoEntriesLeak(t *
 	a.mu.Lock()
 	remaining := len(a.eventBlockRoots) + len(a.attestationBlockRoots)
 	a.mu.Unlock()
-
 	assert.Equal(t, 0, remaining, "no entries should remain once every slot has been both recorded and finalized")
+
+	// calculateMeasurements runs exactly once per slot, and each run counts
+	// the slot as exactly one of received or missed — regardless of race
+	// outcome, the two counters must sum to the total number of slots, with
+	// no slot double-counted or dropped.
+	assert.Equal(t, uint64(slots), a.receivedBlocksCount.Load()+a.missedBlocksCount.Load())
 }
