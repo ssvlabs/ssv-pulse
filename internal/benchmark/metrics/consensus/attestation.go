@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	client "github.com/attestantio/go-eth2-client"
@@ -19,7 +20,6 @@ import (
 )
 
 const (
-	blockMintingTime             = time.Second * 12
 	unreadyBlockDelay            = time.Millisecond * 200
 	MissedBlockMeasurement       = "MissedBlock"
 	ReceivedBlockMeasurement     = "ReceivedBlock"
@@ -40,10 +40,49 @@ type (
 
 	AttestationMetric struct {
 		metric.Base[float64]
-		client                client.Service
-		genesisTime           time.Time
-		eventBlockRoots       sync.Map
-		attestationBlockRoots sync.Map
+		client      client.Service
+		genesisTime time.Time
+
+		// mu guards eventBlockRoots, attestationBlockRoots, and
+		// finalizedSlot together so a slot's finalization can never
+		// interleave with a concurrent write for that same slot: a writer
+		// checks finalizedSlot and stores under the same lock finalizeSlot
+		// uses to advance it and consume the entry, so there is no window
+		// in which finalization decides a slot was missed and a late write
+		// then leaks an entry for it.
+		//
+		// finalizeSlot is only ever called from the single scheduler
+		// goroutine in Measure, in strictly increasing slot order, so a
+		// plain scalar watermark is sufficient — recordHeadEvent and
+		// recordAttestationRoot still run concurrently (from the event
+		// listener and async fetches respectively), which is why the maps
+		// and the watermark check are mutex-guarded. Measure seeds
+		// finalizedSlot to genesisSlot before starting the listener so that
+		// startup head events for slots the scheduler will never finalize
+		// (<= genesisSlot; finalization begins at genesisSlot+1) are
+		// rejected rather than stored into a map that never gets drained.
+		mu                    sync.Mutex
+		eventBlockRoots       map[phase0.Slot]SlotData
+		attestationBlockRoots map[phase0.Slot]phase0.Root
+		finalizedSlot         phase0.Slot
+
+		// Running counters backing AggregateResults, kept separately from
+		// Base[T] because Base no longer retains full history. Plain
+		// atomics rather than mu: each is an independent always-+1
+		// counter with no invariant linking it to the maps above.
+		//
+		// INVARIANT: the shutdown report is derived from three structures
+		// updated at separate call sites — these counters, Base (last value
+		// / health via AddDataPoint), and Correctness via LastValue. Every
+		// place that records an attestation outcome must update the counter
+		// AND call AddDataPoint together (see calculateMeasurements /
+		// checkUnreadyBlock); updating one without the other silently
+		// desyncs the report from live state and no test would catch it.
+		missedBlocksCount       atomic.Uint64
+		receivedBlocksCount     atomic.Uint64
+		missedAttestationsCount atomic.Uint64
+		freshAttestationsCount  atomic.Uint64
+		unreadyBlocksCount      atomic.Uint64
 	}
 )
 
@@ -66,30 +105,41 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 			Name:             name,
 		},
 		client:                client,
-		eventBlockRoots:       sync.Map{},
-		attestationBlockRoots: sync.Map{},
+		eventBlockRoots:       make(map[phase0.Slot]SlotData),
+		attestationBlockRoots: make(map[phase0.Slot]phase0.Root),
 		genesisTime:           genesisTime,
 	}
 }
 
 func (a *AttestationMetric) Measure(ctx context.Context) {
+	genesisSlot := currentSlot(a.genesisTime)
+
+	// Seed the watermark to genesisSlot before the listener starts: the
+	// scheduler below only finalizes genesisSlot+1 onward, so without this a
+	// startup head event for a slot <= genesisSlot would be stored and never
+	// consumed, leaking that entry for the life of the process. Safe without
+	// the lock — this write happens-before either goroutine is created.
+	a.finalizedSlot = genesisSlot
+
 	go a.launchListener(ctx)
 
 	go func() {
-		genesisSlot := currentSlot(a.genesisTime)
 		slot := genesisSlot
+		const calculationSlotLag = 2
 		for {
 			slot++
 			nextSlotWithDelay := time.After(time.Until(slotTime(a.genesisTime, slot).Add(time.Second * 4)))
 			select {
 			case <-nextSlotWithDelay:
-				go func(slot phase0.Slot) {
-					a.fetchAttestationData(ctx, slot)
-					const calculationSlotLag = 2
-					if slot > genesisSlot+calculationSlotLag {
-						a.calculateMeasurements(slot - calculationSlotLag)
-					}
-				}(slot)
+				// The network fetch runs asynchronously (variable latency),
+				// but calculateMeasurements runs synchronously here so that
+				// finalization happens only in this goroutine, in strictly
+				// increasing slot order — see finalizeSlot. It only touches
+				// in-memory state, so it can't stall the ~12s loop.
+				go a.fetchAttestationData(ctx, slot)
+				if slot > genesisSlot+calculationSlotLag {
+					a.calculateMeasurements(slot - calculationSlotLag)
+				}
 			case <-ctx.Done():
 				slog.With("metric_name", a.Name).Debug("metric was stopped")
 				return
@@ -106,7 +156,7 @@ func (a *AttestationMetric) fetchAttestationData(ctx context.Context, slot phase
 		return
 	}
 
-	a.attestationBlockRoots.Store(slot, blockRoot)
+	a.recordAttestationRoot(slot, blockRoot)
 }
 
 func (a *AttestationMetric) launchListener(ctx context.Context) {
@@ -115,16 +165,70 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 		Handler: func(event *v1.Event) {
 			data := event.Data.(*v1.HeadEvent)
 
-			a.eventBlockRoots.Store(data.Slot, SlotData{
-				Received:  time.Now(),
-				RootBlock: data.Block,
-			})
+			a.recordHeadEvent(data.Slot, data.Block)
 
 			go a.checkUnreadyBlock(ctx, data.Slot, data.Block)
 		},
 	}); err != nil {
 		logger.WriteError(metric.ConsensusGroup, a.Name, err)
 	}
+}
+
+// recordHeadEvent stores the block root observed for a slot's head event,
+// unless that slot has already been finalized — a late event for an
+// already-processed slot would never be consumed and would otherwise leak a
+// permanent entry into eventBlockRoots. Sharing mu with finalizeSlot makes
+// this check-and-store atomic with finalization: there is no window in
+// which finalizeSlot can decide the slot was missed and then have this
+// method write into it afterwards.
+func (a *AttestationMetric) recordHeadEvent(slot phase0.Slot, block phase0.Root) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if slot <= a.finalizedSlot {
+		return
+	}
+
+	a.eventBlockRoots[slot] = SlotData{
+		Received:  time.Now(),
+		RootBlock: block,
+	}
+}
+
+// recordAttestationRoot stores the attestation root fetched for a slot,
+// guarded the same way and for the same reason as recordHeadEvent.
+func (a *AttestationMetric) recordAttestationRoot(slot phase0.Slot, blockRoot phase0.Root) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if slot <= a.finalizedSlot {
+		return
+	}
+
+	a.attestationBlockRoots[slot] = blockRoot
+}
+
+// finalizeSlot advances the watermark to slot and consumes both maps'
+// entries for it in one critical section, so a concurrent recordHeadEvent
+// or recordAttestationRoot can never write a new entry for this slot after
+// finalization has already decided it. finalizeSlot is only called from the
+// scheduler goroutine in strictly increasing slot order, so the watermark
+// advances by one each call and never needs to move backward.
+func (a *AttestationMetric) finalizeSlot(slot phase0.Slot) (event SlotData, hasEvent bool, attestationRoot phase0.Root, hasAttestation bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	event, hasEvent = a.eventBlockRoots[slot]
+	delete(a.eventBlockRoots, slot)
+
+	attestationRoot, hasAttestation = a.attestationBlockRoots[slot]
+	delete(a.attestationBlockRoots, slot)
+
+	if slot > a.finalizedSlot {
+		a.finalizedSlot = slot
+	}
+
+	return event, hasEvent, attestationRoot, hasAttestation
 }
 
 func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.Slot, block phase0.Root) {
@@ -136,6 +240,7 @@ func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.S
 	}
 
 	if blockRoot != block {
+		a.unreadyBlocksCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			UnreadyBlockMeasurement: 1,
 		})
@@ -162,26 +267,12 @@ func (a *AttestationMetric) fetchAttestationBlockRoot(ctx context.Context, slot 
 }
 
 func (a *AttestationMetric) AggregateResults() string {
-	var (
-		latestCorrectnessMeasurement                                                                    time.Time
-		missedAttestations, freshAttestations, missedBlocks, receivedBlocks, unreadyBlocks, correctness float64
-	)
-
-	for _, point := range a.DataPoints {
-		missedAttestations += point.Values[MissedAttestationMeasurement]
-		missedBlocks += point.Values[MissedBlockMeasurement]
-		freshAttestations += point.Values[FreshAttestationMeasurement]
-		receivedBlocks += point.Values[ReceivedBlockMeasurement]
-		unreadyBlocks += point.Values[UnreadyBlockMeasurement]
-
-		val, ok := point.Values[CorrectnessMeasurement]
-		if ok {
-			if latestCorrectnessMeasurement.Before(point.Timestamp) {
-				correctness = val
-				latestCorrectnessMeasurement = point.Timestamp
-			}
-		}
-	}
+	missedAttestations := float64(a.missedAttestationsCount.Load())
+	missedBlocks := float64(a.missedBlocksCount.Load())
+	freshAttestations := float64(a.freshAttestationsCount.Load())
+	receivedBlocks := float64(a.receivedBlocksCount.Load())
+	unreadyBlocks := float64(a.unreadyBlocksCount.Load())
+	correctness := a.LastValue(CorrectnessMeasurement)
 
 	return fmt.Sprintf(
 		"missed_attestations=%.0f, unready_blocks_%d_ms=%.0f, missed_blocks=%.0f \n fresh_attestations=%.0f received_blocks=%.0f, correctness=%.2f %%",
@@ -196,8 +287,13 @@ func (a *AttestationMetric) AggregateResults() string {
 func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 	loggerArgs := a.consensusClientLoggerArgs()
 
-	eventBlockRoot, ok := a.eventBlockRoots.Load(slot)
-	if !ok {
+	// finalizeSlot consumes both maps' entries for this slot atomically
+	// with advancing the watermark, so neither map can gain a new entry for
+	// this slot afterwards (see recordHeadEvent/recordAttestationRoot).
+	eventBlockRoot, hasEvent, attestationBlockRoot, hasAttestation := a.finalizeSlot(slot)
+
+	if !hasEvent {
+		a.missedBlocksCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			MissedBlockMeasurement: 1,
 		})
@@ -210,6 +306,7 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 		return
 	}
 
+	a.receivedBlocksCount.Add(1)
 	a.AddDataPoint(map[string]float64{
 		ReceivedBlockMeasurement: 1,
 	})
@@ -222,8 +319,8 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 
 	defer a.calculateCorrectness()
 
-	attestationBlockRoot, ok := a.attestationBlockRoots.Load(slot)
-	if !ok {
+	if !hasAttestation {
+		a.missedAttestationsCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			MissedAttestationMeasurement: 1,
 		})
@@ -237,7 +334,8 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 		return
 	}
 
-	if attestationBlockRoot == eventBlockRoot.(SlotData).RootBlock {
+	if attestationBlockRoot == eventBlockRoot.RootBlock {
+		a.freshAttestationsCount.Add(1)
 		a.AddDataPoint(map[string]float64{
 			FreshAttestationMeasurement: 1,
 		})
@@ -251,12 +349,8 @@ func (a *AttestationMetric) calculateMeasurements(slot phase0.Slot) {
 }
 
 func (a *AttestationMetric) calculateCorrectness() {
-	var freshAttestations, receivedBlocks float64
-
-	for _, point := range a.DataPoints {
-		freshAttestations += point.Values[FreshAttestationMeasurement]
-		receivedBlocks += point.Values[ReceivedBlockMeasurement]
-	}
+	freshAttestations := float64(a.freshAttestationsCount.Load())
+	receivedBlocks := float64(a.receivedBlocksCount.Load())
 
 	correctness := freshAttestations / receivedBlocks * 100
 

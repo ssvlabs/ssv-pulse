@@ -77,8 +77,5 @@ func (c *ClientMetric) Measure(ctx context.Context) {
 }
 
 func (c *ClientMetric) AggregateResults() string {
-	if len(c.DataPoints) != 0 {
-		return c.DataPoints[0].Values[VersionMeasurement]
-	}
-	return ""
+	return c.LastValue(VersionMeasurement)
 }

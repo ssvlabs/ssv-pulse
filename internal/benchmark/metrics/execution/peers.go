@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ssvlabs/ssv-pulse/internal/platform/logger"
@@ -24,9 +25,17 @@ var errUnableMeasure = errors.New("UNABLE_TO_MEASURE")
 
 type PeerMetric struct {
 	metric.Base[uint32]
-	url             string
-	interval        time.Duration
-	measuringErrors map[string]error
+	url      string
+	interval time.Duration
+	// measuringErrorsMu guards measuringErrors: it is written from the
+	// measure goroutine and read from AggregateResults at shutdown, which
+	// service.go invokes without waiting for the measure goroutine to stop.
+	// Without this lock those two would be a concurrent map write+read
+	// (fatal error), the same shutdown-race class this metric's Base,
+	// Histogram and counters are already synchronized against.
+	measuringErrorsMu sync.Mutex
+	measuringErrors   map[string]error
+	countHistogram    *metric.Histogram[uint32]
 }
 
 func NewPeerMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
@@ -38,6 +47,7 @@ func NewPeerMetric(url, name string, interval time.Duration, healthCondition []m
 		},
 		interval:        interval,
 		measuringErrors: make(map[string]error),
+		countHistogram:  metric.NewHistogram[uint32](),
 	}
 }
 
@@ -115,7 +125,9 @@ func (p *PeerMetric) measure(ctx context.Context) {
 		p.writeMetric(0)
 		err := errors.New("peer count RPC response was empty. Most likely net_peerCount RPC method is not supported")
 		logger.WriteError(metric.ExecutionGroup, p.Name, err)
+		p.measuringErrorsMu.Lock()
 		p.measuringErrors[PeerCountMeasurement] = errors.Join(errUnableMeasure, err)
+		p.measuringErrorsMu.Unlock()
 		return
 	}
 
@@ -168,6 +180,7 @@ func (p *PeerMetric) logErrorResponse(res *http.Response) {
 }
 
 func (p *PeerMetric) writeMetric(value int64) {
+	p.countHistogram.Observe(uint32(value))
 	p.AddDataPoint(map[string]uint32{
 		PeerCountMeasurement: uint32(value),
 	})
@@ -178,22 +191,26 @@ func (p *PeerMetric) writeMetric(value int64) {
 }
 
 func (p *PeerMetric) AggregateResults() string {
-	for measurementName, err := range p.measuringErrors {
+	p.measuringErrorsMu.Lock()
+	var measurementName string
+	var measuringErr error
+	for name, err := range p.measuringErrors {
+		measurementName, measuringErr = name, err
+		break
+	}
+	p.measuringErrorsMu.Unlock()
+
+	if measuringErr != nil {
 		slog.
 			With("metric_name", p.Name).
 			With("measurement_name", measurementName).
-			With("err", err).
+			With("err", measuringErr).
 			Warn("error measuring metric")
 
-		return err.Error()
+		return measuringErr.Error()
 	}
 
-	var values []uint32
-	for _, point := range p.DataPoints {
-		values = append(values, point.Values[PeerCountMeasurement])
-	}
-
-	percentiles := metric.CalculatePercentiles(values, 0, 10, 50, 90, 100)
+	percentiles := p.countHistogram.Percentiles(0, 10, 50, 90, 100)
 
 	return metric.FormatPercentiles(
 		percentiles[0],

@@ -46,3 +46,54 @@ func TestGivenRangeOfPercentilesWhenCalculatePercentilesThenCalculatesCorrectly(
 		})
 	}
 }
+
+func TestGivenObservationsWhenHistogramPercentilesThenMatchesCalculatePercentiles(t *testing.T) {
+	tests := []struct {
+		name        string
+		values      []int
+		percentiles []float64
+	}{
+		{
+			name:        "Distinct values",
+			values:      []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			percentiles: []float64{0, 10, 50, 90, 100},
+		},
+		{
+			name:        "Repeated values",
+			values:      []int{5, 5, 5, 1, 1, 9, 9, 9, 9, 3},
+			percentiles: []float64{0, 10, 50, 90, 100},
+		},
+		{
+			name:        "Single value repeated",
+			values:      []int{7, 7, 7, 7},
+			percentiles: []float64{0, 50, 100},
+		},
+		{
+			name:        "No percentiles requested",
+			values:      []int{1, 2, 3},
+			percentiles: []float64{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHistogram[int]()
+			for _, v := range tt.values {
+				h.Observe(v)
+			}
+
+			expected := CalculatePercentiles(append([]int{}, tt.values...), tt.percentiles...)
+			actual := h.Percentiles(tt.percentiles...)
+
+			assert.Equal(t, expected, actual)
+		})
+	}
+}
+
+func TestGivenNoObservationsWhenHistogramPercentilesThenReturnsZeroValues(t *testing.T) {
+	h := NewHistogram[int]()
+
+	result := h.Percentiles(10, 50, 90)
+
+	assert.Equal(t, map[float64]int{10: 0, 50: 0, 90: 0}, result)
+}

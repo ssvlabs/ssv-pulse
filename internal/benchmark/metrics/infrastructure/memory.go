@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/mackerelio/go-osstat/memory"
@@ -21,7 +22,11 @@ const (
 
 type MemoryMetric struct {
 	metric.Base[uint64]
-	interval time.Duration
+	interval        time.Duration
+	totalHistogram  *metric.Histogram[float64]
+	usedHistogram   *metric.Histogram[float64]
+	cachedHistogram *metric.Histogram[float64]
+	freeHistogram   *metric.Histogram[float64]
 }
 
 func NewMemoryMetric(name string, interval time.Duration, healthCondition []metric.HealthCondition[uint64]) *MemoryMetric {
@@ -30,7 +35,11 @@ func NewMemoryMetric(name string, interval time.Duration, healthCondition []metr
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
+		interval:        interval,
+		totalHistogram:  metric.NewHistogram[float64](),
+		usedHistogram:   metric.NewHistogram[float64](),
+		cachedHistogram: metric.NewHistogram[float64](),
+		freeHistogram:   metric.NewHistogram[float64](),
 	}
 }
 
@@ -60,6 +69,14 @@ func (m *MemoryMetric) measure() {
 }
 
 func (m *MemoryMetric) writeMetric(cached, used, free, total uint64) {
+	// Round to the nearest whole MB before observing so the histogram's
+	// cardinality stays bounded by system RAM size instead of growing with
+	// every byte-level fluctuation between polls.
+	m.totalHistogram.Observe(math.Round(toMegabytes(total)))
+	m.usedHistogram.Observe(math.Round(toMegabytes(used)))
+	m.cachedHistogram.Observe(math.Round(toMegabytes(cached)))
+	m.freeHistogram.Observe(math.Round(toMegabytes(free)))
+
 	m.AddDataPoint(map[string]uint64{
 		CachedMemoryMeasurement: cached,
 		UsedMemoryMeasurement:   used,
@@ -81,20 +98,14 @@ func (m *MemoryMetric) writeMetric(cached, used, free, total uint64) {
 }
 
 func (m *MemoryMetric) AggregateResults() string {
-	var values = make(map[string][]float64)
-
-	for _, point := range m.DataPoints {
-		values[TotalMemoryMeasurement] = append(values[TotalMemoryMeasurement], toMegabytes(point.Values[TotalMemoryMeasurement]))
-		values[FreeMemoryMeasurement] = append(values[FreeMemoryMeasurement], toMegabytes(point.Values[FreeMemoryMeasurement]))
-		values[UsedMemoryMeasurement] = append(values[UsedMemoryMeasurement], toMegabytes(point.Values[UsedMemoryMeasurement]))
-		values[CachedMemoryMeasurement] = append(values[CachedMemoryMeasurement], toMegabytes(point.Values[CachedMemoryMeasurement]))
-	}
-
-	return fmt.Sprintf("total_P50=%.2fMB, used_P50=%.2fMB, cached_P50=%.2fMB, free_P50=%.2fMB",
-		metric.CalculatePercentiles(values[TotalMemoryMeasurement], 50)[50],
-		metric.CalculatePercentiles(values[UsedMemoryMeasurement], 50)[50],
-		metric.CalculatePercentiles(values[CachedMemoryMeasurement], 50)[50],
-		metric.CalculatePercentiles(values[FreeMemoryMeasurement], 50)[50])
+	// Values are rounded to the nearest whole MB before being histogrammed
+	// (see writeMetric), so the format matches that precision instead of
+	// implying decimal precision that isn't actually there.
+	return fmt.Sprintf("total_P50=%.0fMB, used_P50=%.0fMB, cached_P50=%.0fMB, free_P50=%.0fMB",
+		m.totalHistogram.Percentiles(50)[50],
+		m.usedHistogram.Percentiles(50)[50],
+		m.cachedHistogram.Percentiles(50)[50],
+		m.freeHistogram.Percentiles(50)[50])
 }
 
 func toMegabytes(bytes uint64) float64 {

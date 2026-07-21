@@ -21,8 +21,9 @@ const (
 
 type PeerMetric struct {
 	metric.Base[uint32]
-	url      string
-	interval time.Duration
+	url            string
+	interval       time.Duration
+	countHistogram *metric.Histogram[uint32]
 }
 
 func NewPeerMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *PeerMetric {
@@ -32,7 +33,8 @@ func NewPeerMetric(url, name string, interval time.Duration, healthCondition []m
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
+		interval:       interval,
+		countHistogram: metric.NewHistogram[uint32](),
 	}
 }
 
@@ -68,6 +70,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		p.countHistogram.Observe(0)
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
@@ -77,6 +80,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
+		p.countHistogram.Observe(0)
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
@@ -85,6 +89,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		p.countHistogram.Observe(0)
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
@@ -94,6 +99,7 @@ func (p *PeerMetric) measure(ctx context.Context) {
 
 	peerNr, err := strconv.Atoi(resp.Data.Connected)
 	if err != nil {
+		p.countHistogram.Observe(0)
 		p.AddDataPoint(map[string]uint32{
 			PeerCountMeasurement: 0,
 		})
@@ -143,6 +149,7 @@ func (p *PeerMetric) logErrorResponse(res *http.Response) {
 }
 
 func (p *PeerMetric) writeMetric(peerNr int) {
+	p.countHistogram.Observe(uint32(peerNr))
 	p.AddDataPoint(map[string]uint32{
 		PeerCountMeasurement: uint32(peerNr),
 	})
@@ -153,12 +160,7 @@ func (p *PeerMetric) writeMetric(peerNr int) {
 }
 
 func (p *PeerMetric) AggregateResults() string {
-	var values []uint32
-	for _, point := range p.DataPoints {
-		values = append(values, point.Values[PeerCountMeasurement])
-	}
-
-	percentiles := metric.CalculatePercentiles(values, 0, 10, 50, 90, 100)
+	percentiles := p.countHistogram.Percentiles(0, 10, 50, 90, 100)
 
 	return metric.FormatPercentiles(
 		percentiles[0],
