@@ -66,11 +66,18 @@ type (
 		attestationBlockRoots map[phase0.Slot]phase0.Root
 		finalizedSlot         phase0.Slot
 
-		// Running counters backing AggregateResults, updated at the same
-		// points AddDataPoint is called below. Kept separately from
+		// Running counters backing AggregateResults, kept separately from
 		// Base[T] because Base no longer retains full history. Plain
 		// atomics rather than mu: each is an independent always-+1
 		// counter with no invariant linking it to the maps above.
+		//
+		// INVARIANT: the shutdown report is derived from three structures
+		// updated at separate call sites — these counters, Base (last value
+		// / health via AddDataPoint), and Correctness via LastValue. Every
+		// place that records an attestation outcome must update the counter
+		// AND call AddDataPoint together (see calculateMeasurements /
+		// checkUnreadyBlock); updating one without the other silently
+		// desyncs the report from live state and no test would catch it.
 		missedBlocksCount       atomic.Uint64
 		receivedBlocksCount     atomic.Uint64
 		missedAttestationsCount atomic.Uint64

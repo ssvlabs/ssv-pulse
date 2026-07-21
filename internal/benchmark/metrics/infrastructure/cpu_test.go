@@ -10,8 +10,10 @@ import (
 func TestGivenSubPercentPrecisionSamplesWhenAggregateResultsThenRoundsToTwoDecimals(t *testing.T) {
 	c := NewCPUMetric("CPU", time.Second, nil)
 
-	// system 12.345 -> 12.35 (round half away from zero), user 67.891 -> 67.89.
-	c.writeMetric(12.345, 67.891)
+	// Inputs chosen away from X.XX5 half-way ties (whose float64
+	// representation is not exact), so the rounding direction is
+	// unambiguous: system 12.348 -> 12.35, user 67.892 -> 67.89.
+	c.writeMetric(12.348, 67.892)
 
 	result := c.AggregateResults()
 

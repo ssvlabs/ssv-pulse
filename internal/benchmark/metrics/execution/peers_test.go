@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,4 +59,53 @@ func TestGivenUnreachableHostWhenMeasureThenRecordsZeroWithoutError(t *testing.T
 	// A failed request records a 0 sample rather than an unable-to-measure
 	// error, so the histogram (not the error branch) backs the report.
 	assert.Equal(t, "min=0, p10=0, p50=0, p90=0, max=0", result)
+}
+
+// TestGivenConcurrentMeasureAndAggregateThenNoDataRace reproduces the
+// shutdown race: service.go reads AggregateResults while measure goroutines
+// may still be running, and the empty-net_peerCount path writes
+// measuringErrors. Without the mutex this is a concurrent map write+read
+// (fatal error under the race detector). The empty-result server forces the
+// write path on every measure.
+func TestGivenConcurrentMeasureAndAggregateThenNoDataRace(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":""}`))
+	}))
+	defer server.Close()
+
+	p := newTestPeerMetric(server.URL)
+
+	// The writer is HTTP-bound (slow); the reader must hammer the map for the
+	// entire time the writer runs, or their accesses never overlap and the
+	// race goes undetected. So the reader loops until the writer signals done
+	// rather than running a fixed, quickly-exhausted count.
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(stop)
+		for range 300 {
+			p.measure(context.Background())
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = p.AggregateResults()
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	assert.Contains(t, p.AggregateResults(), errUnableMeasure.Error())
 }
