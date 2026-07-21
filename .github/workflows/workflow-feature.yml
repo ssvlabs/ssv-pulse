@@ -46,5 +46,4 @@ jobs:
     with:
       with-push: true
       tag-latest: false
-      image-tag: ${{ inputs.tag != '' && inputs.tag || github.sha }}
-      image-architectures: linux/amd64
+      image-tag: ${{ inputs.tag != '' && inputs.tag || format('dev-{0}', github.sha) }}
