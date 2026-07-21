@@ -44,32 +44,27 @@ type (
 		client      client.Service
 		genesisTime time.Time
 
-		// mu guards eventBlockRoots, attestationBlockRoots, and the
-		// finalization state below together so a slot's finalization can
-		// never interleave with a concurrent write for that same slot. An
-		// earlier version synchronized the maps (sync.Map) and a single
-		// scalar watermark (atomic.Uint64) independently, which left a
-		// check-then-act window: a writer could read the watermark before
-		// finalization advanced it, then write after finalization had
-		// already decided the slot was missed, leaking permanently.
+		// mu guards eventBlockRoots, attestationBlockRoots, and
+		// finalizedSlot together so a slot's finalization can never
+		// interleave with a concurrent write for that same slot: a writer
+		// checks finalizedSlot and stores under the same lock finalizeSlot
+		// uses to advance it and consume the entry, so there is no window
+		// in which finalization decides a slot was missed and a late write
+		// then leaks an entry for it.
 		//
-		// finalizedWatermark/finalizedAhead track exactly which slots have
-		// been finalized rather than just "the highest slot seen so far".
-		// Per-slot goroutines can finalize out of order (fetchAttestationData
-		// has variable network latency): a single scalar watermark would
-		// then reject valid, still-pending data for a *lower*, not-yet-
-		// finalized slot just because a *higher* slot happened to finish
-		// first — turning a genuinely on-time event into a false "missed
-		// block". finalizedWatermark is the highest slot with no gaps below
-		// it; finalizedAhead holds slots finalized ahead of that contiguous
-		// frontier, and is compacted into the watermark as soon as the gap
-		// closes, so it only grows with actual observed out-of-order skew,
-		// never with total runtime.
+		// finalizeSlot is only ever called from the single scheduler
+		// goroutine in Measure, in strictly increasing slot order, so a
+		// plain scalar watermark is sufficient — recordHeadEvent and
+		// recordAttestationRoot still run concurrently (from the event
+		// listener and async fetches respectively), which is why the maps
+		// and the watermark check are mutex-guarded. finalizedSlot's
+		// zero-value default is fine: the maps only ever hold slots the
+		// scheduler is actively processing, and each finalizeSlot consumes
+		// its slot, so nothing accumulates regardless of the starting slot.
 		mu                    sync.Mutex
 		eventBlockRoots       map[phase0.Slot]SlotData
 		attestationBlockRoots map[phase0.Slot]phase0.Root
-		finalizedWatermark    phase0.Slot
-		finalizedAhead        map[phase0.Slot]struct{}
+		finalizedSlot         phase0.Slot
 
 		// Running counters backing AggregateResults, updated at the same
 		// points AddDataPoint is called below. Kept separately from
@@ -105,42 +100,31 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 		client:                client,
 		eventBlockRoots:       make(map[phase0.Slot]SlotData),
 		attestationBlockRoots: make(map[phase0.Slot]phase0.Root),
-		finalizedAhead:        make(map[phase0.Slot]struct{}),
 		genesisTime:           genesisTime,
 	}
 }
 
 func (a *AttestationMetric) Measure(ctx context.Context) {
-	genesisSlot := currentSlot(a.genesisTime)
-
-	// finalizedWatermark defaults to zero, but the first slot this process
-	// will ever finalize is genesisSlot+1 (a real network's genesis time is
-	// years in the past, so this is a large number, not 1). Without this,
-	// every real slot would be treated as "ahead" of a watermark stuck at
-	// zero — the compaction loop in markFinalized would never find slot 1
-	// in finalizedAhead to unblock it, and finalizedAhead would grow by one
-	// entry per slot for the life of the process. Set before launchListener
-	// starts, so no head event can be evaluated against the wrong baseline.
-	a.mu.Lock()
-	a.finalizedWatermark = genesisSlot
-	a.mu.Unlock()
-
 	go a.launchListener(ctx)
 
 	go func() {
+		genesisSlot := currentSlot(a.genesisTime)
 		slot := genesisSlot
+		const calculationSlotLag = 2
 		for {
 			slot++
 			nextSlotWithDelay := time.After(time.Until(slotTime(a.genesisTime, slot).Add(time.Second * 4)))
 			select {
 			case <-nextSlotWithDelay:
-				go func(slot phase0.Slot) {
-					a.fetchAttestationData(ctx, slot)
-					const calculationSlotLag = 2
-					if slot > genesisSlot+calculationSlotLag {
-						a.calculateMeasurements(slot - calculationSlotLag)
-					}
-				}(slot)
+				// The network fetch runs asynchronously (variable latency),
+				// but calculateMeasurements runs synchronously here so that
+				// finalization happens only in this goroutine, in strictly
+				// increasing slot order — see finalizeSlot. It only touches
+				// in-memory state, so it can't stall the ~12s loop.
+				go a.fetchAttestationData(ctx, slot)
+				if slot > genesisSlot+calculationSlotLag {
+					a.calculateMeasurements(slot - calculationSlotLag)
+				}
 			case <-ctx.Done():
 				slog.With("metric_name", a.Name).Debug("metric was stopped")
 				return
@@ -176,19 +160,17 @@ func (a *AttestationMetric) launchListener(ctx context.Context) {
 }
 
 // recordHeadEvent stores the block root observed for a slot's head event,
-// unless that exact slot has already been finalized — a late event for an
+// unless that slot has already been finalized — a late event for an
 // already-processed slot would never be consumed and would otherwise leak a
 // permanent entry into eventBlockRoots. Sharing mu with finalizeSlot makes
 // this check-and-store atomic with finalization: there is no window in
 // which finalizeSlot can decide the slot was missed and then have this
-// method write into it afterwards. Checking isFinalized(slot) rather than a
-// single scalar watermark means a higher slot finalizing first can never
-// cause this slot's legitimate, still-pending data to be rejected.
+// method write into it afterwards.
 func (a *AttestationMetric) recordHeadEvent(slot phase0.Slot, block phase0.Root) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.isFinalized(slot) {
+	if slot <= a.finalizedSlot {
 		return
 	}
 
@@ -204,17 +186,19 @@ func (a *AttestationMetric) recordAttestationRoot(slot phase0.Slot, blockRoot ph
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.isFinalized(slot) {
+	if slot <= a.finalizedSlot {
 		return
 	}
 
 	a.attestationBlockRoots[slot] = blockRoot
 }
 
-// finalizeSlot marks slot as finalized and consumes both maps' entries for
-// it in one critical section, so a concurrent recordHeadEvent or
-// recordAttestationRoot can never write a new entry for this slot after
-// finalization has already decided it.
+// finalizeSlot advances the watermark to slot and consumes both maps'
+// entries for it in one critical section, so a concurrent recordHeadEvent
+// or recordAttestationRoot can never write a new entry for this slot after
+// finalization has already decided it. finalizeSlot is only called from the
+// scheduler goroutine in strictly increasing slot order, so the watermark
+// advances by one each call and never needs to move backward.
 func (a *AttestationMetric) finalizeSlot(slot phase0.Slot) (event SlotData, hasEvent bool, attestationRoot phase0.Root, hasAttestation bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -225,48 +209,11 @@ func (a *AttestationMetric) finalizeSlot(slot phase0.Slot) (event SlotData, hasE
 	attestationRoot, hasAttestation = a.attestationBlockRoots[slot]
 	delete(a.attestationBlockRoots, slot)
 
-	a.markFinalized(slot)
+	if slot > a.finalizedSlot {
+		a.finalizedSlot = slot
+	}
 
 	return event, hasEvent, attestationRoot, hasAttestation
-}
-
-// markFinalized records slot as finalized, then compacts finalizedWatermark
-// forward through any slots in finalizedAhead that are now contiguous with
-// it. Per-slot goroutines can finalize out of order (fetchAttestationData
-// has variable network latency), so a slot arriving before the watermark
-// has caught up to it goes into finalizedAhead instead of advancing the
-// watermark directly — keeping that set bounded by the actual out-of-order
-// skew observed, not by total runtime, since entries are removed as soon as
-// the gap below them closes.
-func (a *AttestationMetric) markFinalized(slot phase0.Slot) {
-	if slot <= a.finalizedWatermark {
-		return
-	}
-
-	if slot == a.finalizedWatermark+1 {
-		a.finalizedWatermark = slot
-	} else {
-		a.finalizedAhead[slot] = struct{}{}
-	}
-
-	for {
-		next := a.finalizedWatermark + 1
-		if _, ok := a.finalizedAhead[next]; !ok {
-			break
-		}
-		delete(a.finalizedAhead, next)
-		a.finalizedWatermark = next
-	}
-}
-
-// isFinalized reports whether slot has already been finalized. Callers
-// must hold mu.
-func (a *AttestationMetric) isFinalized(slot phase0.Slot) bool {
-	if slot <= a.finalizedWatermark {
-		return true
-	}
-	_, ok := a.finalizedAhead[slot]
-	return ok
 }
 
 func (a *AttestationMetric) checkUnreadyBlock(ctx context.Context, slot phase0.Slot, block phase0.Root) {
