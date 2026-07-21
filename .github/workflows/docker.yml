@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: linux/amd64,linux/arm64
+      tag-latest:
+        description: "also tag the image as ':latest'. Defaults to 'true'."
+        required: false
+        type: boolean
+        default: true
 
 env:  
   IMAGE_REGISTRY: ghcr.io
@@ -60,8 +65,9 @@ jobs:
           file: ${{ env.DOCKERFILE_PATH }}
           push: ${{ inputs.with-push }}
           platforms: ${{ inputs.image-architectures }}
+          # Second line is empty when tag-latest is false; blank tag lines are ignored.
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:${{ env.IMAGE_TAG }}
-            ${{ env.IMAGE_REGISTRY }}/${{ github.repository }}:latest
+            ${{ inputs.tag-latest && format('{0}/{1}:latest', env.IMAGE_REGISTRY, github.repository) || '' }}
           outputs: |
             type=image,name=target,annotation-index.org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
