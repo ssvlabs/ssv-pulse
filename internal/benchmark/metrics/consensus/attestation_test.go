@@ -107,6 +107,33 @@ func TestGivenOnTimeHeadEventWhenRecordHeadEventThenStored(t *testing.T) {
 	assert.Equal(t, phase0.Root{0x4}, stored.RootBlock)
 }
 
+func TestGivenSlotAtOrBelowSeededWatermarkWhenRecordHeadEventThenNotStored(t *testing.T) {
+	a := newTestAttestationMetric()
+
+	// Measure seeds finalizedSlot to genesisSlot before the listener starts,
+	// because the scheduler only ever finalizes genesisSlot+1 onward. A
+	// startup head event for genesisSlot (or earlier) must be rejected, or it
+	// would be stored into a map that is never drained.
+	const genesisSlot = phase0.Slot(10_000_000)
+	a.finalizedSlot = genesisSlot
+
+	a.recordHeadEvent(genesisSlot, phase0.Root{0x1})   // == watermark
+	a.recordHeadEvent(genesisSlot-1, phase0.Root{0x2}) // below watermark
+	a.recordHeadEvent(genesisSlot+1, phase0.Root{0x3}) // first slot the scheduler will finalize
+
+	a.mu.Lock()
+	_, atWatermark := a.eventBlockRoots[genesisSlot]
+	_, belowWatermark := a.eventBlockRoots[genesisSlot-1]
+	_, aboveWatermark := a.eventBlockRoots[genesisSlot+1]
+	stored := len(a.eventBlockRoots)
+	a.mu.Unlock()
+
+	assert.False(t, atWatermark, "an event for the seeded slot must be rejected")
+	assert.False(t, belowWatermark, "an event below the seeded slot must be rejected")
+	assert.True(t, aboveWatermark, "an event for the first schedulable slot must be stored")
+	assert.Equal(t, 1, stored, "only the schedulable slot's event should remain")
+}
+
 func TestGivenLateHeadEventForAlreadyFinalizedSlotThenNotStored(t *testing.T) {
 	a := newTestAttestationMetric()
 

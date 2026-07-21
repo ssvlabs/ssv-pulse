@@ -57,10 +57,11 @@ type (
 		// plain scalar watermark is sufficient — recordHeadEvent and
 		// recordAttestationRoot still run concurrently (from the event
 		// listener and async fetches respectively), which is why the maps
-		// and the watermark check are mutex-guarded. finalizedSlot's
-		// zero-value default is fine: the maps only ever hold slots the
-		// scheduler is actively processing, and each finalizeSlot consumes
-		// its slot, so nothing accumulates regardless of the starting slot.
+		// and the watermark check are mutex-guarded. Measure seeds
+		// finalizedSlot to genesisSlot before starting the listener so that
+		// startup head events for slots the scheduler will never finalize
+		// (<= genesisSlot; finalization begins at genesisSlot+1) are
+		// rejected rather than stored into a map that never gets drained.
 		mu                    sync.Mutex
 		eventBlockRoots       map[phase0.Slot]SlotData
 		attestationBlockRoots map[phase0.Slot]phase0.Root
@@ -105,10 +106,18 @@ func NewAttestationMetric(addr, name string, genesisTime time.Time, healthCondit
 }
 
 func (a *AttestationMetric) Measure(ctx context.Context) {
+	genesisSlot := currentSlot(a.genesisTime)
+
+	// Seed the watermark to genesisSlot before the listener starts: the
+	// scheduler below only finalizes genesisSlot+1 onward, so without this a
+	// startup head event for a slot <= genesisSlot would be stored and never
+	// consumed, leaking that entry for the life of the process. Safe without
+	// the lock — this write happens-before either goroutine is created.
+	a.finalizedSlot = genesisSlot
+
 	go a.launchListener(ctx)
 
 	go func() {
-		genesisSlot := currentSlot(a.genesisTime)
 		slot := genesisSlot
 		const calculationSlotLag = 2
 		for {
