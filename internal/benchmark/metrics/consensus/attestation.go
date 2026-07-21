@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	blockMintingTime             = time.Second * 12
 	unreadyBlockDelay            = time.Millisecond * 200
 	MissedBlockMeasurement       = "MissedBlock"
 	ReceivedBlockMeasurement     = "ReceivedBlock"
