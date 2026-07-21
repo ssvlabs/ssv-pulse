@@ -4,10 +4,17 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Dev image tag to push. Defaults to the commit SHA."
+        required: false
+        type: string
+        default: ""
 
-# Rapid successive pushes to a PR cancel the outdated in-flight run.
+# A newer run for the same branch cancels the outdated in-flight one.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name }}-${{ github.event.pull_request.head.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -17,6 +24,7 @@ jobs:
       contents: read
 
   docker-build:
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/docker.yml
     needs: go-checks
     permissions:
@@ -25,4 +33,18 @@ jobs:
       contents: read
     with:
       with-push: false
+      image-architectures: linux/amd64
+
+  docker-build-push:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/docker.yml
+    needs: go-checks
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+    with:
+      with-push: true
+      tag-latest: false
+      image-tag: ${{ inputs.tag != '' && inputs.tag || github.sha }}
       image-architectures: linux/amd64
