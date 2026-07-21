@@ -30,23 +30,29 @@ jobs:
     needs: go-checks
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: '0'
 
       - name: Bump version and push tag
         id: tag_version
-        # mathieudutour/github-tag-action has had no release since v6.2 (Mar 2024) and still
-        # targets Node 20; there is no Node 24-compatible version to pin to upstream.
-        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        uses: anothrNick/github-tag-action@4ed44965e0db8dab2b466a16da04aec3cc312fd8 # 1.75.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch
+          TAG_PREFIX: v
+          RELEASE_BRANCHES: main
+          DEFAULT_BRANCH: main
 
       - name: Create a GitHub release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          generateReleaseNotes: true
 
   docker-build-push:
     uses: ./.github/workflows/docker.yml
