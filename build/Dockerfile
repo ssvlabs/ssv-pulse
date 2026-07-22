@@ -15,7 +15,7 @@ FROM busybox AS busybox
 RUN addgroup -S pulsegroup && adduser -S -G pulsegroup pulseuser
 
 ###############################################
-FROM debian:stable-slim@sha256:50db38a20a279ccf50761943c36f9e82378f92ef512293e1239b26bb77a8b496 AS certs
+FROM debian:stable-slim@sha256:328d16499860ae6cb9b345e2e4cebca08c2a36e4f7278482c7bd1f39d71e5bfd AS certs
 RUN apt-get update && apt-get install -y ca-certificates
 
 ###############################################
