@@ -19,6 +19,8 @@ github.com/aquasecurity/table v1.8.0 h1:9ntpSwrUfjrM6/YviArlx/ZBGd6ix8W+MtojQcM7
 github.com/aquasecurity/table v1.8.0/go.mod h1:eqOmvjjB7AhXFgFqpJUEE/ietg7RrMSJZXyTN8E/wZw=
 github.com/aquasecurity/table v1.10.0 h1:gPWV28qp9XSlvXdT3ku8yKQoZE6II0vsmegKpW+dB08=
 github.com/aquasecurity/table v1.10.0/go.mod h1:eqOmvjjB7AhXFgFqpJUEE/ietg7RrMSJZXyTN8E/wZw=
+github.com/aquasecurity/table v1.11.0 h1:SzgCAv7dZcv/gyAyzxorS6OgEk7w/WU5iT2pStIkpl4=
+github.com/aquasecurity/table v1.11.0/go.mod h1:eqOmvjjB7AhXFgFqpJUEE/ietg7RrMSJZXyTN8E/wZw=
 github.com/attestantio/go-eth2-client v0.24.2 h1:fMYpPtoA8ZavCpbO0VJLA7Op9z/BSJR7xJSBECtGC8g=
 github.com/attestantio/go-eth2-client v0.24.2/go.mod h1:fvULSL9WtNskkOB4i+Yyr6BKpNHXvmpGZj9969fCrfY=
 github.com/attestantio/go-eth2-client v0.26.0 h1:oDWKvIUJfvr1EBi/w9L6mawYZHOCymjHkml7fZplT20=
