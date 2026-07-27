@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,4 +97,25 @@ func TestGivenNoObservationsWhenHistogramPercentilesThenReturnsZeroValues(t *tes
 	result := h.Percentiles(10, 50, 90)
 
 	assert.Equal(t, map[float64]int{10: 0, 50: 0, 90: 0}, result)
+}
+
+func TestGivenNonFiniteObservationsWhenHistogramThenTheyAreDropped(t *testing.T) {
+	h := NewHistogram[float64]()
+
+	for range 5 {
+		h.Observe(math.NaN()) // each would otherwise be a permanent, unreachable key
+	}
+	h.Observe(math.Inf(1))
+	h.Observe(math.Inf(-1))
+
+	h.mu.Lock()
+	keys := len(h.counts)
+	h.mu.Unlock()
+	assert.Equal(t, 0, keys, "non-finite values must not be stored")
+
+	// Finite observations still work, and percentiles are not stalled by a
+	// non-finite key sitting in the map.
+	h.Observe(10)
+	h.Observe(20)
+	assert.Equal(t, map[float64]float64{0: 10, 100: 20}, h.Percentiles(0, 100))
 }

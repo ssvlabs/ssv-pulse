@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
@@ -20,10 +21,14 @@ const (
 
 type CPUMetric struct {
 	metric.Base[float64]
-	prevUser, prevSystem, total uint64
-	interval                    time.Duration
-	systemHistogram             *metric.Histogram[float64]
-	userHistogram               *metric.Histogram[float64]
+	// prevUser/prevSystem are only ever touched by the measure goroutine.
+	// total is also read by AggregateResults, which runs at shutdown without
+	// waiting for that goroutine to stop, so it must be synchronized.
+	prevUser, prevSystem uint64
+	total                atomic.Uint64
+	interval             time.Duration
+	systemHistogram      *metric.Histogram[float64]
+	userHistogram        *metric.Histogram[float64]
 }
 
 func NewCPUMetric(name string, interval time.Duration, healthCondition []metric.HealthCondition[float64]) *CPUMetric {
@@ -66,12 +71,13 @@ func (c *CPUMetric) measure() {
 		logger.WriteError(metric.InfrastructureGroup, c.Name, err)
 		return
 	}
-	systemPercent := float64(cpu.System-c.prevSystem) / float64(cpu.Total-c.total) * 100
-	userPercent := float64(cpu.User-c.prevUser) / float64(cpu.Total-c.total) * 100
+	totalDelta := cpu.Total - c.total.Load()
+	systemPercent := float64(cpu.System-c.prevSystem) / float64(totalDelta) * 100
+	userPercent := float64(cpu.User-c.prevUser) / float64(totalDelta) * 100
 
 	c.prevUser = cpu.User
 	c.prevSystem = cpu.System
-	c.total = cpu.Total
+	c.total.Store(cpu.Total)
 
 	c.writeMetric(systemPercent, userPercent)
 }
@@ -97,5 +103,5 @@ func (c *CPUMetric) writeMetric(systemPercent, userPercent float64) {
 func (c *CPUMetric) AggregateResults() string {
 	return fmt.Sprintf("user_P50=%.2f%%, system_P50=%.2f%%, total=%v",
 		c.userHistogram.Percentiles(50)[50],
-		c.systemHistogram.Percentiles(50)[50], c.total)
+		c.systemHistogram.Percentiles(50)[50], c.total.Load())
 }

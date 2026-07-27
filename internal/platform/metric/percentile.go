@@ -2,6 +2,7 @@ package metric
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"sync"
 )
@@ -56,11 +57,33 @@ func NewHistogram[T Metricable]() *Histogram[T] {
 	return &Histogram[T]{counts: make(map[T]uint64)}
 }
 
+// Observe records one occurrence of value. Non-finite floats are dropped:
+// NaN is never equal to itself, so each one would add a permanently
+// unreachable map entry (unbounded growth) and stall the Percentiles scan,
+// which would then silently return the zero value; ±Inf would skew every
+// percentile. Neither is a meaningful measurement.
 func (h *Histogram[T]) Observe(value T) {
+	if !isFinite(value) {
+		return
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	h.counts[value]++
+}
+
+// isFinite reports whether value is usable as a histogram key. Only the
+// float kinds can be non-finite; integers and strings always are.
+func isFinite[T Metricable](value T) bool {
+	switch v := any(value).(type) {
+	case float64:
+		return !math.IsNaN(v) && !math.IsInf(v, 0)
+	case float32:
+		return !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0)
+	default:
+		return true
+	}
 }
 
 // Percentiles returns, for each requested percentile, the value that would

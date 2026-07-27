@@ -70,39 +70,27 @@ func (p *PeerMetric) measure(ctx context.Context) {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		p.countHistogram.Observe(0)
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ConsensusGroup, p.Name, err)
 		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		p.countHistogram.Observe(0)
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		p.logErrorResponse(res)
 		return
 	}
 
 	if err = json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		p.countHistogram.Observe(0)
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ConsensusGroup, p.Name, err)
 		return
 	}
 
 	peerNr, err := strconv.Atoi(resp.Data.Connected)
 	if err != nil {
-		p.countHistogram.Observe(0)
-		p.AddDataPoint(map[string]uint32{
-			PeerCountMeasurement: 0,
-		})
+		p.writeMetric(0)
 		logger.WriteError(metric.ConsensusGroup, p.Name, err)
 		return
 	}

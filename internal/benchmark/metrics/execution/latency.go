@@ -18,19 +18,24 @@ const (
 	DurationMaxMeasurement = "DurationMax"
 )
 
+// truncateGranularity buckets samples before they enter the histogram, keeping
+// its distinct-value count bounded by the value domain instead of by runtime
+// (~22.5k keys at most, given the dial timeout). It is fine-grained enough that
+// sub-millisecond dials — typical for local or port-forwarded nodes — still
+// report real values rather than flooring to zero.
+//
+// Every P90 health threshold must be a whole multiple of this: truncation
+// rounds toward zero, so that guarantees truncate(v) >= threshold exactly when
+// v >= threshold, preserving the health classification (unlike rounding, which
+// could push e.g. 999.6ms up to 1s).
+const truncateGranularity = 100 * time.Microsecond
+
 type LatencyMetric struct {
 	metric.Base[time.Duration]
 	host              string
 	interval, timeout time.Duration
-	// durationHistogram accumulates all samples for the whole run and backs
-	// both the shutdown report and health evaluation. Samples are truncated
-	// (toward zero) to millisecond precision before being observed, which
-	// keeps the distinct-value count bounded by the value domain rather than
-	// by runtime. Truncation is safe for health evaluation because the P90
-	// threshold is a whole number of milliseconds (time.Second): truncating
-	// can never move a sub-threshold value up across the threshold the way
-	// rounding could (e.g. 999.6ms rounding to 1s), so the <1s vs >=1s
-	// classification is preserved exactly.
+	// Accumulates all samples for the whole run, backing both the shutdown
+	// report and health evaluation. See truncateGranularity.
 	durationHistogram *metric.Histogram[time.Duration]
 }
 
@@ -75,7 +80,7 @@ func (l *LatencyMetric) measure() {
 
 	latency = time.Since(start)
 
-	l.durationHistogram.Observe(latency.Truncate(time.Millisecond))
+	l.durationHistogram.Observe(latency.Truncate(truncateGranularity))
 
 	l.writeMetric(latency)
 }
