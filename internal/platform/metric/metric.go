@@ -1,7 +1,8 @@
 package metric
 
 import (
-	"time"
+	"maps"
+	"sync"
 
 	"golang.org/x/exp/constraints"
 )
@@ -13,13 +14,12 @@ type (
 
 	Base[T Metricable] struct {
 		Name             string
-		DataPoints       []DataPoint[T]
 		HealthConditions []HealthCondition[T]
-	}
 
-	DataPoint[T Metricable] struct {
-		Timestamp time.Time
-		Values    map[string]T
+		mu            sync.Mutex
+		lastValues    map[string]T
+		overallHealth HealthStatus
+		maxSeverities map[string]SeverityLevel
 	}
 )
 
@@ -27,37 +27,60 @@ func (bm *Base[T]) GetName() string {
 	return bm.Name
 }
 
+// AddDataPoint records the latest values for the given measurements and
+// incrementally updates health evaluation state. It intentionally does not
+// retain historical values: callers that need whole-run aggregates (e.g.
+// percentiles) must track that themselves (see Histogram).
 func (bm *Base[T]) AddDataPoint(values map[string]T) {
-	bm.DataPoints = append(bm.DataPoints, DataPoint[T]{
-		Timestamp: time.Now(),
-		Values:    values,
-	})
-}
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
 
-func (bm *Base[T]) EvaluateMetric() (HealthStatus, map[string]SeverityLevel) {
-	overallHealth := Healthy
-	maxSeverities := make(map[string]SeverityLevel)
-
-	for _, dp := range bm.DataPoints {
-		for name := range dp.Values {
-			maxSeverities[name] = SeverityNone
-		}
+	if bm.lastValues == nil {
+		bm.lastValues = make(map[string]T)
+	}
+	if bm.maxSeverities == nil {
+		bm.maxSeverities = make(map[string]SeverityLevel)
+		bm.overallHealth = Healthy
 	}
 
-	for _, dp := range bm.DataPoints {
-		for name, value := range dp.Values {
-			for _, condition := range bm.HealthConditions {
-				if condition.Name == name {
-					if condition.Evaluate((value)) {
-						overallHealth = Unhealthy
-						if CompareSeverities(condition.Severity, maxSeverities[name]) > 0 {
-							maxSeverities[name] = condition.Severity
-						}
-					}
+	for name, value := range values {
+		bm.lastValues[name] = value
+
+		if _, ok := bm.maxSeverities[name]; !ok {
+			bm.maxSeverities[name] = SeverityNone
+		}
+
+		for _, condition := range bm.HealthConditions {
+			if condition.Name == name && condition.Evaluate(value) {
+				bm.overallHealth = Unhealthy
+				if CompareSeverities(condition.Severity, bm.maxSeverities[name]) > 0 {
+					bm.maxSeverities[name] = condition.Severity
 				}
 			}
 		}
 	}
+}
+
+// LastValue returns the most recently recorded value for the given
+// measurement name.
+func (bm *Base[T]) LastValue(name string) T {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	return bm.lastValues[name]
+}
+
+func (bm *Base[T]) EvaluateMetric() (HealthStatus, map[string]SeverityLevel) {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	overallHealth := bm.overallHealth
+	if overallHealth == "" {
+		overallHealth = Healthy
+	}
+
+	maxSeverities := make(map[string]SeverityLevel, len(bm.maxSeverities))
+	maps.Copy(maxSeverities, bm.maxSeverities)
 
 	return overallHealth, maxSeverities
 }

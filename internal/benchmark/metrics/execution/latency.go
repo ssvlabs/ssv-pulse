@@ -18,11 +18,25 @@ const (
 	DurationMaxMeasurement = "DurationMax"
 )
 
+// truncateGranularity buckets samples before they enter the histogram, keeping
+// its distinct-value count bounded by the value domain instead of by runtime
+// (~22.5k keys at most, given the dial timeout). It is fine-grained enough that
+// sub-millisecond dials — typical for local or port-forwarded nodes — still
+// report real values rather than flooring to zero.
+//
+// Every P90 health threshold must be a whole multiple of this: truncation
+// rounds toward zero, so that guarantees truncate(v) >= threshold exactly when
+// v >= threshold, preserving the health classification (unlike rounding, which
+// could push e.g. 999.6ms up to 1s).
+const truncateGranularity = 100 * time.Microsecond
+
 type LatencyMetric struct {
 	metric.Base[time.Duration]
 	host              string
 	interval, timeout time.Duration
-	durations         []time.Duration
+	// Accumulates all samples for the whole run, backing both the shutdown
+	// report and health evaluation. See truncateGranularity.
+	durationHistogram *metric.Histogram[time.Duration]
 }
 
 func NewLatencyMetric(host, name string, interval time.Duration, healthCondition []metric.HealthCondition[time.Duration]) *LatencyMetric {
@@ -32,8 +46,9 @@ func NewLatencyMetric(host, name string, interval time.Duration, healthCondition
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
-		timeout:  time.Duration(float64(interval) * 0.75),
+		interval:          interval,
+		timeout:           time.Duration(float64(interval) * 0.75),
+		durationHistogram: metric.NewHistogram[time.Duration](),
 	}
 }
 
@@ -65,13 +80,13 @@ func (l *LatencyMetric) measure() {
 
 	latency = time.Since(start)
 
-	l.durations = append(l.durations, latency)
+	l.durationHistogram.Observe(latency.Truncate(truncateGranularity))
 
 	l.writeMetric(latency)
 }
 
 func (l *LatencyMetric) writeMetric(latency time.Duration) {
-	percentiles := metric.CalculatePercentiles(l.durations, 0, 10, 50, 90, 100)
+	percentiles := l.durationHistogram.Percentiles(0, 10, 50, 90, 100)
 
 	l.AddDataPoint(map[string]time.Duration{
 		DurationMinMeasurement: percentiles[0],
@@ -93,13 +108,12 @@ func (l *LatencyMetric) writeMetric(latency time.Duration) {
 }
 
 func (l *LatencyMetric) AggregateResults() string {
-	var min, p10, p50, p90, max time.Duration
+	percentiles := l.durationHistogram.Percentiles(0, 10, 50, 90, 100)
 
-	min = l.DataPoints[len(l.DataPoints)-1].Values[DurationMinMeasurement]
-	p10 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP10Measurement]
-	p50 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP50Measurement]
-	p90 = l.DataPoints[len(l.DataPoints)-1].Values[DurationP90Measurement]
-	max = l.DataPoints[len(l.DataPoints)-1].Values[DurationMaxMeasurement]
-
-	return metric.FormatPercentiles(min, p10, p50, p90, max)
+	return metric.FormatPercentiles(
+		percentiles[0],
+		percentiles[10],
+		percentiles[50],
+		percentiles[90],
+		percentiles[100])
 }

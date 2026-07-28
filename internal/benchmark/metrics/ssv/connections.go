@@ -22,8 +22,10 @@ const (
 
 type ConnectionsMetric struct {
 	metric.Base[uint32]
-	url      string
-	interval time.Duration
+	url               string
+	interval          time.Duration
+	inboundHistogram  *metric.Histogram[uint32]
+	outboundHistogram *metric.Histogram[uint32]
 }
 
 func NewConnectionsMetric(url, name string, interval time.Duration, healthCondition []metric.HealthCondition[uint32]) *ConnectionsMetric {
@@ -33,7 +35,9 @@ func NewConnectionsMetric(url, name string, interval time.Duration, healthCondit
 			HealthConditions: healthCondition,
 			Name:             name,
 		},
-		interval: interval,
+		interval:          interval,
+		inboundHistogram:  metric.NewHistogram[uint32](),
+		outboundHistogram: metric.NewHistogram[uint32](),
 	}
 }
 
@@ -103,6 +107,9 @@ func (c *ConnectionsMetric) measure(ctx context.Context) {
 }
 
 func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
+	c.inboundHistogram.Observe(inbound)
+	c.outboundHistogram.Observe(outbound)
+
 	c.AddDataPoint(map[string]uint32{
 		InboundConnectionsMeasurement:  inbound,
 		OutboundConnectionsMeasurement: outbound,
@@ -117,15 +124,8 @@ func (c *ConnectionsMetric) writeMetric(inbound, outbound uint32) {
 }
 
 func (p *ConnectionsMetric) AggregateResults() string {
-	var measurements = make(map[string][]uint32)
-
-	for _, point := range p.DataPoints {
-		measurements[InboundConnectionsMeasurement] = append(measurements[InboundConnectionsMeasurement], point.Values[InboundConnectionsMeasurement])
-		measurements[OutboundConnectionsMeasurement] = append(measurements[OutboundConnectionsMeasurement], point.Values[OutboundConnectionsMeasurement])
-	}
-
-	inboundPercentiles := metric.CalculatePercentiles(measurements[InboundConnectionsMeasurement], 0, 50)
-	outboundPercentiles := metric.CalculatePercentiles(measurements[OutboundConnectionsMeasurement], 0, 50)
+	inboundPercentiles := p.inboundHistogram.Percentiles(0, 50)
+	outboundPercentiles := p.outboundHistogram.Percentiles(0, 50)
 
 	return fmt.Sprintf("inbound_min=%d, inbound_P50=%d, outbound_min=%d, outbound_P50=%d",
 		inboundPercentiles[0],

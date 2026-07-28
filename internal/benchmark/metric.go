@@ -40,6 +40,10 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 					url.Host,
 					"Latency",
 					time.Second*3,
+					// NOTE: LatencyMetric truncates samples before evaluating
+					// this threshold, so it must stay a whole multiple of
+					// consensus.truncateGranularity — otherwise the boundary
+					// is no longer lossless and health is misclassified.
 					[]metric.HealthCondition[time.Duration]{
 						{Name: consensus.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
 					}))
@@ -102,6 +106,8 @@ func LoadEnabledMetrics(config configs.Config) (map[metric.Group][]metricService
 					url.Host,
 					"Latency",
 					time.Second*3,
+					// NOTE: see the consensus latency threshold above — must
+					// stay a whole multiple of execution.truncateGranularity.
 					[]metric.HealthCondition[time.Duration]{
 						{Name: execution.DurationP90Measurement, Threshold: time.Second, Operator: metric.OperatorGreaterThanOrEqual, Severity: metric.SeverityHigh},
 					}))
