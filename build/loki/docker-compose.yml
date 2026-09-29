@@ -37,7 +37,7 @@ services:
           editable: false
         EOF
         /run.sh
-    image: grafana/grafana:latest@sha256:b5b59bfc7561634c2d7b136c4543d702ebcc94a3da477f21ff26f89ffd4214fa
+    image: grafana/grafana:latest@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572
     ports:
       - "3000:3000"
     networks:
