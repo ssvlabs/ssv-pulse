@@ -12,7 +12,7 @@ services:
       - ssv-pulse
 
   grafana:
-    image: grafana/grafana@sha256:b5b59bfc7561634c2d7b136c4543d702ebcc94a3da477f21ff26f89ffd4214fa
+    image: grafana/grafana@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101
     container_name: grafana
     ports:
       - "3000:3000"
